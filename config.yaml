@@ -1,0 +1,13 @@
+seed: 42
+paths:
+  raw: data/raw
+  processed: data/processed
+  metrics: results/metrics
+  figures: results/figures
+split:            # stratifié, appliqué AVANT tout prétraitement dépendant des données
+  train: 0.70
+  val: 0.15
+  test: 0.15
+sample_frac: 1.0  # mettre 0.1 pour travailler sur un échantillon rapide
+min_class_count: 1000   # classes plus rares regroupées dans "Other_Attack"
+benign_label: BENIGN
