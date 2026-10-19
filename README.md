@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # DL_SOC
 Great beginning
 =======
@@ -26,4 +25,3 @@ python src/models_classic.py       # RF + XGBoost -> results/metrics/*.json
 
 ## Équipe
 1 Données | 2 Modèles classiques | 3 Deep learning | 4 Évaluation + SHAP | 5 Rapport + slides
->>>>>>> 5d8364c (root of the project)
