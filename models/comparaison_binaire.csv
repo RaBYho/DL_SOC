@@ -1,0 +1,3 @@
+Modèle,Précision,Rappel,F1,ROC-AUC,Faux positifs,Attaques manquées,Inférence (s)
+DNN,0.9724,0.9977,0.9849,0.99988,1808,150,0.51
+Random Forest,0.9968,0.9948,0.9958,0.99977,206,333,3.64
