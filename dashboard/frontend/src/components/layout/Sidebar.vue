@@ -121,27 +121,6 @@
       </router-link>
     </div>
 
-    <!-- Mobile Language Switcher in Drawer -->
-    <div class="mobile-lang-row">
-      <span style="font-size: 12px; color: var(--mu);">{{ store.t('header.lang') }} :</span>
-      <div class="lang-pill-group">
-        <button 
-          class="lang-choice-btn" 
-          :class="{ active: store.lang === 'FR' }" 
-          @click="store.setLanguage('FR')"
-        >
-          🇫🇷 FR
-        </button>
-        <button 
-          class="lang-choice-btn" 
-          :class="{ active: store.lang === 'EN' }" 
-          @click="store.setLanguage('EN')"
-        >
-          🇬🇧 EN
-        </button>
-      </div>
-    </div>
-
     <!-- Sensor Fleet Status Footer -->
     <div class="sf-card">
       <div class="sf-status">
@@ -339,44 +318,6 @@ const store = useSocStore()
   color: var(--cr);
   border: 1px solid rgba(255, 77, 126, 0.35);
   font-variant-numeric: tabular-nums;
-}
-
-.mobile-lang-row {
-  display: none;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 14px;
-  padding: 10px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-@media (max-width: 900px) {
-  .mobile-lang-row {
-    display: flex;
-  }
-}
-
-.lang-pill-group {
-  display: flex;
-  background: var(--panel2);
-  border-radius: 8px;
-  padding: 2px;
-  border: 1px solid var(--line);
-}
-
-.lang-choice-btn {
-  background: transparent;
-  border: 0;
-  color: var(--mu);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 6px;
-}
-
-.lang-choice-btn.active {
-  background: var(--ac);
-  color: #fff;
 }
 
 .sf-card {

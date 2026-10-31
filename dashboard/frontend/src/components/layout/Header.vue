@@ -18,7 +18,8 @@
       <!-- App Title Group -->
       <div class="header-main-title">
         <h1>
-          {{ store.appName }} &bull; {{ store.t('header.title') }}
+          <span class="hdvr-badge">{{ store.appName }}</span>
+          <span class="header-text">{{ store.t('header.title') }}</span>
           <small>{{ store.t('header.subtitle') }}</small>
         </h1>
       </div>
@@ -42,26 +43,6 @@
             }"
           ></i>
         </div>
-      </div>
-
-      <!-- Language Switcher Button (Desktop & Mobile) -->
-      <div class="lang-switcher">
-        <button 
-          class="lang-btn" 
-          :class="{ active: store.lang === 'FR' }" 
-          @click="store.setLanguage('FR')"
-          title="Passer en Français"
-        >
-          FR
-        </button>
-        <button 
-          class="lang-btn" 
-          :class="{ active: store.lang === 'EN' }" 
-          @click="store.setLanguage('EN')"
-          title="Switch to English"
-        >
-          EN
-        </button>
       </div>
     </div>
 
@@ -276,31 +257,18 @@ function changeRange(range) {
   margin-top: 2px;
 }
 
-.lang-switcher {
-  display: flex;
-  background: var(--panel2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  padding: 2px;
-  flex: none;
-}
-
-.lang-btn {
-  background: transparent;
-  border: 0;
-  color: var(--mu);
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 4px 8px;
+.hdvr-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  margin-right: 8px;
   border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.lang-btn.active {
-  background: var(--ac);
+  background: linear-gradient(135deg, rgba(88, 101, 242, 0.28), rgba(155, 92, 246, 0.28));
+  border: 1px solid rgba(88, 101, 242, 0.45);
   color: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  vertical-align: middle;
 }
 
 .stat-pill {

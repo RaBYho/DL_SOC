@@ -5,9 +5,9 @@ import { translations } from '@/i18n/translations'
 
 export const useSocStore = defineStore('soc', {
   state: () => ({
-    // Internationalization & Custom Brand
+    // Internationalization & Branding
     lang: localStorage.getItem('soc_lang') || 'FR',
-    appName: localStorage.getItem('soc_app_name') || 'DL_SOC',
+    appName: 'HDVR',
     appSubName: 'Autonomous Defense',
 
     // Mobile Responsive State
@@ -120,18 +120,6 @@ export const useSocStore = defineStore('soc', {
       if (newLang === 'FR' || newLang === 'EN') {
         this.lang = newLang
         localStorage.setItem('soc_lang', newLang)
-      }
-    },
-
-    toggleLanguage() {
-      const next = this.lang === 'FR' ? 'EN' : 'FR'
-      this.setLanguage(next)
-    },
-
-    setAppName(newName) {
-      if (newName && newName.trim()) {
-        this.appName = newName.trim()
-        localStorage.setItem('soc_app_name', this.appName)
       }
     },
 

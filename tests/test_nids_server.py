@@ -123,7 +123,7 @@ def test_spa_dashboard_serving(client):
     # Test index.html à la racine
     resp = client.get("/")
     assert resp.status_code == 200
-    assert "DL_SOC" in resp.text
+    assert "HDVR" in resp.text
     assert 'id="app"' in resp.text
 
     # Test route SPA (HTML5 history fallback)

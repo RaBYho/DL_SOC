@@ -85,7 +85,7 @@
                 <span class="dot"></span>
                 <b>{{ s.id }}</b>
               </div>
-              <small style="color:var(--mu);">{{ s.interface }} &bull; {{ s.ip }}</small>
+              <small style="color:var(--mu);">{{ s.interface }} — {{ s.ip }}</small>
             </div>
             <div style="text-align:right;">
               <span class="sev Low">{{ s.status }}</span>

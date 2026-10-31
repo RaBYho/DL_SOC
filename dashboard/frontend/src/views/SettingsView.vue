@@ -11,56 +11,41 @@
     </div>
 
     <section class="grid">
-      <!-- Identity & Language -->
+      <!-- Interface Language (Only place to change language) -->
       <div class="card c6">
-        <h2>{{ store.t('settings.brandingTitle') }}</h2>
+        <h2>{{ store.t('settings.langTitle') }}</h2>
+        <p class="section-desc">{{ store.t('settings.langDesc') }}</p>
         <div class="form-container">
-          <div class="form-group">
-            <label class="form-label">{{ store.t('settings.appNameLabel') }}</label>
-            <div class="input-with-icon">
-              <input 
-                v-model="customName" 
-                type="text" 
-                :placeholder="store.t('settings.appNamePlaceholder')"
-                class="soc-input"
-                @input="onNameChange"
-              />
-              <button 
-                v-if="customName !== 'DL_SOC'"
-                @click="resetName" 
-                class="mini-btn" 
-                title="Reset to default"
-              >
-                Reset
-              </button>
-            </div>
-            <small class="form-help">{{ store.t('settings.appNameHelp') }}</small>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">{{ store.t('settings.langLabel') }}</label>
-            <div class="lang-toggle-group">
-              <button 
-                class="lang-choice-btn" 
-                :class="{ active: store.lang === 'FR' }"
-                @click="store.setLanguage('FR')"
-              >
-                <span class="flag-icon">🇫🇷</span>
-                <span>Français (FR)</span>
-              </button>
-              <button 
-                class="lang-choice-btn" 
-                :class="{ active: store.lang === 'EN' }"
-                @click="store.setLanguage('EN')"
-              >
-                <span class="flag-icon">🇬🇧</span>
-                <span>English (EN)</span>
-              </button>
-            </div>
+          <div class="lang-toggle-group">
+            <button 
+              class="lang-choice-btn" 
+              :class="{ active: store.lang === 'FR' }"
+              @click="setLanguage('FR')"
+            >
+              <span class="lang-tag">FR</span>
+              <div class="lang-meta">
+                <b class="lang-name">Français</b>
+                <span class="lang-sub">Langue du système</span>
+              </div>
+            </button>
+            <button 
+              class="lang-choice-btn" 
+              :class="{ active: store.lang === 'EN' }"
+              @click="setLanguage('EN')"
+            >
+              <span class="lang-tag">EN</span>
+              <div class="lang-meta">
+                <b class="lang-name">English</b>
+                <span class="lang-sub">System language</span>
+              </div>
+            </button>
           </div>
 
           <div v-if="savedFeedback" class="save-toast">
-            ✓ {{ store.lang === 'FR' ? 'Paramètres appliqués avec succès !' : 'Settings applied successfully!' }}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>{{ store.lang === 'FR' ? 'Langue appliquée avec succès' : 'Language updated successfully' }}</span>
           </div>
         </div>
       </div>
@@ -93,7 +78,7 @@
             />
           </div>
 
-          <button class="pri" @click="saveSettings" style="margin-top:4px;">
+          <button class="pri" @click="saveThresholds" style="margin-top:4px;">
             {{ store.t('settings.saveBtn') }}
           </button>
         </div>
@@ -120,37 +105,36 @@ import { useSocStore } from '@/stores/socStore'
 
 const store = useSocStore()
 const minConf = ref(70)
-const customName = ref(store.appName)
 const savedFeedback = ref(false)
 
-function onNameChange() {
-  if (customName.value && customName.value.trim().length > 0) {
-    store.setAppName(customName.value.trim())
-  }
-}
-
-function resetName() {
-  customName.value = 'DL_SOC'
-  store.setAppName('DL_SOC')
-}
-
-function saveSettings() {
-  if (customName.value && customName.value.trim().length > 0) {
-    store.setAppName(customName.value.trim())
-  }
+function setLanguage(lang) {
+  store.setLanguage(lang)
   savedFeedback.value = true
   setTimeout(() => {
     savedFeedback.value = false
-  }, 2500)
+  }, 2200)
+}
+
+function saveThresholds() {
+  savedFeedback.value = true
+  setTimeout(() => {
+    savedFeedback.value = false
+  }, 2200)
 }
 </script>
 
 <style scoped>
+.section-desc {
+  color: var(--mu);
+  font-size: 12.5px;
+  margin: 6px 0 12px;
+}
+
 .form-container {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  margin-top: 12px;
+  margin-top: 4px;
 }
 
 .form-group {
@@ -187,50 +171,27 @@ function saveSettings() {
   border-color: var(--bl);
 }
 
-.input-with-icon {
-  display: flex;
-  gap: 8px;
-}
-
-.mini-btn {
-  padding: 0 12px;
-  font-size: 11px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--line);
-  color: var(--mu);
-  border-radius: 6px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.mini-btn:hover {
-  color: var(--tx);
-  background: rgba(255, 255, 255, 0.12);
-}
-
 .lang-toggle-group {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .lang-choice-btn {
   flex: 1;
-  min-width: 130px;
+  min-width: 140px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 14px;
-  min-height: 42px;
+  gap: 12px;
+  padding: 12px 16px;
+  min-height: 48px;
   background: var(--panel2);
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 9px;
   color: var(--tx);
-  font-size: 12.5px;
-  font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.16s ease;
+  text-align: left;
 }
 
 .lang-choice-btn:hover {
@@ -239,19 +200,55 @@ function saveSettings() {
 }
 
 .lang-choice-btn.active {
-  background: rgba(88, 101, 242, 0.22);
+  background: rgba(88, 101, 242, 0.2);
   border-color: var(--bl);
   color: #fff;
-  box-shadow: 0 0 12px rgba(88, 101, 242, 0.25);
+  box-shadow: 0 0 14px rgba(88, 101, 242, 0.25);
 }
 
-.flag-icon {
-  font-size: 16px;
+.lang-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--tx);
+}
+
+.lang-choice-btn.active .lang-tag {
+  background: var(--ac);
+  border-color: var(--ac);
+  color: #fff;
+}
+
+.lang-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.lang-name {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.lang-sub {
+  font-size: 11px;
+  color: var(--mu);
 }
 
 .save-toast {
-  padding: 8px 12px;
-  background: rgba(61, 220, 151, 0.15);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(61, 220, 151, 0.14);
   border: 1px solid var(--ok);
   border-radius: 6px;
   color: var(--ok);
