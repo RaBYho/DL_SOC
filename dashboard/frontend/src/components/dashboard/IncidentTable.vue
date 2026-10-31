@@ -131,7 +131,12 @@
               <span class="proto-badge">{{ resolveProto(alert.protocol) }}</span>
             </td>
             <td>
-              <b class="pred-label">{{ alert.classification || alert.pred || 'BENIGN' }}</b>
+              <div class="pred-with-verdict">
+                <b class="pred-label">{{ alert.classification || alert.pred || 'BENIGN' }}</b>
+                <span v-if="getFeedbackVerdict(alert)" class="table-verdict-tag" :class="getFeedbackClass(alert)">
+                  {{ getFeedbackLabel(alert) }}
+                </span>
+              </div>
             </td>
             <td>
               <div class="conf-cell">
@@ -217,6 +222,29 @@ function resolveProto(proto) {
   if (proto === 17 || proto === '17' || proto === 'UDP') return 'UDP'
   if (proto === 1 || proto === '1' || proto === 'ICMP') return 'ICMP'
   return proto || 'IP'
+}
+
+function getFeedbackVerdict(alert) {
+  const id = alert.id || `${alert.src_ip}-${alert.dst_port}-${alert.received_at}`
+  return store.incidentFeedbackMap[id] || null
+}
+
+function getFeedbackClass(alert) {
+  const fb = getFeedbackVerdict(alert)
+  if (!fb) return ''
+  if (fb.human_verdict === 'FALSE_POSITIVE') return 'tag-fp'
+  if (fb.human_verdict === 'KNOWN_ATTACK') return 'tag-reclass'
+  if (fb.human_verdict === 'CONFIRMED_ZERODAY') return 'tag-zd'
+  return ''
+}
+
+function getFeedbackLabel(alert) {
+  const fb = getFeedbackVerdict(alert)
+  if (!fb) return ''
+  if (fb.human_verdict === 'FALSE_POSITIVE') return 'Faux Positif'
+  if (fb.human_verdict === 'KNOWN_ATTACK') return fb.corrected_attack_type || 'Reclassifié'
+  if (fb.human_verdict === 'CONFIRMED_ZERODAY') return fb.corrected_attack_type || 'Zero-Day'
+  return ''
 }
 </script>
 
@@ -663,5 +691,39 @@ tbody tr.row-new {
     height: 380px;
     max-height: 380px;
   }
+}
+
+.pred-with-verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.table-verdict-tag {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+}
+
+.tag-fp {
+  background: rgba(61, 220, 151, 0.15);
+  color: var(--ok);
+  border: 1px solid rgba(61, 220, 151, 0.3);
+}
+
+.tag-reclass {
+  background: rgba(255, 181, 71, 0.15);
+  color: var(--md);
+  border: 1px solid rgba(255, 181, 71, 0.3);
+}
+
+.tag-zd {
+  background: rgba(178, 102, 255, 0.15);
+  color: var(--zd);
+  border: 1px solid rgba(178, 102, 255, 0.3);
 }
 </style>

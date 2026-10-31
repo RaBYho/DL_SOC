@@ -52,5 +52,13 @@ export const api = {
   getNotificationSettings: () => request('/settings/notifications'),
   updateNotificationSettings: (settings) => request('/settings/notifications', { method: 'POST', body: JSON.stringify(settings) }),
   testTelegramNotification: (payload = {}) => request('/notifications/test-telegram', { method: 'POST', body: JSON.stringify(payload) }),
-  testEmailNotification: (payload = {}) => request('/notifications/test-email', { method: 'POST', body: JSON.stringify(payload) })
+  testEmailNotification: (payload = {}) => request('/notifications/test-email', { method: 'POST', body: JSON.stringify(payload) }),
+  submitIncidentFeedback: (incidentId, payload) => request(`/incidents/${incidentId}/feedback`, { method: 'POST', body: JSON.stringify(payload) }),
+  getIncidentFeedback: (incidentId) => request(`/incidents/${incidentId}/feedback`),
+  getFeedbackSummary: () => request('/feedback/summary'),
+  getFeedbackExportUrl: (format = 'json') => `${BASE_URL}/feedback/export?format=${format}`,
+  analyzeIncidentAi: (incidentId, flow) => request(`/incidents/${incidentId}/ai-analysis`, { method: 'POST', body: JSON.stringify({ flow }) }),
+  getAiSettings: () => request('/settings/ai'),
+  updateAiSettings: (settings) => request('/settings/ai', { method: 'POST', body: JSON.stringify(settings) }),
+  testAiConnection: (settings = {}) => request('/ai/test', { method: 'POST', body: JSON.stringify(settings) })
 }

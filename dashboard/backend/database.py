@@ -53,6 +53,28 @@ def _init_db_schema(path: str) -> None:
         )
         con.execute("CREATE INDEX IF NOT EXISTS idx_flows_src_ip ON flows(src_ip)")
         con.execute("CREATE INDEX IF NOT EXISTS idx_flows_dst_port ON flows(dst_port)")
+
+        # Table Active Learning / Human-in-the-Loop Feedback
+        con.execute(
+            """CREATE TABLE IF NOT EXISTS feedback_flows (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            incident_id TEXT UNIQUE,
+            timestamp REAL,
+            src_ip TEXT,
+            dst_ip TEXT,
+            src_port INTEGER,
+            dst_port INTEGER,
+            protocol TEXT,
+            raw_features TEXT,
+            model_predicted_label TEXT,
+            model_mse_score REAL,
+            human_verdict TEXT NOT NULL,
+            corrected_attack_type TEXT,
+            analyst_notes TEXT,
+            status TEXT DEFAULT 'PENDING')"""
+        )
+        con.execute("CREATE INDEX IF NOT EXISTS idx_feedback_verdict ON feedback_flows(human_verdict)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_feedback_incident ON feedback_flows(incident_id)")
     con.close()
 
 
@@ -428,4 +450,138 @@ def reset_database(db_path: Optional[str] = None) -> Dict[str, Any]:
         "message": "Base de données réinitialisée avec succès",
         "flows_remaining": 0,
     }
+
+
+def record_feedback(
+    incident_id: str,
+    human_verdict: str,
+    corrected_attack_type: Optional[str] = None,
+    analyst_notes: Optional[str] = None,
+    flow_data: Optional[Dict[str, Any]] = None,
+    db_path: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Enregistre ou met à jour la qualification humaine d'un incident."""
+    import json
+    con = get_connection(db_path)
+    cur = con.cursor()
+    now = time.time()
+
+    flow_data = flow_data or {}
+    raw_features_str = json.dumps(flow_data.get("raw_features", flow_data))
+
+    cur.execute(
+        """INSERT INTO feedback_flows (
+            incident_id, timestamp, src_ip, dst_ip, src_port, dst_port, protocol,
+            raw_features, model_predicted_label, model_mse_score,
+            human_verdict, corrected_attack_type, analyst_notes, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+        ON CONFLICT(incident_id) DO UPDATE SET
+            timestamp=excluded.timestamp,
+            human_verdict=excluded.human_verdict,
+            corrected_attack_type=excluded.corrected_attack_type,
+            analyst_notes=excluded.analyst_notes""",
+        (
+            str(incident_id),
+            now,
+            str(flow_data.get("src_ip", "")),
+            str(flow_data.get("dst_ip", "")),
+            flow_data.get("src_port"),
+            flow_data.get("dst_port"),
+            str(flow_data.get("protocol", "")),
+            raw_features_str,
+            str(flow_data.get("pred", flow_data.get("classification", ""))),
+            float(flow_data.get("mse_ae", 0.0) or 0.0),
+            str(human_verdict),
+            str(corrected_attack_type or ""),
+            str(analyst_notes or ""),
+        ),
+    )
+    con.commit()
+    con.close()
+
+    return {
+        "status": "success",
+        "incident_id": incident_id,
+        "human_verdict": human_verdict,
+        "corrected_attack_type": corrected_attack_type,
+        "timestamp": now,
+    }
+
+
+def get_feedback(incident_id: str, db_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Récupère la qualification humaine existante pour un incident donné."""
+    import json
+    con = get_connection(db_path)
+    cur = con.cursor()
+    row = cur.execute(
+        "SELECT * FROM feedback_flows WHERE incident_id = ?", (str(incident_id),)
+    ).fetchone()
+    con.close()
+
+    if not row:
+        return None
+
+    res = dict(row)
+    if res.get("raw_features"):
+        try:
+            res["raw_features"] = json.loads(res["raw_features"])
+        except Exception:
+            pass
+    return res
+
+
+def get_feedback_summary(db_path: Optional[str] = None) -> Dict[str, Any]:
+    """Calcule les statistiques globales du programme Active Learning."""
+    con = get_connection(db_path)
+    cur = con.cursor()
+    rows = cur.execute(
+        """SELECT 
+            COUNT(*) as total_feedback,
+            SUM(CASE WHEN human_verdict = 'FALSE_POSITIVE' THEN 1 ELSE 0 END) as false_positives,
+            SUM(CASE WHEN human_verdict = 'KNOWN_ATTACK' THEN 1 ELSE 0 END) as reclassified_attacks,
+            SUM(CASE WHEN human_verdict = 'CONFIRMED_ZERODAY' THEN 1 ELSE 0 END) as confirmed_zerodays
+           FROM feedback_flows"""
+    ).fetchone()
+
+    total = rows["total_feedback"] or 0
+    fp = rows["false_positives"] or 0
+    reclass = rows["reclassified_attacks"] or 0
+    zd = rows["confirmed_zerodays"] or 0
+
+    # Top attaques reclassifiées
+    top_reclassified = cur.execute(
+        """SELECT corrected_attack_type, COUNT(*) as count 
+           FROM feedback_flows 
+           WHERE corrected_attack_type != '' AND corrected_attack_type IS NOT NULL
+           GROUP BY corrected_attack_type ORDER BY count DESC LIMIT 5"""
+    ).fetchall()
+
+    con.close()
+    return {
+        "total_feedback": total,
+        "false_positives": fp,
+        "reclassified_attacks": reclass,
+        "confirmed_zerodays": zd,
+        "top_reclassified": [{"attack": r[0], "count": r[1]} for r in top_reclassified],
+    }
+
+
+def export_feedback_dataset(db_path: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Exporte l'ensemble des flux qualifiés pour le ré-entraînement PyTorch / Scikit-Learn."""
+    import json
+    con = get_connection(db_path)
+    cur = con.cursor()
+    rows = cur.execute("SELECT * FROM feedback_flows ORDER BY timestamp DESC").fetchall()
+    con.close()
+
+    dataset = []
+    for r in rows:
+        item = dict(r)
+        if item.get("raw_features"):
+            try:
+                item["raw_features"] = json.loads(item["raw_features"])
+            except Exception:
+                pass
+        dataset.append(item)
+    return dataset
 

@@ -15,7 +15,7 @@
     >
       <div class="drawer-header">
         <div class="drawer-title-row">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--bl)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ac)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
           </svg>
           <span class="drawer-title-text">{{ store.t('drawer.title') }}</span>
@@ -34,11 +34,14 @@
       </div>
 
       <div v-if="flow" class="drawer-body">
-        <!-- Summary header -->
+        <!-- Hero summary banner -->
         <div class="flow-hero-summary">
           <div class="hero-top">
             <span class="sev" :class="flow.severity">{{ flow.severity }}</span>
             <b class="hero-pred">{{ flow.classification || flow.pred }}</b>
+            <span v-if="flowVerdict" class="verdict-mini-badge" :class="verdictBadgeClass">
+              {{ verdictBadgeText }}
+            </span>
           </div>
           <div class="mono hero-route">
             {{ flow.src_ip }}:{{ flow.src_port || '–' }} &rarr; {{ flow.dst_ip }}:{{ flow.dst_port }}
@@ -46,58 +49,104 @@
           </div>
         </div>
 
-        <!-- Detection Details -->
-        <h3>{{ store.t('drawer.aiDetection') }}</h3>
-        <div class="kv">
-          <span>{{ store.t('drawer.classifierConf') }}</span>
-          <span><b>{{ ((flow.confiance !== undefined ? flow.confiance : (flow.confidence ? flow.confidence / 100 : 0.9)) * 100).toFixed(1) }}%</b></span>
+        <!-- 3-Tab Navigation Bar -->
+        <div class="drawer-nav-tabs">
+          <button 
+            type="button" 
+            class="tab-btn" 
+            :class="{ active: activeTab === 'telemetry' }"
+            @click="activeTab = 'telemetry'"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            <span>Télémétrie</span>
+          </button>
 
-          <span>{{ store.t('drawer.reconstructionMse') }}</span>
-          <span :style="{ color: (flow.anomalie_ae === 1 || flow.is_anomaly) ? 'var(--cr)' : 'inherit', fontWeight: (flow.anomalie_ae === 1 || flow.is_anomaly) ? '700' : 'normal' }">
-            {{ flow.mse_ae !== null && flow.mse_ae !== undefined ? flow.mse_ae.toFixed(4) : '–' }} 
-            <small style="color:var(--mu);">({{ store.t('drawer.threshold') }} {{ store.aeThreshold.toFixed(4) }})</small>
-          </span>
+          <button 
+            type="button" 
+            class="tab-btn" 
+            :class="{ active: activeTab === 'qualification' }"
+            @click="activeTab = 'qualification'"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+            <span>Triage Active Learning</span>
+          </button>
 
-          <span>{{ store.t('drawer.aeFlag') }}</span>
-          <span :class="(flow.anomalie_ae === 1 || flow.is_anomaly) ? 'flag y' : 'flag n'">
-            {{ (flow.anomalie_ae === 1 || flow.is_anomaly) ? store.t('drawer.anomaly') : store.t('drawer.normal') }}
-          </span>
-
-          <span>{{ store.t('drawer.sensorOrigin') }}</span>
-          <span>{{ flow.sensor_id || 'sensor-edge-01' }}</span>
-
-          <span>{{ store.t('drawer.detectedAt') }}</span>
-          <span class="mono">{{ flow.received_at || 'Live' }}</span>
+          <button 
+            type="button" 
+            class="tab-btn" 
+            :class="{ active: activeTab === 'ai' }"
+            @click="activeTab = 'ai'"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4v1a4 4 0 0 0-3 3.87V13a4 4 0 0 0 3 3.87V18a4 4 0 0 0 4 4h0a4 4 0 0 0 4-4v-1.13A4 4 0 0 0 19 13v-2.13A4 4 0 0 0 16 7V6a4 4 0 0 0-4-4z"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
+            <span>Assistant IA</span>
+          </button>
         </div>
 
-        <!-- Flow Telemetry -->
-        <h3>{{ store.t('drawer.telemetry') }}</h3>
-        <div class="kv">
-          <span>{{ store.t('drawer.duration') }}</span>
-          <span>{{ flow.bidirectional_duration_ms ? (flow.bidirectional_duration_ms / 1000).toFixed(3) + ' s' : '0.045 s' }}</span>
+        <!-- Tab 1: Telemetry & Network Details -->
+        <div v-show="activeTab === 'telemetry'" class="tab-pane">
+          <!-- Detection Details -->
+          <h3>{{ store.t('drawer.aiDetection') }}</h3>
+          <div class="kv">
+            <span>{{ store.t('drawer.classifierConf') }}</span>
+            <span><b>{{ ((flow.confiance !== undefined ? flow.confiance : (flow.confidence ? flow.confidence / 100 : 0.9)) * 100).toFixed(1) }}%</b></span>
 
-          <span>{{ store.t('drawer.fwdPackets') }}</span>
-          <span>{{ flow.src2dst_packets || flow.bidirectional_packets || 12 }}</span>
+            <span>{{ store.t('drawer.reconstructionMse') }}</span>
+            <span :style="{ color: (flow.anomalie_ae === 1 || flow.is_anomaly) ? 'var(--cr)' : 'inherit', fontWeight: (flow.anomalie_ae === 1 || flow.is_anomaly) ? '700' : 'normal' }">
+              {{ flow.mse_ae !== null && flow.mse_ae !== undefined ? Number(flow.mse_ae).toFixed(4) : '–' }} 
+              <small style="color:var(--mu);">({{ store.t('drawer.threshold') }} {{ Number(store.aeThreshold).toFixed(4) }})</small>
+            </span>
 
-          <span>{{ store.t('drawer.bwdPackets') }}</span>
-          <span>{{ flow.dst2src_packets || 8 }}</span>
+            <span>{{ store.t('drawer.aeFlag') }}</span>
+            <span :class="(flow.anomalie_ae === 1 || flow.is_anomaly) ? 'flag y' : 'flag n'">
+              {{ (flow.anomalie_ae === 1 || flow.is_anomaly) ? store.t('drawer.anomaly') : store.t('drawer.normal') }}
+            </span>
 
-          <span>{{ store.t('drawer.fwdBytes') }}</span>
-          <span>{{ formatBytes(flow.src2dst_bytes || 1420) }}</span>
+            <span>{{ store.t('drawer.sensorOrigin') }}</span>
+            <span>{{ flow.sensor_id || 'sensor-edge-01' }}</span>
 
-          <span>{{ store.t('drawer.bwdBytes') }}</span>
-          <span>{{ formatBytes(flow.dst2src_bytes || 980) }}</span>
+            <span>{{ store.t('drawer.detectedAt') }}</span>
+            <span class="mono">{{ flow.received_at || 'Live' }}</span>
+          </div>
+
+          <!-- Flow Telemetry -->
+          <h3>{{ store.t('drawer.telemetry') }}</h3>
+          <div class="kv">
+            <span>{{ store.t('drawer.duration') }}</span>
+            <span>{{ flow.bidirectional_duration_ms ? (flow.bidirectional_duration_ms / 1000).toFixed(3) + ' s' : '0.045 s' }}</span>
+
+            <span>{{ store.t('drawer.fwdPackets') }}</span>
+            <span>{{ flow.src2dst_packets || flow.bidirectional_packets || 12 }}</span>
+
+            <span>{{ store.t('drawer.bwdPackets') }}</span>
+            <span>{{ flow.dst2src_packets || 8 }}</span>
+
+            <span>{{ store.t('drawer.fwdBytes') }}</span>
+            <span>{{ formatBytes(flow.src2dst_bytes || 1420) }}</span>
+
+            <span>{{ store.t('drawer.bwdBytes') }}</span>
+            <span>{{ formatBytes(flow.dst2src_bytes || 980) }}</span>
+          </div>
+
+          <!-- TCP Flags -->
+          <h3>{{ store.t('drawer.tcpFlags') }}</h3>
+          <div class="fl">
+            <span :class="{ on: hasFlag('SYN') }">SYN</span>
+            <span :class="{ on: hasFlag('ACK') }">ACK</span>
+            <span :class="{ on: hasFlag('FIN') }">FIN</span>
+            <span :class="{ on: hasFlag('RST') }">RST</span>
+            <span :class="{ on: hasFlag('PSH') }">PSH</span>
+            <span :class="{ on: hasFlag('URG') }">URG</span>
+          </div>
         </div>
 
-        <!-- TCP Flags -->
-        <h3>{{ store.t('drawer.tcpFlags') }}</h3>
-        <div class="fl">
-          <span :class="{ on: hasFlag('SYN') }">SYN</span>
-          <span :class="{ on: hasFlag('ACK') }">ACK</span>
-          <span :class="{ on: hasFlag('FIN') }">FIN</span>
-          <span :class="{ on: hasFlag('RST') }">RST</span>
-          <span :class="{ on: hasFlag('PSH') }">PSH</span>
-          <span :class="{ on: hasFlag('URG') }">URG</span>
+        <!-- Tab 2: Qualification Form (Active Learning) -->
+        <div v-show="activeTab === 'qualification'" class="tab-pane">
+          <IncidentQualificationForm :flow="flow" />
+        </div>
+
+        <!-- Tab 3: AI Assistant & Forensic Diagnosis -->
+        <div v-show="activeTab === 'ai'" class="tab-pane">
+          <IncidentAiAssistant :flow="flow" />
         </div>
       </div>
     </aside>
@@ -105,11 +154,40 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useSocStore } from '@/stores/socStore'
+import IncidentQualificationForm from './IncidentQualificationForm.vue'
+import IncidentAiAssistant from './IncidentAiAssistant.vue'
 
 const store = useSocStore()
 const flow = computed(() => store.selectedFlow)
+const activeTab = ref('telemetry')
+
+const incidentId = computed(() => {
+  return flow.value ? (flow.value.id || `${flow.value.src_ip}-${flow.value.dst_port}-${flow.value.received_at}`) : ''
+})
+
+const flowVerdict = computed(() => {
+  return store.incidentFeedbackMap[incidentId.value] || null
+})
+
+const verdictBadgeClass = computed(() => {
+  if (!flowVerdict.value) return ''
+  const v = flowVerdict.value.human_verdict
+  if (v === 'FALSE_POSITIVE') return 'badge-fp'
+  if (v === 'KNOWN_ATTACK') return 'badge-reclass'
+  if (v === 'CONFIRMED_ZERODAY') return 'badge-zd'
+  return ''
+})
+
+const verdictBadgeText = computed(() => {
+  if (!flowVerdict.value) return ''
+  const v = flowVerdict.value.human_verdict
+  if (v === 'FALSE_POSITIVE') return 'Faux Positif'
+  if (v === 'KNOWN_ATTACK') return `Reclassifié : ${flowVerdict.value.corrected_attack_type}`
+  if (v === 'CONFIRMED_ZERODAY') return `Zero-Day : ${flowVerdict.value.corrected_attack_type}`
+  return v
+})
 
 function resolveProto(proto) {
   if (proto === 6 || proto === '6' || proto === 'TCP') return 'TCP'
@@ -154,7 +232,7 @@ aside {
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(500px, 100vw);
+  width: min(540px, 100vw);
   background: rgba(18, 20, 31, 0.98);
   backdrop-filter: blur(24px);
   border-left: 1px solid rgba(255, 255, 255, 0.12);
@@ -224,7 +302,7 @@ aside.open {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   padding: 12px 14px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .hero-top {
@@ -232,11 +310,37 @@ aside.open {
   align-items: center;
   gap: 8px;
   margin-bottom: 6px;
+  flex-wrap: wrap;
 }
 
 .hero-pred {
   font-size: 16px;
   letter-spacing: -0.2px;
+}
+
+.verdict-mini-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.badge-fp {
+  background: rgba(61, 220, 151, 0.15);
+  color: var(--ok);
+  border: 1px solid rgba(61, 220, 151, 0.3);
+}
+
+.badge-reclass {
+  background: rgba(255, 181, 71, 0.15);
+  color: var(--md);
+  border: 1px solid rgba(255, 181, 71, 0.3);
+}
+
+.badge-zd {
+  background: rgba(178, 102, 255, 0.15);
+  color: var(--zd);
+  border: 1px solid rgba(178, 102, 255, 0.3);
 }
 
 .hero-route {
@@ -254,10 +358,50 @@ aside.open {
   font-size: 11.5px;
 }
 
+/* Tabs Navigation */
+.drawer-nav-tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+}
+
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--mu);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.tab-btn:hover {
+  color: var(--tx);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tab-btn.active {
+  color: var(--tx);
+  background: rgba(88, 101, 242, 0.15);
+  border-color: rgba(88, 101, 242, 0.3);
+}
+
+.tab-pane {
+  display: flex;
+  flex-direction: column;
+}
+
 @media (max-width: 640px) {
   aside {
     width: 100vw;
-    padding: 16px 16px 96px 16px; /* safe bottom padding over MobileBottomNav */
+    padding: 16px 16px 96px 16px;
   }
 
   .close-btn {

@@ -7,17 +7,28 @@ from pydantic import BaseModel
 
 from dashboard.backend.config import AE_THRESHOLD, PCAP_DIR
 from dashboard.backend.database import (
+    export_feedback_dataset,
     get_active_sensors,
     get_attack_distribution,
+    get_feedback,
+    get_feedback_summary,
     get_kpis,
     get_recent_alerts,
     get_threat_vectors,
     get_timeline,
+    record_feedback,
     reset_database,
 )
 from dashboard.backend.model_logger import clear_logs, get_recent_logs, MODEL_LOG_FILE
 from dashboard.backend.replay_service import replay_service
 from dashboard.backend.services.health_service import health_service
+from dashboard.backend.services.ai_analyzer import (
+    AiAnalyzerService,
+    build_forensic_prompt,
+    get_ai_config,
+    get_masked_ai_config,
+    save_ai_config,
+)
 from dashboard.backend.services.notifications import (
     get_masked_config,
     get_notifications_config,
@@ -458,6 +469,25 @@ class EmailTestRequest(BaseModel):
     email_to: Optional[str] = None
 
 
+class FeedbackSubmissionRequest(BaseModel):
+    human_verdict: str  # 'FALSE_POSITIVE', 'KNOWN_ATTACK', 'CONFIRMED_ZERODAY'
+    corrected_attack_type: Optional[str] = None
+    analyst_notes: Optional[str] = None
+    flow_data: Optional[Dict[str, Any]] = None
+
+
+class AiSettingsUpdateRequest(BaseModel):
+    provider: Optional[str] = None
+    ollama_url: Optional[str] = None
+    ollama_model: Optional[str] = None
+    gemini_api_key: Optional[str] = None
+    gemini_model: Optional[str] = None
+
+
+class AiAnalysisRequest(BaseModel):
+    flow: Optional[Dict[str, Any]] = None
+
+
 @router.post("/database/reset")
 async def reset_db_endpoint():
     """Réinitialise la base de données (supprime tous les flux enregistrés) et notifie les clients."""
@@ -541,6 +571,113 @@ async def test_email_endpoint(req: EmailTestRequest):
         return {"success": False, "message": "Hôte SMTP, expéditeur et destinataire requis"}
     success, msg = await EmailNotifier.send_test(test_cfg)
     health_service.record_log("notifications", f"Test Email: {msg}", "INFO" if success else "WARN")
+    return {"success": success, "message": msg}
+
+
+@router.post("/incidents/{incident_id}/feedback")
+async def record_incident_feedback(incident_id: str, req: FeedbackSubmissionRequest):
+    """Enregistre la qualification humaine (Human-in-the-Loop) d'un incident."""
+    res = record_feedback(
+        incident_id=incident_id,
+        human_verdict=req.human_verdict,
+        corrected_attack_type=req.corrected_attack_type,
+        analyst_notes=req.analyst_notes,
+        flow_data=req.flow_data,
+    )
+    health_service.record_log(
+        "active_learning",
+        f"Incident {incident_id} qualifié par analyste : {req.human_verdict}"
+        + (f" ({req.corrected_attack_type})" if req.corrected_attack_type else ""),
+        "INFO",
+    )
+    await ws_manager.broadcast({
+        "type": "incident_feedback",
+        "incident_id": incident_id,
+        "human_verdict": req.human_verdict,
+        "corrected_attack_type": req.corrected_attack_type,
+    })
+    return res
+
+
+@router.get("/incidents/{incident_id}/feedback")
+def get_incident_feedback(incident_id: str):
+    """Récupère la qualification humaine existante pour un incident donné."""
+    fb = get_feedback(incident_id)
+    return {"incident_id": incident_id, "feedback": fb}
+
+
+@router.get("/feedback/summary")
+def get_feedback_summary_endpoint():
+    """Retourne la synthèse des qualifications Active Learning."""
+    return get_feedback_summary()
+
+
+@router.get("/feedback/export")
+def export_feedback_endpoint(format: str = Query("json", pattern="^(json|csv)$")):
+    """Télécharge le jeu de données qualifié au format JSON ou CSV prêt pour l'entraînement."""
+    data = export_feedback_dataset()
+    if format == "csv":
+        import io
+        import csv
+        from fastapi.responses import Response
+
+        output = io.StringIO()
+        if data:
+            keys = [
+                "id", "incident_id", "timestamp", "src_ip", "dst_ip",
+                "src_port", "dst_port", "protocol", "model_predicted_label",
+                "model_mse_score", "human_verdict", "corrected_attack_type", "analyst_notes"
+            ]
+            writer = csv.DictWriter(output, fieldnames=keys, extrasaction="ignore")
+            writer.writeheader()
+            for row in data:
+                writer.writerow(row)
+        csv_bytes = output.getvalue().encode("utf-8")
+        return Response(
+            content=csv_bytes,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=nids_active_learning_feedback.csv"},
+        )
+    return {"count": len(data), "dataset": data}
+
+
+@router.post("/incidents/{incident_id}/ai-analysis")
+async def analyze_incident_ai(incident_id: str, req: AiAnalysisRequest):
+    """Analyse un incident via l'Assistant IA (Ollama / Gemini / Moteur Expert)."""
+    flow = req.flow or {"id": incident_id}
+    res = await AiAnalyzerService.analyze_incident(flow)
+    health_service.record_log(
+        "ai_assistant",
+        f"Analyse IA générée pour incident {incident_id} via {res.get('provider', 'IA')}",
+        "INFO" if res.get("success") else "WARN",
+    )
+    return res
+
+
+@router.get("/settings/ai")
+def get_ai_settings():
+    """Récupère les paramètres de l'Assistant IA (avec clé API masquée)."""
+    return get_masked_ai_config()
+
+
+@router.post("/settings/ai")
+def update_ai_settings(req: AiSettingsUpdateRequest):
+    """Enregistre la configuration du fournisseur IA (Ollama, Gemini, Expert)."""
+    data = req.model_dump(exclude_unset=True) if hasattr(req, "model_dump") else req.dict(exclude_unset=True)
+    saved = save_ai_config(data)
+    health_service.record_log("ai_assistant", f"Configuration IA mise à jour: {saved.get('provider')}", "INFO")
+    return {
+        "status": "success",
+        "config": get_masked_ai_config(),
+    }
+
+
+@router.post("/ai/test")
+async def test_ai_connection_endpoint(req: AiSettingsUpdateRequest):
+    """Teste la connectivité du fournisseur IA (Ollama / Gemini)."""
+    cfg = get_ai_config()
+    test_cfg = {**cfg, **req.model_dump(exclude_unset=True)}
+    success, msg = await AiAnalyzerService.test_connection(test_cfg)
     return {"success": success, "message": msg}
 
 

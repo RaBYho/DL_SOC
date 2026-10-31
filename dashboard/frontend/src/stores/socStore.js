@@ -46,6 +46,7 @@ export const useSocStore = defineStore('soc', {
     alerts: [],
     selectedFlow: null,
     drawerOpen: false,
+    incidentFeedbackMap: {},
 
     // PCAP Replay
     pcapFiles: [],
@@ -291,6 +292,16 @@ export const useSocStore = defineStore('soc', {
         this.systemHealth = msg.system_health
       }
 
+      if (msg.type === 'incident_feedback' && msg.incident_id) {
+        this.incidentFeedbackMap = {
+          ...this.incidentFeedbackMap,
+          [msg.incident_id]: {
+            human_verdict: msg.human_verdict,
+            corrected_attack_type: msg.corrected_attack_type
+          }
+        }
+      }
+
       if (msg.type === 'database_reset') {
         this.kpis = msg.kpis || {
           total_flows: 0,
@@ -481,6 +492,28 @@ export const useSocStore = defineStore('soc', {
     closeFlowDrawer() {
       this.drawerOpen = false
       this.selectedFlow = null
+    },
+
+    async submitFeedback(incidentId, verdict, correctedType, notes, flowData) {
+      try {
+        const res = await api.submitIncidentFeedback(incidentId, {
+          human_verdict: verdict,
+          corrected_attack_type: correctedType,
+          analyst_notes: notes,
+          flow_data: flowData
+        })
+        this.incidentFeedbackMap = {
+          ...this.incidentFeedbackMap,
+          [incidentId]: {
+            human_verdict: verdict,
+            corrected_attack_type: correctedType
+          }
+        }
+        return res
+      } catch (err) {
+        console.error('Error submitting incident feedback:', err)
+        throw err
+      }
     },
 
     async fetchModelLogs(limit = 100) {

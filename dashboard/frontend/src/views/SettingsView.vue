@@ -180,6 +180,9 @@
 
       <!-- Section 4: Multi-Channel Alerts & Notifications (Telegram & SMTP) -->
       <NotificationSettingsCard />
+
+      <!-- Section 5: AI Assistant & LLM Connectors -->
+      <AiSettingsCard />
     </section>
 
     <!-- Floating Dock: Single Unified Bottom Save Bar when changes exist -->
@@ -355,6 +358,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useSocStore } from '@/stores/socStore'
 import NotificationSettingsCard from '@/components/settings/NotificationSettingsCard.vue'
+import AiSettingsCard from '@/components/settings/AiSettingsCard.vue'
 
 const store = useSocStore()
 
