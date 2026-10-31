@@ -23,6 +23,8 @@
       </div>
     </div>
 
+    <div class="header-spacer"></div>
+
     <!-- Live Stream / Replay Status Indicator -->
     <div class="stat-pill" aria-live="polite">
       <span 
@@ -35,24 +37,6 @@
       <div class="stat-meta">
         <b class="stat-title">{{ statusTitle }}</b>
         <span class="stat-subtitle">{{ statusSubtitle }}</span>
-      </div>
-    </div>
-
-    <div class="header-spacer"></div>
-
-    <!-- Controls & Tools (Time Range Selector) -->
-    <div class="header-tools">
-      <!-- Time Range Selector -->
-      <div class="time-range-group" role="group" aria-label="Time range">
-        <button 
-          v-for="r in ['15m', '1h', '24h']" 
-          :key="r"
-          :class="{ active: store.activeTimeRange === r }"
-          :aria-pressed="store.activeTimeRange === r"
-          @click="changeRange(r)"
-        >
-          {{ r }}
-        </button>
       </div>
     </div>
   </header>
@@ -77,12 +61,6 @@ const statusSubtitle = computed(() => {
   if (!store.wsConnected) return store.t('header.reconnecting')
   return store.t('header.streamActive')
 })
-
-function changeRange(range) {
-  if (store.activeTimeRange !== range) {
-    store.loadDashboardData(range)
-  }
-}
 </script>
 
 <style scoped>
@@ -94,7 +72,6 @@ function changeRange(range) {
   backdrop-filter: blur(16px);
   padding: 14px 20px;
   display: flex;
-  flex-wrap: wrap;
   gap: 12px 18px;
   align-items: center;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -141,6 +118,10 @@ function changeRange(range) {
   color: var(--mu);
   font-size: 12px;
   margin-top: 2px;
+}
+
+.header-spacer {
+  flex: 1;
 }
 
 .stat-pill {
@@ -196,44 +177,6 @@ function changeRange(range) {
   color: var(--mu);
 }
 
-.header-spacer {
-  flex: 1;
-}
-
-.header-tools {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.time-range-group {
-  display: flex;
-  background: var(--panel2);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 2px;
-  min-height: 38px;
-  align-items: center;
-}
-
-.time-range-group button {
-  border: 0;
-  background: none;
-  padding: 5px 12px;
-  border-radius: 7px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--mu);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.time-range-group button.active {
-  background: var(--ac);
-  color: #fff;
-  font-weight: 600;
-}
-
 @media (max-width: 900px) {
   .mobile-menu-trigger {
     display: flex;
@@ -250,10 +193,6 @@ function changeRange(range) {
   }
   .header-main-title small {
     display: none;
-  }
-  .header-tools {
-    width: 100%;
-    justify-content: flex-end;
   }
   .stat-pill {
     display: none;

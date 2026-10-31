@@ -1,13 +1,32 @@
 <template>
   <div class="card c5 timeline-card">
     <div class="card-header-row">
-      <h2>
-        {{ store.t('timeline.title') }}
-        <span>{{ timeLabel }}</span>
-      </h2>
-      <div class="rate-badge">
-        <span class="dot-green"></span>
-        <span>{{ store.kpis.flow_rate_sec }} {{ store.t('kpi.flowsSec') }}</span>
+      <div class="header-left">
+        <h2>
+          {{ store.t('timeline.title') }}
+          <span>{{ timeLabel }}</span>
+        </h2>
+      </div>
+
+      <div class="header-right">
+        <!-- Live Ingestion Flow Rate Badge -->
+        <div class="rate-badge" title="Taux d'ingestion direct">
+          <span class="dot-green"></span>
+          <span>{{ store.kpis.flow_rate_sec }} {{ store.t('kpi.flowsSec') }}</span>
+        </div>
+
+        <!-- Segmented Time Range Selector (Option 2) -->
+        <div class="time-range-group" role="group" aria-label="Time range">
+          <button 
+            v-for="r in ['15m', '1h', '24h']" 
+            :key="r"
+            :class="{ active: store.activeTimeRange === r }"
+            :aria-pressed="store.activeTimeRange === r"
+            @click="changeRange(r)"
+          >
+            {{ r }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -135,6 +154,12 @@ const timeLabel = computed(() => {
   return store.t('timeline.window15m')
 })
 
+function changeRange(range) {
+  if (store.activeTimeRange !== range) {
+    store.loadDashboardData(range)
+  }
+}
+
 const series = computed(() => {
   if (store.timelineSeries && store.timelineSeries.length > 5) {
     return store.timelineSeries.map(item => item.count || 0)
@@ -231,26 +256,36 @@ const xTicks = computed(() => {
 .card-header-row {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
-.card-header-row h2 {
+.header-left h2 {
   margin: 0;
 }
 
-.rate-badge {
+.header-right {
   display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rate-badge {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 11.5px;
   font-weight: 700;
   color: var(--ok);
   background: rgba(61, 220, 151, 0.12);
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 6px;
   border: 1px solid rgba(61, 220, 151, 0.25);
   font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
 .dot-green {
@@ -258,6 +293,39 @@ const xTicks = computed(() => {
   height: 6px;
   border-radius: 50%;
   background: var(--ok);
+}
+
+.time-range-group {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  padding: 2px;
+  align-items: center;
+}
+
+.time-range-group button {
+  border: 0;
+  background: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--mu);
+  cursor: pointer;
+  transition: all 0.16s ease;
+  line-height: 1.2;
+}
+
+.time-range-group button:hover {
+  color: var(--tx);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.time-range-group button.active {
+  background: var(--ac);
+  color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 .timeline-svg {
@@ -282,5 +350,17 @@ const xTicks = computed(() => {
   font-size: 11.5px;
   color: var(--mu);
   margin-top: 6px;
+}
+
+@media (max-width: 640px) {
+  .card-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 </style>
