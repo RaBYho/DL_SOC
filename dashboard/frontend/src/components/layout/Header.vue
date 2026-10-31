@@ -25,18 +25,35 @@
 
     <div class="header-spacer"></div>
 
-    <!-- Live Stream / Replay Status Indicator -->
-    <div class="stat-pill" aria-live="polite">
-      <span 
-        class="pulse-dot" 
-        :class="{ 
-          off: !store.wsConnected,
-          err: !store.wsConnected 
-        }"
-      ></span>
-      <div class="stat-meta">
-        <b class="stat-title">{{ statusTitle }}</b>
-        <span class="stat-subtitle">{{ statusSubtitle }}</span>
+    <div class="header-right-actions">
+      <!-- Pastille de Santé Système (Plan 1 : Infrastructure & Diagnostic) -->
+      <button 
+        type="button" 
+        class="stat-pill health-pill" 
+        :class="'health-' + (store.systemHealth?.status || 'healthy').toLowerCase()"
+        @click="store.toggleSystemDrawer"
+        title="Consulter le diagnostic de santé système (infrastructure)"
+      >
+        <span class="health-dot"></span>
+        <div class="stat-meta">
+          <b class="stat-title">{{ healthTitle }}</b>
+          <span class="stat-subtitle">{{ healthSubtitle }}</span>
+        </div>
+      </button>
+
+      <!-- Live Stream / Replay Status Indicator -->
+      <div class="stat-pill" aria-live="polite">
+        <span 
+          class="pulse-dot" 
+          :class="{ 
+            off: !store.wsConnected,
+            err: !store.wsConnected 
+          }"
+        ></span>
+        <div class="stat-meta">
+          <b class="stat-title">{{ statusTitle }}</b>
+          <span class="stat-subtitle">{{ statusSubtitle }}</span>
+        </div>
       </div>
     </div>
   </header>
@@ -47,6 +64,19 @@ import { computed } from 'vue'
 import { useSocStore } from '@/stores/socStore'
 
 const store = useSocStore()
+
+const healthTitle = computed(() => {
+  const s = store.systemHealth?.status
+  if (s === 'HEALTHY') return 'Système Nominal'
+  if (s === 'DEGRADED') return 'Vigilance Système'
+  return 'Incident Système'
+})
+
+const healthSubtitle = computed(() => {
+  const issues = store.systemHealth?.issues?.length || 0
+  if (issues > 0) return `${issues} anomalie(s)`
+  return `${store.systemHealth?.score || 100}% santé`
+})
 
 const statusTitle = computed(() => {
   if (store.replayStatus.active) return store.t('header.pcapReplay')
@@ -124,6 +154,55 @@ const statusSubtitle = computed(() => {
   flex: 1;
 }
 
+.header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.health-pill {
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.health-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.health-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.health-healthy .health-dot {
+  background: #3ddc97;
+  box-shadow: 0 0 8px #3ddc97;
+}
+
+.health-degraded .health-dot {
+  background: #ffb547;
+  box-shadow: 0 0 8px #ffb547;
+  animation: pulse-health 1.5s infinite;
+}
+
+.health-critical .health-dot {
+  background: #ff4d7e;
+  box-shadow: 0 0 8px #ff4d7e;
+  animation: pulse-health 1s infinite;
+}
+
+@keyframes pulse-health {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.7; }
+}
+
 .stat-pill {
   display: flex;
   align-items: center;
@@ -194,7 +273,56 @@ const statusSubtitle = computed(() => {
   .header-main-title small {
     display: none;
   }
-  .stat-pill {
+  .header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.health-pill {
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.health-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.health-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.health-healthy .health-dot {
+  background: #3ddc97;
+  box-shadow: 0 0 8px #3ddc97;
+}
+
+.health-degraded .health-dot {
+  background: #ffb547;
+  box-shadow: 0 0 8px #ffb547;
+  animation: pulse-health 1.5s infinite;
+}
+
+.health-critical .health-dot {
+  background: #ff4d7e;
+  box-shadow: 0 0 8px #ff4d7e;
+  animation: pulse-health 1s infinite;
+}
+
+@keyframes pulse-health {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+.stat-pill {
     display: none;
   }
 }

@@ -17,6 +17,7 @@ from dashboard.backend.database import (
 )
 from dashboard.backend.model_logger import clear_logs, get_recent_logs, MODEL_LOG_FILE
 from dashboard.backend.replay_service import replay_service
+from dashboard.backend.services.health_service import health_service
 from dashboard.backend.ws_manager import ws_manager
 
 logger = logging.getLogger("dashboard.routes")
@@ -476,6 +477,44 @@ def get_raw_model_log():
     return PlainTextResponse(content)
 
 
+@router.get("/system/health")
+def get_system_health():
+    """Diagnostic consolidé de santé système (pannes infrastructure vs sécurité)."""
+    return health_service.get_health_status()
+
+
+@router.get("/system/logs")
+def get_system_logs(limit: int = 50, level: Optional[str] = None):
+    """Logs techniques d'infrastructure et d'erreurs système."""
+    return health_service.get_system_logs(limit=limit, level=level)
+
+
+@router.post("/system/optimize-db")
+def optimize_database():
+    """Optimisation et purge du journal WAL SQLite."""
+    return health_service.optimize_database()
+
+
+@router.post("/system/test-component")
+def test_system_component(request: Dict[str, Any]):
+    """Teste la réactivité d'un composant système individuel."""
+    import time
+    comp = request.get("component", "all")
+    start = time.perf_counter()
+    if comp == "database":
+        res = health_service._check_database()
+    elif comp == "ai_engine":
+        res = health_service._check_ai_engine()
+    elif comp == "sensors":
+        res = health_service._check_sensors()
+    elif comp == "websocket":
+        res = health_service._check_websocket()
+    else:
+        res = health_service.get_health_status()
+    latency_ms = round((time.perf_counter() - start) * 1000, 2)
+    return {"component": comp, "result": res, "latency_ms": latency_ms}
+
+
 async def websocket_endpoint(websocket: WebSocket):
     """Canal WebSocket temps réel pour pousser les alertes et les métriques sans recharger la page."""
     await ws_manager.connect(websocket)
@@ -490,6 +529,7 @@ async def websocket_endpoint(websocket: WebSocket):
             "recent_model_logs": get_recent_logs(limit=50),
             "replay_status": replay_service.get_status(),
             "ae_threshold": AE_THRESHOLD,
+            "system_health": health_service.get_health_status(),
         }
         await ws_manager.send_personal_message(init_data, websocket)
 

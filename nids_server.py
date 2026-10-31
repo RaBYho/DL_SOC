@@ -15,6 +15,7 @@ from dashboard.backend.formatters import (
     format_threat_vectors,
 )
 from dashboard.backend.routes import router as dashboard_router, websocket_endpoint
+from dashboard.backend.services.health_service import health_service
 from dashboard.backend.ws_manager import ws_manager
 
 DEFAULT_BASE = str(Path(__file__).resolve().parent)
@@ -51,6 +52,11 @@ def health():
     }
 
 
+@app.get("/api/system/health")
+def system_health_alias():
+    return health_service.get_health_status()
+
+
 @app.post("/ingest")
 async def ingest(batch: Batch, x_api_key: str = Header(None)):
     if x_api_key != API_KEY:
@@ -63,8 +69,12 @@ async def ingest(batch: Batch, x_api_key: str = Header(None)):
         df[scorer.feature_cols] = df[scorer.feature_cols].apply(
             pd.to_numeric, errors="raise"
         )
+        t_start = time.perf_counter()
         res = scorer.predict_df(df)
+        inf_latency_ms = (time.perf_counter() - t_start) * 1000.0
+        health_service.record_inference_latency(inf_latency_ms)
     except (ValueError, KeyError) as e:
+        health_service.log_system_event("ERROR", "AI-Engine", f"Échec d'inférence lot: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
     now = time.time()

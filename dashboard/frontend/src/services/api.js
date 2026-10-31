@@ -40,5 +40,13 @@ export const api = {
   resetDatabase: () => request('/database/reset', { method: 'POST' }),
   updateSettings: (settings) => request('/settings', { method: 'POST', body: JSON.stringify(settings) }),
   getModelLogs: (limit = 100) => request(`/models/logs?limit=${limit}`),
-  clearModelLogs: () => request('/models/logs/clear', { method: 'POST' })
+  clearModelLogs: () => request('/models/logs/clear', { method: 'POST' }),
+  getSystemHealth: () => request('/system/health'),
+  getSystemLogs: (limit = 50, level = null) => {
+    const params = new URLSearchParams({ limit })
+    if (level) params.append('level', level)
+    return request(`/system/logs?${params.toString()}`)
+  },
+  optimizeDatabase: () => request('/system/optimize-db', { method: 'POST' }),
+  testComponent: (component = 'all') => request('/system/test-component', { method: 'POST', body: JSON.stringify({ component }) })
 }

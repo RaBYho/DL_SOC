@@ -75,6 +75,24 @@ export const useSocStore = defineStore('soc', {
     modelLogs: [],
     modelLogsAutoScroll: true,
 
+    // System Health & Infrastructure Monitoring (Plan 1)
+    systemHealth: {
+      status: 'HEALTHY',
+      score: 100,
+      uptime_sec: 0,
+      uptime_str: '0s',
+      components: {
+        sensors: { status: 'ONLINE', total_sensors: 0, online_sensors: 0 },
+        ai_engine: { status: 'OPERATIONAL', avg_inference_ms: 12.5 },
+        database: { status: 'HEALTHY', latency_ms: 1.0, file_size_mb: 0 },
+        websocket: { status: 'ONLINE', connected_clients: 1 },
+        host: { cpu_pct: 0, ram_pct: 0, disk_pct: 0 }
+      },
+      issues: []
+    },
+    systemLogs: [],
+    systemDrawerOpen: false,
+
     _socket: null
   }),
 
@@ -145,6 +163,7 @@ export const useSocStore = defineStore('soc', {
       this._initPromise = (async () => {
         try {
           await this.loadDashboardData(this.activeTimeRange)
+          await this.fetchSystemHealth()
           this.initWebSocket()
           this._initialized = true
         } finally {
@@ -263,6 +282,13 @@ export const useSocStore = defineStore('soc', {
         if (msg.recent_model_logs && Array.isArray(msg.recent_model_logs)) {
           this.modelLogs = msg.recent_model_logs
         }
+        if (msg.system_health) {
+          this.systemHealth = msg.system_health
+        }
+      }
+
+      if (msg.type === 'system_health' && msg.system_health) {
+        this.systemHealth = msg.system_health
       }
 
       if (msg.type === 'database_reset') {
@@ -503,6 +529,66 @@ export const useSocStore = defineStore('soc', {
         })
       } catch (err) {
         console.warn('Could not persist settings to server, saved locally:', err)
+      }
+    },
+
+    async fetchSystemHealth() {
+      try {
+        const res = await api.getSystemHealth()
+        if (res && res.status) {
+          this.systemHealth = res
+        }
+      } catch (err) {
+        console.error('Failed to fetch system health:', err)
+      }
+    },
+
+    async fetchSystemLogs(limit = 50, level = null) {
+      try {
+        const logs = await api.getSystemLogs(limit, level)
+        if (Array.isArray(logs)) {
+          this.systemLogs = logs
+        }
+      } catch (err) {
+        console.error('Failed to fetch system logs:', err)
+      }
+    },
+
+    async optimizeDatabase() {
+      try {
+        const res = await api.optimizeDatabase()
+        await this.fetchSystemHealth()
+        return res
+      } catch (err) {
+        console.error('Database optimization error:', err)
+        throw err
+      }
+    },
+
+    async testComponent(component = 'all') {
+      try {
+        return await api.testComponent(component)
+      } catch (err) {
+        console.error(`Component test error (${component}):`, err)
+        throw err
+      }
+    },
+
+    openSystemDrawer() {
+      this.systemDrawerOpen = true
+      this.fetchSystemHealth()
+      this.fetchSystemLogs()
+    },
+
+    closeSystemDrawer() {
+      this.systemDrawerOpen = false
+    },
+
+    toggleSystemDrawer() {
+      if (this.systemDrawerOpen) {
+        this.closeSystemDrawer()
+      } else {
+        this.openSystemDrawer()
       }
     },
 

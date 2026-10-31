@@ -15,6 +15,9 @@
 
     <!-- Mobile Bottom Navigation Bar (Phone viewports) -->
     <MobileBottomNav />
+
+    <!-- Tiroir Latéral de Diagnostic Système & Infrastructure (Plan 1) -->
+    <SystemHealthDrawer />
   </div>
 </template>
 
@@ -24,6 +27,7 @@ import { useSocStore } from '@/stores/socStore'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import Header from '@/components/layout/Header.vue'
 import MobileBottomNav from '@/components/layout/MobileBottomNav.vue'
+import SystemHealthDrawer from '@/components/system/SystemHealthDrawer.vue'
 
 const store = useSocStore()
 
