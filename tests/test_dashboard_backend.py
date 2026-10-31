@@ -116,6 +116,9 @@ def test_dashboard_api_endpoints(test_db, monkeypatch):
     assert "timeline" in data
     assert "threat_vectors" in data
     assert "recent_alerts" in data
+    assert "model_classes" in data
+    assert "attack_categories" in data
+    assert "model_meta" in data
 
     # Test /api/dashboard/stats
     res_stats = client.get("/api/dashboard/stats")
@@ -192,6 +195,18 @@ def test_dashboard_api_endpoints(test_db, monkeypatch):
     clear_res = client.post("/api/dashboard/models/logs/clear")
     assert clear_res.status_code == 200
     assert clear_res.json()["status"] == "cleared"
+
+    # Test Dynamic Model Classes Endpoint (Agnostic Architecture)
+    classes_res = client.get("/api/dashboard/models/classes")
+    assert classes_res.status_code == 200
+    cls_data = classes_res.json()
+    assert "classes" in cls_data
+    assert "total_classes" in cls_data
+    assert "attack_classes" in cls_data
+    assert "all_categories" in cls_data
+    assert isinstance(cls_data["classes"], list)
+    assert len(cls_data["classes"]) > 0
+    assert "Unknown (anomaly)" in cls_data["all_categories"]
 
 
 

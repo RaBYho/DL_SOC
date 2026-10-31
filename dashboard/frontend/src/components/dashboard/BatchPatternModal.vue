@@ -298,11 +298,15 @@
               />
               <div class="label-suggestions">
                 <span>Suggestions rapides :</span>
-                <button type="button" class="sugg-chip" @click="formLabel = 'Zero-Day-C2-Distributed'">Zero-Day-C2-Distributed</button>
-                <button type="button" class="sugg-chip" @click="formLabel = 'PortScan-Distributed'">PortScan-Distributed</button>
-                <button type="button" class="sugg-chip" @click="formLabel = 'DDoS-Flooding-Campaign'">DDoS-Flooding-Campaign</button>
-                <button type="button" class="sugg-chip" @click="formLabel = 'SSH-Patator-Distributed'">SSH-Patator-Distributed</button>
-                <button type="button" class="sugg-chip" @click="formLabel = 'Faux-Positif-Sauvegarde'">Faux-Positif-Sauvegarde</button>
+                <button 
+                  v-for="sugg in quickSuggestions" 
+                  :key="sugg" 
+                  type="button" 
+                  class="sugg-chip" 
+                  @click="formLabel = sugg"
+                >
+                  {{ sugg }}
+                </button>
               </div>
             </div>
 
@@ -361,6 +365,20 @@ const toastMessage = ref('')
 const formVerdict = ref('CONFIRMED_ZERODAY')
 const formLabel = ref('')
 const formNotes = ref('')
+
+const quickSuggestions = computed(() => {
+  const dynamicClasses = store.availableAttackCategories.filter(c => c !== 'Unknown (anomaly)')
+  const items = ['Zero-Day-C2-Distributed']
+  if (dynamicClasses.length > 0) {
+    items.push(`${dynamicClasses[0]}-Distributed`)
+    if (dynamicClasses.length > 1) items.push(dynamicClasses[1])
+    if (dynamicClasses.length > 2) items.push(dynamicClasses[2])
+  } else {
+    items.push('PortScan-Distributed', 'DDoS-Flooding-Campaign', 'SSH-Patator-Distributed')
+  }
+  items.push('Faux-Positif-Sauvegarde')
+  return Array.from(new Set(items)).slice(0, 5)
+})
 
 const correlation = computed(() => {
   const flows = store.selectedAlerts

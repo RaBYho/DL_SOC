@@ -58,8 +58,27 @@ def get_masked_ai_config() -> Dict[str, Any]:
     return res
 
 
+def get_dynamic_model_classes() -> Dict[str, Any]:
+    """Récupère les classes et la version du modèle actif de manière totalement dynamique."""
+    try:
+        from dashboard.backend.database import get_model_classes
+        return get_model_classes()
+    except Exception:
+        return {
+            "model_version": "v4",
+            "classes": ["BENIGN", "DDoS", "DoS-Hulk", "DoS-GoldenEye", "DoS-Slowloris", "DoS-Slowhttptest", "PortScan", "SSH-Patator", "FTP-Patator", "WebAttack", "Bot", "Scan-Vista"],
+            "total_classes": 12,
+        }
+
+
 def build_forensic_prompt(flow: Dict[str, Any]) -> str:
     """Génère le prompt forensique expert SOC Tier-3 exhaustif pour qualification d'incident."""
+    model_info = get_dynamic_model_classes()
+    model_classes = model_info.get("classes", [])
+    model_ver = model_info.get("model_version", "v4")
+    classes_str = ", ".join(model_classes)
+    total_model_classes = len(model_classes)
+
     src_ip = flow.get("src_ip", "0.0.0.0")
     dst_ip = flow.get("dst_ip", "0.0.0.0")
     src_port = flow.get("src_port", 0)
@@ -106,7 +125,7 @@ def build_forensic_prompt(flow: Dict[str, Any]) -> str:
 
 Tu es un analyste senior en cybersécurité, Lead Incident Responder et Threat Hunter dans un SOC Tier-3.
 Tu opères sur la plateforme HDVR Autonomous Defense, un système NIDS hybride temps réel composé de :
-1. **Classifieur supervisé DNN v4** : 12 classes entraînées sur CIC-IDS2017 (DDoS, DoS-Hulk, DoS-GoldenEye, DoS-Slowloris, DoS-Slowhttptest, PortScan, SSH-Patator, FTP-Patator, WebAttack-SQLi/XSS, Botnet, Scan-Vista, BENIGN).
+1. **Classifieur supervisé DNN ({model_ver})** : {total_model_classes} classes configurées ({classes_str}).
 2. **Autoencodeur profond non-supervisé** : dédié à la détection de déviations Zero-Day sans signature (seuil d'anomalie normalisé $\\theta = {baseline_threshold}$).
 
 L'analyste SOC sollicite ton expertise pour **analyser, contextualiser, déterminer formellement et étiqueter** ce flux réseau pour le cycle d'Active Learning / Human-in-the-Loop.
@@ -134,7 +153,7 @@ L'analyste SOC sollicite ton expertise pour **analyser, contextualiser, détermi
 
 ### ⚖️ 3. ÉVALUATION DES HYPOTHÈSES FORENSIQUES CONCURRENTES
 Examine obligatoirement les trois scénarios plausibles :
-- **Scénario A (Menace Zero-Day / APT furtive) :** Exploitation d'une vulnérabilité n'existant pas dans le jeu d'entraînement CIC-IDS2017, canal de commande & contrôle (C2) obfusqué, exfiltration chiffrée hors profil nominal.
+- **Scénario A (Menace Zero-Day / APT furtive) :** Exploitation d'une vulnérabilité n'existant pas dans le périmètre d'entraînement du modèle DNN actif, canal de commande & contrôle (C2) obfusqué, exfiltration chiffrée hors profil nominal.
 - **Scénario B (Attaque Réseau Répertoriée) :** Attaque par déni de service, balayage de ports ou tentative de force brute correspondant aux classes connues du DNN.
 - **Scénario C (Faux Positif d'Infrastructure) :** Tâche système légitime (sauvegarde réseau, transfert volumineux, heartbeat de supervision, scan de vulnérabilité interne autorisé).
 
@@ -315,6 +334,11 @@ def build_campaign_forensic_prompt(flows: List[Dict[str, Any]]) -> str:
     """Génère le prompt forensique expert SOC Tier-3 exhaustif pour détection de pattern & campagne multi-flux."""
     corr = compute_campaign_correlations(flows)
     baseline_threshold = 0.6029
+    model_info = get_dynamic_model_classes()
+    model_classes = model_info.get("classes", [])
+    model_ver = model_info.get("model_version", "v4")
+    classes_str = ", ".join(model_classes)
+    total_model_classes = len(model_classes)
 
     known_ports = {
         21: "FTP", 22: "SSH", 23: "Telnet", 25: "SMTP", 53: "DNS",
@@ -381,7 +405,7 @@ def build_campaign_forensic_prompt(flows: List[Dict[str, Any]]) -> str:
 
 Tu es un expert senior en Threat Intelligence, Lead DFIR (Digital Forensics & Incident Response) et Analyste Principal SOC Tier-3.
 Tu opères sur la console de défense autonome **HDVR**, un système NIDS hybride de pointe articulé autour de deux moteurs d'inférence complémentaires :
-1. **Moteur Supervisé (Réseau de Neurones Profond DNN v4)** : 12 classes formées sur l'ontologie CIC-IDS2017 (DDoS, DoS-Hulk, DoS-GoldenEye, DoS-Slowloris, DoS-Slowhttptest, PortScan, SSH-Patator, FTP-Patator, WebAttack-SQLi/XSS, Botnet, Scan-Vista, BENIGN).
+1. **Moteur Supervisé (Réseau de Neurones Profond DNN {model_ver})** : {total_model_classes} classes formées ({classes_str}).
 2. **Moteur Non-Supervisé (Autoencodeur de Déviation Profonde)** : modélisant l'espace latent du trafic bénin pour détecter les anomalies Zero-Day sans signature préalable (seuil critique de reconstruction $\\theta = {baseline_threshold}$).
 
 L'analyste de garde a sélectionné ce **cluster corrélé de {corr['total_flows']} télémétries réseau suspectes**.
@@ -423,7 +447,7 @@ Ta mission est de procéder à une **détection de pattern approfondie**, de dé
 
 ### ⚖️ 4. ANALYSE DES HYPOTHÈSES CONCURRENTES (ACH FRAMEWORK)
 Évalue rigoureusement les 4 hypothèses concurrentes avant de trancher :
-- **Hypothèse 1 (Campagne APT / Exploitation Zero-Day Coordonnée) :** Exploitation distribuée d'une vulnérabilité non cataloguée dans CIC-IDS2017, infrastructure de botnet C2 de nouvelle génération, évasion de signature.
+- **Hypothèse 1 (Campagne APT / Exploitation Zero-Day Coordonnée) :** Exploitation distribuée d'une vulnérabilité non cataloguée dans les signatures du classifieur actif, infrastructure de botnet C2 de nouvelle génération, évasion de signature.
 - **Hypothèse 2 (Attaque Réseau Volumétrique ou Brute-Force Distribuée) :** Inondation distribuée de type DDoS SYN/UDP flood, balayage de ports horizontal Nmap, ou credential stuffing coordonné contre les services d'accès.
 - **Hypothèse 3 (Reconnaissance Pré-Offensive Furtive) :** Cartographie ciblée de services avant phase d'exploitation, sondage de bannières applicatives.
 - **Hypothèse 4 (Faux Positif Systémique d'Infrastructure) :** Tâche programmée légitime d'administration, synchronisation de bases de données, sauvegarde automatisée, scan de conformité autorisé (ex: Qualys/Nessus) ou télémétrie cloud.

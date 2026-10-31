@@ -32,7 +32,7 @@
         </div>
         <div class="provider-meta">
           <div class="provider-name">Moteur Expert SOC (Tier-3)</div>
-          <div class="provider-desc">100% autonome et hors-ligne. Règles déterministes calibrées sur les 12 attaques CIC-IDS2017 et Zero-Days. Zéro latence, zéro clé API.</div>
+          <div class="provider-desc">100% autonome et hors-ligne. Règles expertes calibrées sur les anomalies statistiques de l'autoencodeur et les signatures du modèle. Zéro latence, zéro clé API.</div>
         </div>
       </button>
 

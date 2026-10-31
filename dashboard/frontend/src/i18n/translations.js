@@ -15,7 +15,7 @@ export const translations = {
     // Header
     header: {
       title: "Système de Détection d'Intrusions Réseau par IA",
-      subtitle: "Classifieur supervisé DNN v4 (12 classes) + Détection d'anomalies 0-day par Autoencodeur",
+      subtitle: "Classifieur supervisé DNN multi-classes + Détection d'anomalies 0-day par Autoencodeur",
       threatLevel: "Niveau de menace",
       threatNormal: "Normal",
       threatElevated: "Élevé",
@@ -38,7 +38,7 @@ export const translations = {
       totalFlows: "Total flux analysés",
       totalFlowsSub: "Télémétrie SQLite indexée",
       confirmedAttacks: "Attaques confirmées",
-      confirmedAttacksSub: "12 classes CIC-IDS2017",
+      confirmedAttacksSub: "Attaques répertoriées par le modèle",
       anomalies: "Anomalies Zero-Day",
       anomaliesSub: "Déviation MSE Autoencodeur",
       rate: "Débit d'ingestion",
@@ -50,7 +50,7 @@ export const translations = {
     // Donut
     donut: {
       title: "Répartition des Attaques",
-      subtitle: "12 Familles CIC-IDS2017",
+      subtitle: "Distribution des menaces",
       detected: "détectées",
       attacks: "attaques"
     },
@@ -102,7 +102,7 @@ export const translations = {
       title: "Flux d'Incidents en Direct",
       autoUpdating: "Mise à jour en direct",
       searchPlaceholder: "Filtrer par IP source ou destination...",
-      allCategories: "Toutes les catégories (12 classes)",
+      allCategories: "Toutes les catégories",
       minConfidence: "Confiance min :",
       zeroDayOnly: "Anomalies 0-Day uniquement",
       clearFilters: "Effacer les filtres",
@@ -224,7 +224,7 @@ export const translations = {
     },
     header: {
       title: "AI Network Intrusion Detection System",
-      subtitle: "Supervised DNN v4 Classifier (12 classes) + Autoencoder Zero-Day Anomaly Detection",
+      subtitle: "Supervised Multi-Class DNN Classifier + Autoencoder Zero-Day Anomaly Detection",
       threatLevel: "Threat level",
       threatNormal: "Normal",
       threatElevated: "Elevated",
@@ -246,7 +246,7 @@ export const translations = {
       totalFlows: "Total Flows Analyzed",
       totalFlowsSub: "Indexed SQLite telemetry",
       confirmedAttacks: "Confirmed Attacks",
-      confirmedAttacksSub: "12 CIC-IDS2017 classes",
+      confirmedAttacksSub: "Model cataloged attacks",
       anomalies: "Zero-Day Anomalies",
       anomaliesSub: "Autoencoder MSE deviation",
       rate: "Ingestion Rate",
@@ -257,7 +257,7 @@ export const translations = {
     },
     donut: {
       title: "Attack Distribution",
-      subtitle: "12 CIC-IDS2017 Families",
+      subtitle: "Threat distribution",
       detected: "detected",
       attacks: "attacks"
     },
@@ -304,7 +304,7 @@ export const translations = {
       title: "Live Incident Feed",
       autoUpdating: "Auto-updating",
       searchPlaceholder: "Filter by source or destination IP...",
-      allCategories: "All Categories (12 classes)",
+      allCategories: "All Categories",
       minConfidence: "Min Confidence:",
       zeroDayOnly: "Zero-Day Anomaly Only",
       clearFilters: "Clear Filters",

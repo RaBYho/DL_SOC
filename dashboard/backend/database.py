@@ -647,3 +647,63 @@ def export_feedback_dataset(db_path: Optional[str] = None) -> List[Dict[str, Any
         dataset.append(item)
     return dataset
 
+
+def get_model_classes(db_path: Optional[str] = None) -> Dict[str, Any]:
+    """Récupère dynamiquement les classes définies par le modèle actif et observées en base (jamais figées)."""
+    import json
+    from dashboard.backend.config import MODELS_DIR, ACTIVE_DNN_VERSION, ACTIVE_AE_VERSION
+
+    # 1. Classes définies par l'artéfact du modèle actif (classes.json)
+    model_classes: List[str] = []
+    classes_file = MODELS_DIR / "classes.json"
+    if classes_file.exists():
+        try:
+            with open(classes_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                model_classes = list(data.keys()) if isinstance(data, dict) else list(data)
+        except Exception:
+            pass
+
+    if not model_classes:
+        model_classes = ["BENIGN", "DDoS", "PortScan", "Bot", "WebAttack"]
+
+    # 2. Classes dynamiquement observées dans la base de données (flux réels et active learning)
+    observed_classes = set()
+    try:
+        con = get_connection(db_path)
+        cur = con.cursor()
+        rows_pred = cur.execute("SELECT DISTINCT pred FROM flows WHERE pred IS NOT NULL AND pred != ''").fetchall()
+        for r in rows_pred:
+            if r[0]:
+                observed_classes.add(str(r[0]))
+
+        rows_fb = cur.execute(
+            "SELECT DISTINCT corrected_attack_type FROM feedback_flows WHERE corrected_attack_type IS NOT NULL AND corrected_attack_type != ''"
+        ).fetchall()
+        for r in rows_fb:
+            if r[0]:
+                observed_classes.add(str(r[0]))
+        con.close()
+    except Exception:
+        pass
+
+    # Fusion ordonnée : les classes du modèle en tête, puis les classes dynamiquement qualifiées/observées
+    all_known = list(model_classes)
+    for c in sorted(observed_classes):
+        if c not in all_known:
+            all_known.append(c)
+
+    attack_classes = [c for c in all_known if c.upper() != "BENIGN"]
+    all_categories = list(attack_classes)
+    if "Unknown (anomaly)" not in all_categories:
+        all_categories.append("Unknown (anomaly)")
+
+    return {
+        "model_version": ACTIVE_DNN_VERSION,
+        "ae_version": ACTIVE_AE_VERSION,
+        "total_classes": len(model_classes),
+        "classes": model_classes,
+        "attack_classes": attack_classes,
+        "all_categories": all_categories,
+    }
+

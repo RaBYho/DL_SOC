@@ -63,5 +63,6 @@ export const api = {
   generateCampaignPrompt: (flows) => request('/incidents/campaign-prompt', { method: 'POST', body: JSON.stringify({ flows }) }),
   getAiSettings: () => request('/settings/ai'),
   updateAiSettings: (settings) => request('/settings/ai', { method: 'POST', body: JSON.stringify(settings) }),
-  testAiConnection: (settings = {}) => request('/ai/test', { method: 'POST', body: JSON.stringify(settings) })
+  testAiConnection: (settings = {}) => request('/ai/test', { method: 'POST', body: JSON.stringify(settings) }),
+  getModelClasses: () => request('/models/classes')
 }

@@ -310,20 +310,7 @@ async function copyBatchPrompt() {
   }
 }
 
-const attackCategories = [
-  'DDoS',
-  'DoS-Hulk',
-  'DoS-GoldenEye',
-  'DoS-slowloris',
-  'DoS-Slowhttptest',
-  'PortScan',
-  'SSH-Patator',
-  'FTP-Patator',
-  'WebAttack',
-  'Bot',
-  'Scan-Vista',
-  'Unknown (anomaly)'
-]
+const attackCategories = computed(() => store.availableAttackCategories)
 
 const displayedAlerts = computed(() => {
   return store.filteredAlerts.slice(0, 80)

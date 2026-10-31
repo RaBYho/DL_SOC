@@ -13,6 +13,7 @@ from dashboard.backend.database import (
     get_feedback,
     get_feedback_summary,
     get_kpis,
+    get_model_classes,
     get_recent_alerts,
     get_threat_vectors,
     get_timeline,
@@ -312,6 +313,7 @@ def get_initial_dashboard_state(time_range: str = Query("15m")):
     alerts_raw = get_recent_alerts(limit=60)
     alerts = [_enrich_alert(a) for a in alerts_raw]
     pcaps = _get_pcap_list()
+    model_classes_info = get_model_classes()
 
     return {
         "kpis": kpis,
@@ -326,6 +328,9 @@ def get_initial_dashboard_state(time_range: str = Query("15m")):
         "ae_threshold": AE_THRESHOLD,
         "system_health": health_service.get_health_status(),
         "time_range": time_range,
+        "model_classes": model_classes_info.get("classes", []),
+        "attack_categories": model_classes_info.get("all_categories", []),
+        "model_meta": model_classes_info,
     }
 
 
@@ -794,6 +799,12 @@ def get_raw_model_log():
     return PlainTextResponse(content)
 
 
+@router.get("/models/classes")
+def get_model_classes_endpoint():
+    """Retourne dynamiquement les classes définies par le modèle actif et observées en base."""
+    return get_model_classes()
+
+
 @router.get("/system/health")
 def get_system_health():
     """Diagnostic consolidé de santé système (pannes infrastructure vs sécurité)."""
@@ -836,6 +847,7 @@ async def websocket_endpoint(websocket: WebSocket):
     """Canal WebSocket temps réel pour pousser les alertes et les métriques sans recharger la page."""
     await ws_manager.connect(websocket)
     try:
+        model_classes_info = get_model_classes()
         init_data = {
             "type": "init",
             "kpis": _format_kpis(get_kpis()),
@@ -847,6 +859,9 @@ async def websocket_endpoint(websocket: WebSocket):
             "replay_status": replay_service.get_status(),
             "ae_threshold": AE_THRESHOLD,
             "system_health": health_service.get_health_status(),
+            "model_classes": model_classes_info.get("classes", []),
+            "attack_categories": model_classes_info.get("all_categories", []),
+            "model_meta": model_classes_info,
         }
         await ws_manager.send_personal_message(init_data, websocket)
 

@@ -253,12 +253,15 @@ const buildClientPrompt = () => {
   const isZd = Boolean(f.anomalie_ae === 1 || f.is_anomaly || mse > baseline)
   const devPct = mse > baseline ? Math.round(((mse - baseline) / baseline) * 100) : 0
   const conf = f.confiance ? Math.round(Number(f.confiance) * 100) : (f.confidence || 90)
+  const modelClasses = store.modelClasses && store.modelClasses.length ? store.modelClasses : ['BENIGN', 'DDoS', 'PortScan', 'Bot', 'WebAttack']
+  const modelVersion = store.modelMeta?.version || 'v4'
+  const classesSummary = `${modelClasses.length} classes configurées (${modelClasses.join(', ')})`
 
   return `# RAPPORT D'INVESTIGATION FORENSIQUE SOC TIER-3 : ANALYSE D'INCIDENT & QUALIFICATION
 
 Tu es un analyste senior en cybersécurité, Lead Incident Responder et Threat Hunter dans un SOC Tier-3.
 Tu opères sur la plateforme HDVR Autonomous Defense, un système NIDS hybride temps réel composé de :
-1. **Classifieur supervisé DNN v4** : 12 classes entraînées sur CIC-IDS2017.
+1. **Classifieur supervisé DNN (${modelVersion})** : ${classesSummary}.
 2. **Autoencodeur profond non-supervisé** : détection de déviations Zero-Day sans signature (seuil normalisé $\\theta = ${baseline}$).
 
 L'analyste SOC sollicite ton expertise pour **analyser, contextualiser, déterminer formellement et étiqueter** ce flux réseau pour le cycle d'Active Learning / Human-in-the-Loop.
@@ -283,8 +286,8 @@ L'analyste SOC sollicite ton expertise pour **analyser, contextualiser, détermi
 
 ### ⚖️ 3. ÉVALUATION DES HYPOTHÈSES FORENSIQUES CONCURRENTES
 Examine obligatoirement :
-- **Scénario A (Zero-Day / APT furtive) :** Exploitation non répertoriée dans CIC-IDS2017, C2 obfusqué.
-- **Scénario B (Attaque Réseau Répertoriée) :** DoS, PortScan, Brute-Force ou WebAttack.
+- **Scénario A (Zero-Day / APT furtive) :** Exploitation non répertoriée dans le périmètre d'entraînement du modèle actif, C2 obfusqué.
+- **Scénario B (Attaque Réseau Répertoriée) :** Attaque correspondant aux classes supervisées (${modelClasses.filter(c => c !== 'BENIGN').slice(0, 4).join(', ')}...).
 - **Scénario C (Faux Positif d'Infrastructure) :** Sauvegarde réseau, heartbeat de supervision, scan interne légitime.
 
 ---

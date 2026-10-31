@@ -78,6 +78,15 @@ export const useSocStore = defineStore('soc', {
     modelLogs: [],
     modelLogsAutoScroll: true,
 
+    // Model Agility & Dynamic Non-Frozen Classes
+    modelClasses: [],
+    dynamicAttackCategories: [],
+    modelMeta: {
+      version: 'v4',
+      ae_version: 'v1',
+      total_classes: 0
+    },
+
     // System Health & Infrastructure Monitoring (Plan 1)
     systemHealth: {
       status: 'HEALTHY',
@@ -178,6 +187,28 @@ export const useSocStore = defineStore('soc', {
         const id = String(a.id || `${a.src_ip}-${a.dst_port}-${a.received_at}`)
         return idSet.has(id)
       })
+    },
+
+    availableAttackCategories: (state) => {
+      const set = new Set(state.dynamicAttackCategories || [])
+      // Add all non-benign classes from modelClasses
+      for (const c of (state.modelClasses || [])) {
+        if (c && c.toUpperCase() !== 'BENIGN') {
+          set.add(c)
+        }
+      }
+      // Add any distinct attack label present in current alerts
+      for (const a of state.alerts) {
+        const p = a.pred || a.classification
+        if (p && p.toUpperCase() !== 'BENIGN' && p !== 'Unknown (anomaly)') {
+          set.add(p)
+        }
+      }
+      const list = Array.from(set).sort()
+      if (!list.includes('Unknown (anomaly)')) {
+        list.push('Unknown (anomaly)')
+      }
+      return list
     }
   },
 
@@ -281,6 +312,9 @@ export const useSocStore = defineStore('soc', {
         if (data.replay_status) this.replayStatus = data.replay_status
         if (data.ae_threshold) this.aeThreshold = data.ae_threshold
         if (data.system_health) this.systemHealth = data.system_health
+        if (data.model_classes) this.modelClasses = data.model_classes
+        if (data.attack_categories) this.dynamicAttackCategories = data.attack_categories
+        if (data.model_meta) this.modelMeta = data.model_meta
         if (data.sensors && Array.isArray(data.sensors)) {
           this.sensorsList = data.sensors
           this.sensorsOnline = data.sensors.filter(s => s.status === 'Online').length
@@ -325,6 +359,15 @@ export const useSocStore = defineStore('soc', {
         }
         if (msg.system_health) {
           this.systemHealth = msg.system_health
+        }
+        if (msg.model_classes) {
+          this.modelClasses = msg.model_classes
+        }
+        if (msg.attack_categories) {
+          this.dynamicAttackCategories = msg.attack_categories
+        }
+        if (msg.model_meta) {
+          this.modelMeta = msg.model_meta
         }
       }
 
@@ -747,6 +790,19 @@ export const useSocStore = defineStore('soc', {
         this.closeSystemDrawer()
       } else {
         this.openSystemDrawer()
+      }
+    },
+
+    async fetchModelClasses() {
+      try {
+        const res = await api.getModelClasses()
+        if (res) {
+          this.modelClasses = res.classes || []
+          this.dynamicAttackCategories = res.all_categories || []
+          this.modelMeta = res
+        }
+      } catch (err) {
+        console.warn('Failed to fetch dynamic model classes:', err)
       }
     },
 

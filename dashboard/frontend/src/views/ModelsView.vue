@@ -11,13 +11,13 @@
     </div>
 
     <section class="grid">
-      <!-- Supervised DNN v4 -->
+      <!-- Supervised DNN -->
       <div class="card c6">
-        <h2>Supervised Deep Neural Network (DNN v4)</h2>
+        <h2>Supervised Deep Neural Network (DNN {{ store.modelMeta?.version || 'v4' }})</h2>
         <div class="kv" style="margin-top: 10px;">
           <span>Framework</span><span>PyTorch 2.11 / CUDA</span>
           <span>Input Features</span><span>58 Bidirectional Flow Features</span>
-          <span>Target Classes</span><span>12 Multi-Class Categories</span>
+          <span>Target Classes</span><span>{{ classes.length }} Multi-Class Categories</span>
           <span>Overall Accuracy</span><span style="color:var(--ok);">99.42%</span>
           <span>Mean F1-Score</span><span style="color:var(--ok);">0.989</span>
           <span>Inference Latency</span><span>&lt; 0.45 ms / flow batch</span>
@@ -31,7 +31,7 @@
 
       <!-- Autoencoder AE v1 -->
       <div class="card c6">
-        <h2>Unsupervised Autoencoder (AE v1)</h2>
+        <h2>Unsupervised Autoencoder (AE {{ store.modelMeta?.ae_version || 'v1' }})</h2>
         <div class="kv" style="margin-top: 10px;">
           <span>Architecture</span><span>Deep Symmetric Bottleneck (58 &rarr; 32 &rarr; 16 &rarr; 32 &rarr; 58)</span>
           <span>Training Baseline</span><span>100% Benign Network Flows (Normal Traffic)</span>
@@ -54,14 +54,25 @@
 </template>
 
 <script setup>
+import { computed, onMounted } from 'vue'
 import { useSocStore } from '@/stores/socStore'
 import ModelTerminal from '@/components/models/ModelTerminal.vue'
 
 const store = useSocStore()
 
-const classes = [
+const fallbackClasses = [
   'BENIGN', 'DDoS', 'DoS-Hulk', 'DoS-GoldenEye', 'DoS-slowloris', 
   'DoS-Slowhttptest', 'PortScan', 'SSH-Patator', 'FTP-Patator', 
   'WebAttack', 'Bot', 'Scan-Vista'
 ]
+
+const classes = computed(() => {
+  return (store.modelClasses && store.modelClasses.length > 0)
+    ? store.modelClasses
+    : fallbackClasses
+})
+
+onMounted(() => {
+  store.fetchModelClasses()
+})
 </script>
