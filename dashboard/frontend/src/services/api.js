@@ -58,6 +58,9 @@ export const api = {
   getFeedbackSummary: () => request('/feedback/summary'),
   getFeedbackExportUrl: (format = 'json') => `${BASE_URL}/feedback/export?format=${format}`,
   analyzeIncidentAi: (incidentId, flow) => request(`/incidents/${incidentId}/ai-analysis`, { method: 'POST', body: JSON.stringify({ flow }) }),
+  analyzeBatchIncidentsAi: (flows) => request('/incidents/batch-analysis', { method: 'POST', body: JSON.stringify({ flows }) }),
+  submitBatchIncidentFeedback: (payload) => request('/incidents/batch-feedback', { method: 'POST', body: JSON.stringify(payload) }),
+  generateCampaignPrompt: (flows) => request('/incidents/campaign-prompt', { method: 'POST', body: JSON.stringify({ flows }) }),
   getAiSettings: () => request('/settings/ai'),
   updateAiSettings: (settings) => request('/settings/ai', { method: 'POST', body: JSON.stringify(settings) }),
   testAiConnection: (settings = {}) => request('/ai/test', { method: 'POST', body: JSON.stringify(settings) })

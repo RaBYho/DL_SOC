@@ -85,3 +85,66 @@ def test_ai_assistant_api_endpoints():
     assert res_data["success"] is True
     assert "sudo iptables -A INPUT -s 192.168.10.200 -j DROP" in res_data["iptables_rule"]
     assert "T1110.001" in res_data["analysis_markdown"]
+
+
+def test_batch_campaign_prompt_and_analysis():
+    client = TestClient(app)
+    flows = [
+        {
+            "id": "flow-zd-1",
+            "src_ip": "185.220.101.5",
+            "dst_ip": "10.0.1.50",
+            "dst_port": 443,
+            "protocol": 6,
+            "pred": "BENIGN",
+            "confiance": 0.55,
+            "mse_ae": 0.892,
+            "anomalie_ae": 1,
+            "is_zero_day": True,
+        },
+        {
+            "id": "flow-zd-2",
+            "src_ip": "185.220.101.6",
+            "dst_ip": "10.0.1.50",
+            "dst_port": 443,
+            "protocol": 6,
+            "pred": "BENIGN",
+            "confiance": 0.52,
+            "mse_ae": 0.941,
+            "anomalie_ae": 1,
+            "is_zero_day": True,
+        },
+        {
+            "id": "flow-zd-3",
+            "src_ip": "185.220.101.7",
+            "dst_ip": "10.0.1.50",
+            "dst_port": 443,
+            "protocol": 6,
+            "pred": "BENIGN",
+            "confiance": 0.50,
+            "mse_ae": 0.865,
+            "anomalie_ae": 1,
+            "is_zero_day": True,
+        },
+    ]
+
+    # 1. Test generate campaign prompt
+    res_prompt = client.post("/api/dashboard/incidents/campaign-prompt", json={"flows": flows})
+    assert res_prompt.status_code == 200
+    pdata = res_prompt.json()
+    assert pdata["success"] is True
+    assert "DÉTECTION DE PATTERN & CAMPAGNE MULTI-FLUX" in pdata["prompt"]
+    assert "185.220.101.5" in pdata["prompt"]
+    assert pdata["correlation_summary"]["zero_day_count"] == 3
+    assert pdata["correlation_summary"]["is_distributed"] is True
+
+    # 2. Test batch AI campaign analysis
+    res_batch = client.post("/api/dashboard/incidents/batch-analysis", json={"flows": flows})
+    assert res_batch.status_code == 200
+    bdata = res_batch.json()
+    assert bdata["success"] is True
+    assert bdata["determined_verdict"] == "CONFIRMED_ZERODAY"
+    assert "Zero-Day" in bdata["suggested_label"]
+    assert "iptables" in bdata["iptables_rule"]
+    assert "185.220.101.5" in bdata["iptables_rule"]
+    assert "185.220.101.6" in bdata["iptables_rule"]

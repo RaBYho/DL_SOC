@@ -120,6 +120,31 @@ export const translations = {
       emptyMessage: "Aucun incident réseau ne correspond aux critères de filtre.",
       resetFilters: "Réinitialiser les filtres"
     },
+    // Multi-Selection & Batch Campaign Pattern
+    batch: {
+      selectZeroDays: "Sélectionner les Zero-Days",
+      selectAll: "Tout sélectionner",
+      deselect: "Désélectionner",
+      flowsSelected: "flux sélectionnés",
+      zeroDaysCount: "Zero-Days",
+      copyPrompt: "Copier Prompt de Campagne",
+      detectPattern: "Détecter le Pattern & Triage",
+      promptCopied: "Prompt forensique multi-flux copié dans le presse-papiers !",
+      modalTitle: "Corrélation & Détection de Pattern Multi-Flux",
+      modalSubtitle: "Analyse groupée de campagne et triage Active Learning pour le cluster sélectionné",
+      statsTitle: "Corrélation Statistique du Cluster",
+      uniqueSources: "IPs Sources Uniques",
+      targetedPorts: "Ports Cibles",
+      avgMse: "MSE Moyen",
+      distribution: "Topologie",
+      burstSync: "Rafale synchronisée",
+      distributedAttack: "Attaque distribuée",
+      aiDiagnosis: "Diagnostic & Détection IA",
+      promptSection: "Prompt Forensique Formaté (LLM Externe)",
+      qualificationTitle: "Triage & Qualification Active Learning Groupée",
+      applyBatch: "Appliquer la qualification aux flux sélectionnés",
+      batchSuccess: "flux qualifiés avec succès dans la base Active Learning !",
+    },
     // Page Incidents
     alertsPage: {
       title: "Incidents & Investigation",
@@ -296,6 +321,31 @@ export const translations = {
       severity: "Severity",
       emptyMessage: "No network incidents match your current filter criteria.",
       resetFilters: "Reset all filters"
+    },
+    // Multi-Selection & Batch Campaign Pattern
+    batch: {
+      selectZeroDays: "Select Zero-Days",
+      selectAll: "Select all",
+      deselect: "Deselect",
+      flowsSelected: "flows selected",
+      zeroDaysCount: "Zero-Days",
+      copyPrompt: "Copy Campaign Prompt",
+      detectPattern: "Detect Pattern & Triage",
+      promptCopied: "Multi-flow forensic prompt copied to clipboard!",
+      modalTitle: "Multi-Flow Correlation & Pattern Detection",
+      modalSubtitle: "Batch campaign analysis and Active Learning triage for the selected cluster",
+      statsTitle: "Cluster Statistical Correlation",
+      uniqueSources: "Unique Source IPs",
+      targetedPorts: "Target Ports",
+      avgMse: "Average MSE",
+      distribution: "Topology",
+      burstSync: "Synchronized burst",
+      distributedAttack: "Distributed attack",
+      aiDiagnosis: "AI Diagnosis & Detection",
+      promptSection: "Formatted Forensic Prompt (External LLM)",
+      qualificationTitle: "Batch Active Learning Qualification",
+      applyBatch: "Apply qualification to selected flows",
+      batchSuccess: "flows qualified successfully in Active Learning dataset!",
     },
     // Incidents Page
     alertsPage: {

@@ -47,6 +47,8 @@ export const useSocStore = defineStore('soc', {
     selectedFlow: null,
     drawerOpen: false,
     incidentFeedbackMap: {},
+    selectedAlertIds: [],
+    batchPatternModalOpen: false,
 
     // PCAP Replay
     pcapFiles: [],
@@ -139,6 +141,43 @@ export const useSocStore = defineStore('soc', {
 
     latestCriticalAlert: (state) => {
       return state.alerts.find(a => a.severity === 'Critical' || a.pred === 'DDoS' || a.pred === 'Bot') || null
+    },
+
+    selectedAlerts: (state) => {
+      const idSet = new Set(state.selectedAlertIds.map(String))
+      return state.alerts.filter(a => {
+        const id = String(a.id || `${a.src_ip}-${a.dst_port}-${a.received_at}`)
+        return idSet.has(id)
+      })
+    },
+
+    selectedCount: (state) => state.selectedAlertIds.length,
+
+    selectedZeroDaysCount: (state) => {
+      const idSet = new Set(state.selectedAlertIds.map(String))
+      return state.alerts.filter(a => {
+        const id = String(a.id || `${a.src_ip}-${a.dst_port}-${a.received_at}`)
+        return idSet.has(id) && (a.anomalie_ae === 1 || a.is_zero_day || (a.mse_ae !== undefined && a.mse_ae > state.aeThreshold))
+      }).length
+    },
+
+    totalZeroDaysCount: (state) => {
+      return state.alerts.filter(a => a.anomalie_ae === 1 || a.is_zero_day || (a.mse_ae !== undefined && a.mse_ae > state.aeThreshold)).length
+    },
+
+    isAlertSelected: (state) => (alert) => {
+      const id = String(alert.id || `${alert.src_ip}-${alert.dst_port}-${alert.received_at}`)
+      return state.selectedAlertIds.includes(id)
+    },
+
+    isAllFilteredSelected: (state) => {
+      const filtered = state.filteredAlerts
+      if (!filtered.length) return false
+      const idSet = new Set(state.selectedAlertIds.map(String))
+      return filtered.every(a => {
+        const id = String(a.id || `${a.src_ip}-${a.dst_port}-${a.received_at}`)
+        return idSet.has(id)
+      })
     }
   },
 
@@ -301,6 +340,17 @@ export const useSocStore = defineStore('soc', {
             corrected_attack_type: msg.corrected_attack_type
           }
         }
+      }
+
+      if (msg.type === 'batch_incident_feedback' && Array.isArray(msg.incident_ids)) {
+        const newMap = { ...this.incidentFeedbackMap }
+        for (const id of msg.incident_ids) {
+          newMap[id] = {
+            human_verdict: msg.human_verdict,
+            corrected_attack_type: msg.corrected_attack_type
+          }
+        }
+        this.incidentFeedbackMap = newMap
       }
 
       if (msg.type === 'database_reset') {
@@ -513,6 +563,80 @@ export const useSocStore = defineStore('soc', {
         return res
       } catch (err) {
         console.error('Error submitting incident feedback:', err)
+        throw err
+      }
+    },
+
+    toggleSelectAlert(alert) {
+      const id = String(alert.id || `${alert.src_ip}-${alert.dst_port}-${alert.received_at}`)
+      const idx = this.selectedAlertIds.indexOf(id)
+      if (idx > -1) {
+        this.selectedAlertIds.splice(idx, 1)
+      } else {
+        this.selectedAlertIds.push(id)
+      }
+    },
+
+    selectAllZeroDays() {
+      const zdAlerts = this.alerts.filter(
+        a => a.anomalie_ae === 1 || a.is_zero_day || (a.mse_ae !== undefined && a.mse_ae > this.aeThreshold)
+      )
+      const ids = zdAlerts.map(a => String(a.id || `${a.src_ip}-${a.dst_port}-${a.received_at}`))
+      this.selectedAlertIds = Array.from(new Set([...this.selectedAlertIds, ...ids]))
+    },
+
+    selectAllFiltered() {
+      const ids = this.filteredAlerts.map(a => String(a.id || `${a.src_ip}-${a.dst_port}-${a.received_at}`))
+      this.selectedAlertIds = Array.from(new Set(ids))
+    },
+
+    clearSelectedAlerts() {
+      this.selectedAlertIds = []
+    },
+
+    toggleSelectAllFiltered() {
+      if (this.isAllFilteredSelected) {
+        const filteredIdSet = new Set(this.filteredAlerts.map(a => String(a.id || `${a.src_ip}-${a.dst_port}-${a.received_at}`)))
+        this.selectedAlertIds = this.selectedAlertIds.filter(id => !filteredIdSet.has(id))
+      } else {
+        this.selectAllFiltered()
+      }
+    },
+
+    openBatchPatternModal() {
+      this.batchPatternModalOpen = true
+    },
+
+    closeBatchPatternModal() {
+      this.batchPatternModalOpen = false
+    },
+
+    async submitBatchFeedback(verdict, correctedType, notes) {
+      const selected = this.selectedAlerts
+      if (!selected.length) return
+
+      const incidentIds = selected.map(a => String(a.id || `${a.src_ip}-${a.dst_port}-${a.received_at}`))
+      try {
+        const res = await api.submitBatchIncidentFeedback({
+          incident_ids: incidentIds,
+          human_verdict: verdict,
+          corrected_attack_type: correctedType,
+          analyst_notes: notes,
+          flows: selected
+        })
+
+        const newMap = { ...this.incidentFeedbackMap }
+        for (const id of incidentIds) {
+          newMap[id] = {
+            human_verdict: verdict,
+            corrected_attack_type: correctedType
+          }
+        }
+        this.incidentFeedbackMap = newMap
+        this.clearSelectedAlerts()
+        return res
+      } catch (err) {
+        console.error('Error submitting batch feedback:', err)
         throw err
       }
     },

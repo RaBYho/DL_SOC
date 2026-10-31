@@ -109,3 +109,32 @@ def test_active_learning_api_endpoints():
     assert "text/csv" in res_exp_csv.headers["content-type"]
     assert "incident_id" in res_exp_csv.text
     assert "api-inc-2002" in res_exp_csv.text
+
+
+def test_batch_feedback_api_endpoints():
+    client = TestClient(app)
+    batch_payload = {
+        "incident_ids": ["batch-inc-1", "batch-inc-2", "batch-inc-3"],
+        "human_verdict": "CONFIRMED_ZERODAY",
+        "corrected_attack_type": "Zero-Day-C2-Distributed",
+        "analyst_notes": "Validation groupée de la campagne APT 443.",
+        "flows": [
+            {"id": "batch-inc-1", "src_ip": "1.1.1.1", "dst_ip": "10.0.0.1", "dst_port": 443, "mse_ae": 0.95},
+            {"id": "batch-inc-2", "src_ip": "1.1.1.2", "dst_ip": "10.0.0.1", "dst_port": 443, "mse_ae": 0.88},
+            {"id": "batch-inc-3", "src_ip": "1.1.1.3", "dst_ip": "10.0.0.1", "dst_port": 443, "mse_ae": 0.91},
+        ],
+    }
+
+    res = client.post("/api/dashboard/incidents/batch-feedback", json=batch_payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "success"
+    assert data["count"] == 3
+
+    # Check that feedback is recorded for each
+    fb1 = client.get("/api/dashboard/incidents/batch-inc-1/feedback").json()["feedback"]
+    assert fb1["human_verdict"] == "CONFIRMED_ZERODAY"
+    assert fb1["corrected_attack_type"] == "Zero-Day-C2-Distributed"
+
+    fb2 = client.get("/api/dashboard/incidents/batch-inc-2/feedback").json()["feedback"]
+    assert fb2["human_verdict"] == "CONFIRMED_ZERODAY"

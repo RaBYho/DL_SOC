@@ -17,6 +17,7 @@ from dashboard.backend.database import (
     get_threat_vectors,
     get_timeline,
     record_feedback,
+    record_batch_feedback,
     reset_database,
 )
 from dashboard.backend.model_logger import clear_logs, get_recent_logs, MODEL_LOG_FILE
@@ -25,6 +26,8 @@ from dashboard.backend.services.health_service import health_service
 from dashboard.backend.services.ai_analyzer import (
     AiAnalyzerService,
     build_forensic_prompt,
+    build_campaign_forensic_prompt,
+    compute_campaign_correlations,
     get_ai_config,
     get_masked_ai_config,
     save_ai_config,
@@ -477,6 +480,22 @@ class FeedbackSubmissionRequest(BaseModel):
     flow_data: Optional[Dict[str, Any]] = None
 
 
+class BatchFeedbackSubmissionRequest(BaseModel):
+    incident_ids: List[str]
+    human_verdict: str  # 'FALSE_POSITIVE', 'KNOWN_ATTACK', 'CONFIRMED_ZERODAY'
+    corrected_attack_type: Optional[str] = None
+    analyst_notes: Optional[str] = None
+    flows: Optional[List[Dict[str, Any]]] = None
+
+
+class BatchAnalysisRequest(BaseModel):
+    flows: List[Dict[str, Any]]
+
+
+class BatchPromptRequest(BaseModel):
+    flows: List[Dict[str, Any]]
+
+
 class AiSettingsUpdateRequest(BaseModel):
     provider: Optional[str] = None
     ollama_url: Optional[str] = None
@@ -653,6 +672,72 @@ async def analyze_incident_ai(incident_id: str, req: AiAnalysisRequest):
         "INFO" if res.get("success") else "WARN",
     )
     return res
+
+
+@router.post("/incidents/batch-analysis")
+async def analyze_batch_incidents_ai(req: BatchAnalysisRequest):
+    """Analyse un lot de télémétries sélectionnées (ex: tous les Zero-Days) pour détecter des patterns de campagne."""
+    if not req.flows:
+        return {"success": False, "error": "Aucun flux fourni pour l'analyse de campagne"}
+    res = await AiAnalyzerService.analyze_campaign(req.flows)
+    health_service.record_log(
+        "ai_assistant",
+        f"Analyse de campagne ({len(req.flows)} flux) exécutée via {res.get('provider', 'IA')} : {res.get('campaign_type')}",
+        "INFO" if res.get("success") else "WARN",
+    )
+    return res
+
+
+@router.post("/incidents/batch-feedback")
+async def record_batch_incident_feedback(req: BatchFeedbackSubmissionRequest):
+    """Enregistre la qualification humaine en masse (Active Learning) pour un lot de flux."""
+    if not req.incident_ids:
+        return {"success": False, "error": "Aucun identifiant d'incident fourni"}
+
+    flows_map = {}
+    if req.flows:
+        for f in req.flows:
+            fid = str(f.get("id", f.get("incident_id", "")))
+            if fid:
+                flows_map[fid] = f
+
+    res = record_batch_feedback(
+        incident_ids=req.incident_ids,
+        human_verdict=req.human_verdict,
+        corrected_attack_type=req.corrected_attack_type,
+        analyst_notes=req.analyst_notes,
+        flows_map=flows_map,
+    )
+
+    health_service.record_log(
+        "active_learning",
+        f"Qualification groupée de {len(req.incident_ids)} flux par analyste : {req.human_verdict}"
+        + (f" ({req.corrected_attack_type})" if req.corrected_attack_type else ""),
+        "INFO",
+    )
+
+    await ws_manager.broadcast({
+        "type": "batch_incident_feedback",
+        "incident_ids": req.incident_ids,
+        "human_verdict": req.human_verdict,
+        "corrected_attack_type": req.corrected_attack_type,
+    })
+
+    return res
+
+
+@router.post("/incidents/campaign-prompt")
+def generate_campaign_prompt_endpoint(req: BatchPromptRequest):
+    """Génère le prompt forensique d'analyse de pattern et les statistiques de corrélation."""
+    if not req.flows:
+        return {"success": False, "error": "Aucun flux fourni"}
+    prompt = build_campaign_forensic_prompt(req.flows)
+    corr = compute_campaign_correlations(req.flows)
+    return {
+        "success": True,
+        "prompt": prompt,
+        "correlation_summary": corr,
+    }
 
 
 @router.get("/settings/ai")

@@ -97,6 +97,157 @@ Puis structure ton analyse détaillée :
     return prompt
 
 
+def compute_campaign_correlations(flows: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Extrait et corrèle les indicateurs clés d'un cluster multi-télémétries."""
+    if not flows:
+        return {
+            "total_flows": 0,
+            "zero_day_count": 0,
+            "zero_day_pct": 0.0,
+            "unique_src_ips": [],
+            "unique_dst_ips": [],
+            "targeted_ports": {},
+            "protocols": {},
+            "avg_mse": 0.0,
+            "min_mse": 0.0,
+            "max_mse": 0.0,
+            "duration_sec": 0.0,
+            "is_burst": False,
+            "is_distributed": False,
+            "dominant_threat": "SUSPICIOUS",
+            "preds_distribution": {},
+        }
+
+    total = len(flows)
+    zd_count = sum(
+        1 for f in flows
+        if f.get("anomalie_ae") == 1 or f.get("is_zero_day") or (float(f.get("mse_ae") or 0.0) > 0.6029)
+    )
+    zd_pct = round((zd_count / total) * 100.0, 1) if total > 0 else 0.0
+
+    src_ips = list(dict.fromkeys(str(f.get("src_ip", "0.0.0.0")) for f in flows if f.get("src_ip")))
+    dst_ips = list(dict.fromkeys(str(f.get("dst_ip", "0.0.0.0")) for f in flows if f.get("dst_ip")))
+
+    ports_counter: Dict[int, int] = {}
+    for f in flows:
+        p = int(f.get("dst_port", 0) or 0)
+        if p > 0:
+            ports_counter[p] = ports_counter.get(p, 0) + 1
+    sorted_ports = dict(sorted(ports_counter.items(), key=lambda item: item[1], reverse=True))
+
+    protos_counter: Dict[str, int] = {}
+    for f in flows:
+        p_raw = f.get("protocol", "TCP")
+        p_str = "TCP" if str(p_raw) in ("6", "TCP") else ("UDP" if str(p_raw) in ("17", "UDP") else ("ICMP" if str(p_raw) in ("1", "ICMP") else str(p_raw)))
+        protos_counter[p_str] = protos_counter.get(p_str, 0) + 1
+
+    mses = [float(f.get("mse_ae", 0.0) or 0.0) for f in flows]
+    min_mse = round(min(mses), 4) if mses else 0.0
+    max_mse = round(max(mses), 4) if mses else 0.0
+    avg_mse = round(sum(mses) / len(mses), 4) if mses else 0.0
+
+    preds_counter: Dict[str, int] = {}
+    for f in flows:
+        pred_label = str(f.get("pred", f.get("classification", "SUSPICIOUS")))
+        preds_counter[pred_label] = preds_counter.get(pred_label, 0) + 1
+
+    ts_list = []
+    for f in flows:
+        ts = f.get("received_at", f.get("timestamp"))
+        if isinstance(ts, (int, float)):
+            ts_list.append(ts)
+
+    duration_sec = 0.0
+    if len(ts_list) >= 2:
+        duration_sec = round(max(ts_list) - min(ts_list), 2)
+
+    is_burst = bool(duration_sec < 10.0 and total >= 3)
+    is_distributed = bool(len(src_ips) > 1 and len(dst_ips) == 1)
+    top_pred = max(preds_counter.items(), key=lambda x: x[1])[0] if preds_counter else "SUSPICIOUS"
+
+    return {
+        "total_flows": total,
+        "zero_day_count": zd_count,
+        "zero_day_pct": zd_pct,
+        "unique_src_ips": src_ips,
+        "unique_dst_ips": dst_ips,
+        "targeted_ports": sorted_ports,
+        "protocols": protos_counter,
+        "avg_mse": avg_mse,
+        "min_mse": min_mse,
+        "max_mse": max_mse,
+        "duration_sec": duration_sec,
+        "is_burst": is_burst,
+        "is_distributed": is_distributed,
+        "dominant_threat": top_pred,
+        "preds_distribution": preds_counter,
+    }
+
+
+def build_campaign_forensic_prompt(flows: List[Dict[str, Any]]) -> str:
+    """Génère un prompt forensique d'analyse de campagne multi-flux pour détection de pattern SOC Tier-3."""
+    corr = compute_campaign_correlations(flows)
+
+    src_summary = ", ".join(f"`{ip}`" for ip in corr["unique_src_ips"][:8])
+    if len(corr["unique_src_ips"]) > 8:
+        src_summary += f" ... (+{len(corr['unique_src_ips']) - 8} autres)"
+
+    ports_summary = ", ".join(f"`{port}` ({cnt}x)" for port, cnt in list(corr["targeted_ports"].items())[:6])
+    protos_summary = ", ".join(f"{proto}: {cnt}" for proto, cnt in corr["protocols"].items())
+
+    table_rows = []
+    for i, f in enumerate(flows[:15], start=1):
+        s_ip = f.get("src_ip", "0.0.0.0")
+        s_port = f.get("src_port", "")
+        d_ip = f.get("dst_ip", "0.0.0.0")
+        d_port = f.get("dst_port", "")
+        proto = f.get("protocol", "TCP")
+        pred = f.get("pred", f.get("classification", "SUSPICIOUS"))
+        mse = round(float(f.get("mse_ae", 0.0) or 0.0), 4)
+        zd = "OUI" if (f.get("anomalie_ae") == 1 or f.get("is_zero_day") or mse > 0.6029) else "NON"
+        table_rows.append(f"| {i} | `{s_ip}:{s_port}` | `{d_ip}:{d_port}` | {proto} | {pred} | {mse:.4f} | {zd} |")
+
+    table_md = "\n".join(table_rows)
+    extra_note = f"\n*(+ {len(flows) - 15} flux additionnels avec caractéristiques similaires inclus dans le lot)*" if len(flows) > 15 else ""
+
+    prompt = f"""# RAPPORT D'INVESTIGATION FORENSIQUE SOC TIER-3 : DÉTECTION DE PATTERN & CAMPAGNE MULTI-FLUX
+
+Tu es un expert senior en Threat Intelligence et analyste forensique SOC Tier-3.
+Notre sonde NIDS hybride (Réseau de Neurones Profond DNN + Autoencodeur d'Anomalie) a isolé un ensemble de {corr['total_flows']} télémétries suspectes.
+L'analyste a sélectionné ce lot pour détecter un schéma de corrélation (pattern d'attaque coordonnée, campagne Zero-Day APT, scan distribué ou faux positif systémique) et qualifier ces données dans le système d'Active Learning.
+
+### 📊 Synthèse Statistique du Cluster
+- **Nombre total de flux sélectionnés :** {corr['total_flows']}
+- **Flux marqués Zero-Day (Autoencodeur) :** {corr['zero_day_count']} / {corr['total_flows']} ({corr['zero_day_pct']}%)
+- **IPs Sources Uniques ({len(corr['unique_src_ips'])}) :** {src_summary}
+- **Cibles Visées ({len(corr['unique_dst_ips'])}) :** {', '.join(f'`{ip}`' for ip in corr['unique_dst_ips'])}
+- **Ports Cibles les plus sollicités :** {ports_summary or 'Multiples'}
+- **Protocoles Observés :** {protos_summary or 'TCP'}
+- **Erreur de Reconstruction MSE Autoencodeur :** Min: {corr['min_mse']:.4f} | Moyenne: {corr['avg_mse']:.4f} | Max: {corr['max_mse']:.4f} (Seuil normal : 0.6029)
+- **Topologie Observée :** {"Attaque Distribuée Multi-Sources" if corr['is_distributed'] else "Source Unique / Cibles Multiples"} | {"Rafale Temporelle Synchronisée" if corr['is_burst'] else "Trafic Étalé"}
+
+### 📋 Échantillon Détaillé des Télémétries
+| # | Source | Destination | Proto | Prédiction DNN | Score MSE | Flag Zero-Day |
+|---|---|---|---|---|---|---|
+{table_md}{extra_note}
+
+### 🎯 Décision d'Étiquetage Attendue (pour l'Active Learning) :
+Fournis OBLIGATOIREMENT en début de réponse les balises de décision suivantes :
+[CAMPAGNE_DETECTEE]: OUI ou NON
+[TYPE_CAMPAGNE]: (ex: Campagne Zero-Day APT C2, Scan de Ports Distribué, DDoS Volumétrique L7, Brute-Force SSH Distribué, Faux Positif de Sauvegarde)
+[VERDICT_GLOBAL]: CONFIRMED_ZERODAY ou KNOWN_ATTACK ou FALSE_POSITIVE
+[SUGGESTED_LABEL]: Étiquette normalisée recommandée pour tout le lot (ex: Zero-Day-C2-Campaign, PortScan-Distributed, DoS-Hulk, Faux-Positif-Sauvegarde)
+[CONFIDENCE]: Pourcentage de certitude de l'analyse (ex: 94%)
+[ANALYSTE_JUSTIFICATION]: Résumé concis (2-3 phrases) expliquant le pattern commun observé.
+
+Puis structure ton analyse forensique détaillée :
+1. **Analyse de Pattern & Corrélation :** Décris les points communs (adresses IP, ports, dispersion MSE, synchronisation) et la logique offensive sous-jacente.
+2. **Attribution MITRE ATT&CK :** Tactique principale, Technique ID (ex: T1046, T1071, T1498) et nom de la technique.
+3. **Script de Remédiation Pare-feu Global :** Règle bash (`iptables` ou boucle de blocage) neutralisant toutes les IPs sources identifiées.
+"""
+    return prompt
+
+
 class AiAnalyzerService:
     """Service d'analyse d'incidents et d'aide à l'étiquetage Active Learning."""
 
@@ -122,6 +273,245 @@ class AiAnalyzerService:
             logger.warning("Gemini API call failed, using expert rules analyzer")
 
         return expert_res
+
+    @classmethod
+    async def analyze_campaign(cls, flows: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Analyse un ensemble de télémétries pour détecter des schémas de campagne / attaque coordonnée."""
+        cfg = get_ai_config()
+        provider = cfg.get("provider", "expert_rules")
+        corr = compute_campaign_correlations(flows)
+        prompt = build_campaign_forensic_prompt(flows)
+
+        expert_res = cls._analyze_campaign_with_expert_rules(flows, corr)
+
+        if provider == "ollama":
+            llm_res = await cls._analyze_campaign_with_ollama(cfg, prompt, corr)
+            if llm_res.get("success"):
+                return cls._merge_campaign_llm_result(llm_res, expert_res)
+            logger.warning("Ollama batch call failed, using expert rules analyzer")
+
+        elif provider == "gemini":
+            llm_res = await cls._analyze_campaign_with_gemini(cfg, prompt, corr)
+            if llm_res.get("success"):
+                return cls._merge_campaign_llm_result(llm_res, expert_res)
+            logger.warning("Gemini API batch call failed, using expert rules analyzer")
+
+        return expert_res
+
+    @classmethod
+    async def _analyze_campaign_with_ollama(cls, cfg: Dict[str, Any], prompt: str, corr: Dict[str, Any]) -> Dict[str, Any]:
+        url = f"{cfg.get('ollama_url', 'http://localhost:11434').rstrip('/')}/api/generate"
+        model = cfg.get("ollama_model", "mistral:latest")
+        payload = {"model": model, "prompt": prompt, "stream": False}
+
+        try:
+            async with httpx.AsyncClient(timeout=35.0) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return {
+                        "success": True,
+                        "provider": f"Ollama ({model})",
+                        "analysis_markdown": data.get("response", ""),
+                        "prompt_used": prompt,
+                    }
+                return {"success": False, "error": f"Ollama HTTP {resp.status_code}: {resp.text}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @classmethod
+    async def _analyze_campaign_with_gemini(cls, cfg: Dict[str, Any], prompt: str, corr: Dict[str, Any]) -> Dict[str, Any]:
+        api_key = cfg.get("gemini_api_key", "").strip()
+        if not api_key:
+            return {"success": False, "error": "Clé API Gemini non configurée"}
+        model = cfg.get("gemini_model", "gemini-2.5-flash")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 1200},
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    candidates = data.get("candidates", [])
+                    if candidates and "content" in candidates[0]:
+                        parts = candidates[0]["content"].get("parts", [])
+                        text = "".join(p.get("text", "") for p in parts)
+                        return {
+                            "success": True,
+                            "provider": f"Google Gemini ({model})",
+                            "analysis_markdown": text,
+                            "prompt_used": prompt,
+                        }
+                return {"success": False, "error": f"Gemini API HTTP {resp.status_code}: {resp.text}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @classmethod
+    def _merge_campaign_llm_result(cls, llm_res: Dict[str, Any], expert_res: Dict[str, Any]) -> Dict[str, Any]:
+        text = llm_res.get("analysis_markdown", "")
+        merged = dict(expert_res)
+        merged["provider"] = llm_res.get("provider", expert_res["provider"])
+        merged["analysis_markdown"] = text
+
+        v_match = re.search(r"\[VERDICT_GLOBAL\]:\s*([A-Z_]+)", text, re.IGNORECASE)
+        if v_match:
+            v_val = v_match.group(1).upper()
+            if v_val in ("FALSE_POSITIVE", "KNOWN_ATTACK", "CONFIRMED_ZERODAY"):
+                merged["determined_verdict"] = v_val
+
+        tc_match = re.search(r"\[TYPE_CAMPAGNE\]:\s*([^\n\r]+)", text, re.IGNORECASE)
+        if tc_match:
+            merged["campaign_type"] = tc_match.group(1).strip()
+
+        l_match = re.search(r"\[SUGGESTED_LABEL\]:\s*([^\n\r]+)", text, re.IGNORECASE)
+        if l_match:
+            merged["suggested_label"] = l_match.group(1).strip()
+
+        c_match = re.search(r"\[CONFIDENCE\]:\s*(\d+)", text, re.IGNORECASE)
+        if c_match:
+            try:
+                merged["confidence_pct"] = int(c_match.group(1))
+            except Exception:
+                pass
+
+        j_match = re.search(r"\[ANALYSTE_JUSTIFICATION\]:\s*([^\n\r]+)", text, re.IGNORECASE)
+        if j_match:
+            merged["justification"] = j_match.group(1).strip()
+
+        return merged
+
+    @classmethod
+    def _analyze_campaign_with_expert_rules(cls, flows: List[Dict[str, Any]], corr: Dict[str, Any]) -> Dict[str, Any]:
+        total = corr["total_flows"]
+        zd_count = corr["zero_day_count"]
+        zd_pct = corr["zero_day_pct"]
+        unique_src = corr["unique_src_ips"]
+        targeted_ports = corr["targeted_ports"]
+        dominant = str(corr["dominant_threat"]).upper()
+        avg_mse = corr["avg_mse"]
+        is_distributed = corr["is_distributed"]
+        is_burst = corr["is_burst"]
+
+        if len(unique_src) > 1:
+            ips_str = " ".join(unique_src)
+            iptables_cmd = f"# Blocage groupé de {len(unique_src)} sources offensives\nfor ip in {ips_str}; do\n  sudo iptables -A INPUT -s $ip -j DROP\ndone"
+        elif unique_src:
+            iptables_cmd = f"sudo iptables -A INPUT -s {unique_src[0]} -j DROP"
+        else:
+            iptables_cmd = "# Aucune adresse source identifiée"
+
+        if zd_count > 0 and (zd_pct >= 40.0 or avg_mse > 0.6029):
+            determined_verdict = "CONFIRMED_ZERODAY"
+            severity = "CRITIQUE"
+            has_web_ports = any(p in targeted_ports for p in (443, 8080, 8443))
+
+            if is_distributed:
+                campaign_type = "Campagne Zero-Day Distribuée (C2 / Evasion Coordonnée)"
+                suggested_label = "Zero-Day-C2-Distributed" if has_web_ports else "Zero-Day-Distributed-Cluster"
+                tid, tname, tactic = ("T1205", "Traffic Signaling / Zero-Day Defense Evasion", "Defense Evasion")
+                justification = f"Cluster critique de {zd_count} anomalies Zero-Day (MSE moyen {avg_mse:.4f}) distribuées sur {len(unique_src)} sources différentes."
+            else:
+                campaign_type = "Infiltration Zero-Day Ciblée (Séquence d'Exploitation)"
+                suggested_label = "Zero-Day-APT-Exploit"
+                tid, tname, tactic = ("T1190", "Exploit Public-Facing Application", "Initial Access")
+                justification = f"Séquence répétée d'anomalies Zero-Day (MSE moyen {avg_mse:.4f}) émanant de la source {unique_src[0] if unique_src else 'inconnue'}."
+            confidence_pct = min(99, max(85, int(avg_mse * 50) + 60))
+
+        elif dominant != "BENIGN" and dominant != "SUSPICIOUS":
+            determined_verdict = "KNOWN_ATTACK"
+            if "SCAN" in dominant or len(targeted_ports) >= 3:
+                campaign_type = "Campagne de Reconnaissance Réseau (Scan de Ports Distribué)"
+                suggested_label = "PortScan-Distributed" if is_distributed else "PortScan"
+                tid, tname, tactic = ("T1046", "Network Service Discovery", "Reconnaissance")
+                severity = "ÉLEVÉE"
+                justification = f"Reconnaissance méthodique ciblant {len(targeted_ports)} port(s) distinct(s) via {len(unique_src)} adresse(s) source."
+            elif "DOS" in dominant or "DDOS" in dominant:
+                campaign_type = "Attaque par Déni de Service Volumétrique (DDoS Coordonné)"
+                suggested_label = "DDoS-Flooding-Campaign" if is_distributed else "DoS-Hulk-Burst"
+                tid, tname, tactic = ("T1498", "Network Denial of Service", "Impact")
+                severity = "CRITIQUE"
+                justification = f"Inondation volumétrique coordonnée ({total} flux en rafale) avec saturation des cibles."
+            elif "PATATOR" in dominant or 22 in targeted_ports or 21 in targeted_ports:
+                campaign_type = "Campagne de Force Brute Distribuée (Credential Stuffing)"
+                suggested_label = "SSH-Patator-Distributed" if 22 in targeted_ports else "FTP-Patator"
+                tid, tname, tactic = ("T1110.001", "Brute Force (Password Guessing)", "Credential Access")
+                severity = "ÉLEVÉE"
+                justification = f"Tentatives répétées d'authentification forcée contre les services d'accès."
+            elif "BOT" in dominant:
+                campaign_type = "Activité de Botnet Coordonnée (Communication C2)"
+                suggested_label = "Botnet-C2-Activity"
+                tid, tname, tactic = ("T1071", "Application Layer Protocol (C2)", "Command and Control")
+                severity = "CRITIQUE"
+                justification = f"Flux caractéristiques de trafic Botnet / Command and Control synchronisé."
+            else:
+                campaign_type = f"Campagne Offensive Coordonnée ({dominant})"
+                suggested_label = f"{dominant}-Campaign"
+                tid, tname, tactic = ("T1046", "Network Service Scanning", "Discovery")
+                severity = "ÉLEVÉE"
+                justification = f"Signature offensive concordante avec la catégorie {dominant} sur {total} flux."
+            confidence_pct = 90
+
+        else:
+            determined_verdict = "FALSE_POSITIVE"
+            campaign_type = "Trafic Réseau Bénin / Faux Positifs Groupés"
+            suggested_label = "Trafic-Legitime-Groupe"
+            tid, tname, tactic = ("T0000", "Baseline Traffic Activity", "Operational")
+            severity = "FAIBLE"
+            justification = f"L'ensemble des {total} flux présente des métriques nominales sans indicateur de compromission actif."
+            confidence_pct = 88
+
+        markdown = f"""### 🛡️ Diagnostic de Campagne SOC Tier-3
+**Type de Campagne :** **`{campaign_type}`**  
+**Verdict Global Recommandé :** `{determined_verdict}`  
+**Étiquette Suggérée pour le Lot :** **`{suggested_label}`** (Confiance : **{confidence_pct}%**)  
+**Motif analytique :** {justification}
+
+---
+
+### 📊 Corrélation & Topologie
+- **Total flux analysés :** {total} flux ({zd_count} Zero-Days - {zd_pct}%)
+- **Sources distinctes :** {len(unique_src)} IPs | **Ports cibles :** {', '.join(f'{p}' for p in list(targeted_ports.keys())[:5])}
+- **Score MSE moyen :** `{avg_mse:.4f}` (Seuil : 0.6029)
+- **Comportement temporel :** {"Rafale synchronisée" if is_burst else "Distribution continue"}
+
+---
+
+### 🗺️ Attribution MITRE ATT&CK
+- **Technique :** [`{tid}` {tname}](https://attack.mitre.org/techniques/{tid.split('.')[0]}/)
+- **Tactique :** `{tactic}`
+- **Gravité du Cluster :** **{severity}**
+
+---
+
+### ⚡ Script de Neutralisation Pare-feu
+```bash
+{iptables_cmd}
+```
+"""
+
+        return {
+            "success": True,
+            "provider": "Moteur Expert SOC (Tier-3 Campaign Correlator)",
+            "campaign_type": campaign_type,
+            "determined_verdict": determined_verdict,
+            "suggested_label": suggested_label,
+            "confidence_pct": confidence_pct,
+            "justification": justification,
+            "correlation_summary": corr,
+            "mitre": {
+                "id": tid,
+                "name": tname,
+                "tactic": tactic,
+                "severity": severity,
+            },
+            "analysis_markdown": markdown,
+            "iptables_rule": iptables_cmd,
+            "prompt_used": build_campaign_forensic_prompt(flows),
+        }
 
     @classmethod
     def _merge_llm_result(cls, llm_res: Dict[str, Any], expert_res: Dict[str, Any]) -> Dict[str, Any]:

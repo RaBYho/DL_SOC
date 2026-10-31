@@ -63,17 +63,95 @@
         <span>{{ store.t('table.zeroDayOnly') }}</span>
       </label>
 
+      <!-- Quick Zero-Day Batch Selection -->
+      <button 
+        type="button" 
+        class="quick-batch-btn" 
+        :title="`Sélectionner les ${store.totalZeroDaysCount} Zero-Days pour analyse de campagne`"
+        @click="store.selectAllZeroDays"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        <span>{{ store.t('batch.selectZeroDays') }} ({{ store.totalZeroDaysCount }})</span>
+      </button>
+
+      <!-- Deselect Button if items selected -->
+      <button 
+        v-if="store.selectedCount > 0" 
+        type="button" 
+        class="deselect-btn" 
+        @click="store.clearSelectedAlerts"
+      >
+        <span>{{ store.t('batch.deselect') }} ({{ store.selectedCount }})</span>
+      </button>
+
       <!-- Clear Button -->
       <button class="clear-btn" @click="store.clearFilters">
         {{ store.t('table.clearFilters') }}
       </button>
     </div>
 
+    <!-- Floating Batch Actions Bar -->
+    <transition name="slide-down">
+      <div v-if="store.selectedCount > 0" class="batch-floating-bar">
+        <div class="batch-info">
+          <div class="batch-count-pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span><b>{{ store.selectedCount }}</b> {{ store.t('batch.flowsSelected') }}</span>
+          </div>
+          <span v-if="store.selectedZeroDaysCount > 0" class="batch-zd-tag">
+            {{ store.selectedZeroDaysCount }} {{ store.t('batch.zeroDaysCount') }}
+          </span>
+        </div>
+
+        <div class="batch-actions">
+          <!-- Button 1: Copy Prompt for LLM -->
+          <button class="batch-action-btn copy-prompt-btn" :class="{ 'btn-success': isPromptCopied }" @click="copyBatchPrompt">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span>{{ isPromptCopied ? 'Copié !' : store.t('batch.copyPrompt') }}</span>
+          </button>
+
+          <!-- Button 2: Open Pattern Modal -->
+          <button class="batch-action-btn triage-modal-btn" @click="store.openBatchPatternModal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+            <span>{{ store.t('batch.detectPattern') }}</span>
+          </button>
+
+          <!-- Button 3: Clear Selection -->
+          <button class="batch-clear-btn" @click="store.clearSelectedAlerts" title="Tout désélectionner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </transition>
+
     <!-- Live Incident Table (Separate Source & Destination Columns, No Arrows) -->
     <div class="table-container">
       <table v-if="store.isLoading || store.filteredAlerts.length > 0">
         <thead>
           <tr>
+            <th class="th-checkbox">
+              <input 
+                type="checkbox" 
+                class="batch-checkbox" 
+                :checked="store.isAllFilteredSelected" 
+                @change="store.toggleSelectAllFiltered" 
+                :title="store.t('batch.selectAll')" 
+              />
+            </th>
             <th>{{ store.t('table.timestamp') }}</th>
             <th>{{ store.t('table.sensor') }}</th>
             <th>{{ store.t('table.source') }}</th>
@@ -87,6 +165,7 @@
         </thead>
         <tbody v-if="store.isLoading">
           <tr v-for="i in 6" :key="'table-skel-' + i" class="skeleton-table-row">
+            <td><div class="skeleton-shimmer skel-cell skel-checkbox"></div></td>
             <td><div class="skeleton-shimmer skel-cell skel-time"></div></td>
             <td><div class="skeleton-shimmer skel-cell skel-sensor"></div></td>
             <td><div class="skeleton-shimmer skel-cell skel-ip"></div></td>
@@ -105,11 +184,20 @@
             tabindex="0"
             :class="{ 
               'row-new': alert.isNew, 
-              'row-selected': store.selectedFlow === alert 
+              'row-selected': store.selectedFlow === alert,
+              'row-batch-checked': store.isAlertSelected(alert)
             }"
             @click="store.openFlowDrawer(alert)"
             @keydown.enter="store.openFlowDrawer(alert)"
           >
+            <td class="td-checkbox" @click.stop>
+              <input 
+                type="checkbox" 
+                class="batch-checkbox" 
+                :checked="store.isAlertSelected(alert)" 
+                @change="store.toggleSelectAlert(alert)" 
+              />
+            </td>
             <td class="mono time-col">{{ formatTime(alert.received_at || alert.timestamp) }}</td>
             <td>
               <span class="sensor-pill">{{ alert.sensor_id || alert.sensor || 'sensor-01' }}</span>
@@ -178,14 +266,49 @@
         <button class="clear-btn" @click="store.clearFilters">{{ store.t('table.resetFilters') }}</button>
       </div>
     </div>
+
+    <!-- Batch Pattern & Campaign Investigation Modal -->
+    <BatchPatternModal />
+
+    <!-- Table Toast Notification -->
+    <transition name="fade">
+      <div v-if="toastMessage" class="table-toast">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span>{{ toastMessage }}</span>
+      </div>
+    </transition>
   </section>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useSocStore } from '@/stores/socStore'
+import { api } from '@/services/api'
+import BatchPatternModal from './BatchPatternModal.vue'
 
 const store = useSocStore()
+const isPromptCopied = ref(false)
+const toastMessage = ref('')
+
+async function copyBatchPrompt() {
+  if (!store.selectedCount) return
+  const flows = store.selectedAlerts
+  try {
+    const res = await api.generateCampaignPrompt(flows)
+    const promptText = res.prompt
+    await navigator.clipboard.writeText(promptText)
+    isPromptCopied.value = true
+    toastMessage.value = store.t('batch.promptCopied')
+    setTimeout(() => {
+      isPromptCopied.value = false
+      toastMessage.value = ''
+    }, 3000)
+  } catch (err) {
+    console.error('Failed to copy campaign prompt:', err)
+  }
+}
 
 const attackCategories = [
   'DDoS',
@@ -725,5 +848,227 @@ tbody tr.row-new {
   background: rgba(178, 102, 255, 0.15);
   color: var(--zd);
   border: 1px solid rgba(178, 102, 255, 0.3);
+}
+
+/* Quick Batch Buttons in Filters Bar */
+.quick-batch-btn {
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  color: #fb7185;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.quick-batch-btn:hover {
+  background: rgba(244, 63, 94, 0.22);
+  border-color: rgba(244, 63, 94, 0.5);
+  color: #fff;
+}
+
+.quick-batch-btn svg {
+  width: 14px;
+  height: 14px;
+  color: #f43f5e;
+}
+
+.deselect-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.deselect-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* Floating Batch Action Bar */
+.batch-floating-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 8px 14px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(0, 229, 255, 0.12);
+}
+
+.batch-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.batch-count-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #f8fafc;
+}
+
+.batch-count-pill svg {
+  width: 16px;
+  height: 16px;
+  color: var(--ac, #00e5ff);
+}
+
+.batch-zd-tag {
+  background: rgba(244, 63, 94, 0.18);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  color: #fb7185;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.batch-action-btn {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.copy-prompt-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #f8fafc;
+}
+
+.copy-prompt-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.copy-prompt-btn.btn-success {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #34d399;
+}
+
+.triage-modal-btn {
+  background: var(--ac, #00e5ff);
+  color: #040810;
+}
+
+.triage-modal-btn:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+}
+
+.batch-action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.batch-clear-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.batch-clear-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.batch-clear-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Checkbox Column Styling */
+.th-checkbox, .td-checkbox {
+  width: 38px;
+  text-align: center;
+  padding: 0 8px !important;
+}
+
+.batch-checkbox {
+  cursor: pointer;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--ac, #00e5ff);
+  vertical-align: middle;
+}
+
+.row-batch-checked {
+  background: rgba(0, 229, 255, 0.05) !important;
+}
+
+.skel-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0 auto;
+}
+
+/* Table Toast */
+.table-toast {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: #0f172a;
+  border: 1px solid var(--ok, #10b981);
+  color: #e2e8f0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 50;
+}
+
+.table-toast svg {
+  width: 16px;
+  height: 16px;
+  color: var(--ok, #10b981);
+}
+
+.slide-down-enter-active, .slide-down-leave-active {
+  transition: all 0.2s ease;
+}
+
+.slide-down-enter-from, .slide-down-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 </style>

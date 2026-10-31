@@ -508,6 +508,68 @@ def record_feedback(
     }
 
 
+def record_batch_feedback(
+    incident_ids: List[str],
+    human_verdict: str,
+    corrected_attack_type: Optional[str] = None,
+    analyst_notes: Optional[str] = None,
+    flows_map: Optional[Dict[str, Dict[str, Any]]] = None,
+    db_path: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Enregistre ou met à jour la qualification humaine groupée d'un lot d'incidents."""
+    import json
+    con = get_connection(db_path)
+    cur = con.cursor()
+    now = time.time()
+    flows_map = flows_map or {}
+
+    rows = []
+    for inc_id in incident_ids:
+        flow = flows_map.get(str(inc_id), {})
+        raw_features_str = json.dumps(flow.get("raw_features", flow))
+        rows.append((
+            str(inc_id),
+            now,
+            str(flow.get("src_ip", "")),
+            str(flow.get("dst_ip", "")),
+            flow.get("src_port"),
+            flow.get("dst_port"),
+            str(flow.get("protocol", "")),
+            raw_features_str,
+            str(flow.get("pred", flow.get("classification", ""))),
+            float(flow.get("mse_ae", 0.0) or 0.0),
+            str(human_verdict),
+            str(corrected_attack_type or ""),
+            str(analyst_notes or ""),
+        ))
+
+    if rows:
+        cur.executemany(
+            """INSERT INTO feedback_flows (
+                incident_id, timestamp, src_ip, dst_ip, src_port, dst_port, protocol,
+                raw_features, model_predicted_label, model_mse_score,
+                human_verdict, corrected_attack_type, analyst_notes, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+            ON CONFLICT(incident_id) DO UPDATE SET
+                timestamp=excluded.timestamp,
+                human_verdict=excluded.human_verdict,
+                corrected_attack_type=excluded.corrected_attack_type,
+                analyst_notes=excluded.analyst_notes""",
+            rows,
+        )
+        con.commit()
+    con.close()
+
+    return {
+        "status": "success",
+        "count": len(incident_ids),
+        "incident_ids": incident_ids,
+        "human_verdict": human_verdict,
+        "corrected_attack_type": corrected_attack_type,
+        "timestamp": now,
+    }
+
+
 def get_feedback(incident_id: str, db_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """Récupère la qualification humaine existante pour un incident donné."""
     import json
