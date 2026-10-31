@@ -334,7 +334,8 @@ const sparkHeights = computed(() => {
   background: linear-gradient(180deg, var(--ac2), var(--ac));
   border-radius: 2px;
   opacity: 0.5;
-  transition: height 0.3s ease;
+  transition: height 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  will-change: height;
 }
 
 .spark-bars i:last-child {
@@ -407,7 +408,8 @@ const sparkHeights = computed(() => {
 
 .bar-seg {
   height: 100%;
-  transition: width 0.3s ease;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: width;
   cursor: default;
 }
 

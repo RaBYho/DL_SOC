@@ -91,7 +91,11 @@ export const translations = {
       inspect: "Inspecter le flux",
       safeTitle: "Périmètre Sécurisé",
       safeDesc: "Aucun incident cyber critique non contenu dans la fenêtre active.",
-      safePill: "Double Moteur IA Actif"
+      safePill: "IA Double Moteur",
+      titleThreat: "Incident Critique Détecté",
+      subThreat: "Triage & Détection Temps Réel",
+      titleSafe: "Périmètre Réseau",
+      subSafe: "Supervision Continue"
     },
     // Table
     table: {
@@ -105,6 +109,9 @@ export const translations = {
       timestamp: "Horodatage",
       sensor: "Sonde",
       route: "Source &rarr; Destination",
+      source: "IP Source",
+      destination: "IP Destination",
+      subtitle: "Traçabilité des flux réseau & Inférence temps réel",
       protocol: "Proto",
       classification: "Classification IA",
       confidence: "Confiance",
@@ -239,7 +246,11 @@ export const translations = {
       inspect: "Inspect flow",
       safeTitle: "Perimeter Defended",
       safeDesc: "No uncontained critical cyber incidents detected in current window.",
-      safePill: "AI Dual-Engine Active"
+      safePill: "Dual AI Engine",
+      titleThreat: "Critical Incident Detected",
+      subThreat: "Real-Time Triage & Detection",
+      titleSafe: "Network Perimeter",
+      subSafe: "Continuous Supervision"
     },
     table: {
       title: "Live Incident Feed",
@@ -252,6 +263,9 @@ export const translations = {
       timestamp: "Timestamp",
       sensor: "Sensor ID",
       route: "Source &rarr; Destination",
+      source: "Source IP",
+      destination: "Destination IP",
+      subtitle: "Network flow traceability & Real-time inference",
       protocol: "Protocol",
       classification: "Deep Learning Class",
       confidence: "Confidence",

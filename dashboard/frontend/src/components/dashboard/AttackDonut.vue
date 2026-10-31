@@ -1,65 +1,95 @@
 <template>
   <div class="card c4 attack-donut-card">
+    <!-- Header: Title and Subtitle strictly stacked -->
     <div class="card-header-row">
       <div class="header-titles">
         <h2 class="card-title">{{ store.t('donut.title') }}</h2>
         <span class="card-subtitle">{{ store.t('donut.subtitle') }}</span>
       </div>
-      <span class="threat-count-pill">{{ formatNumber(totalAttacks) }} {{ store.t('donut.detected') }}</span>
     </div>
 
-    <!-- Side-by-side Content: Large Donut on Left, Compact Info on Right -->
+    <!-- Content: Large Donut on Left, Clean Legend List on Right -->
     <div class="donut-content-row">
-      <!-- Left: Large Donut Ring -->
+      <!-- Left: Large Donut Ring with Multi-Level Center Metrics -->
       <div class="donut-wrapper">
-        <svg viewBox="0 0 130 130" class="donut-svg" role="img" aria-label="Attack family distribution">
+        <svg viewBox="0 0 160 160" class="donut-svg" role="img" aria-label="Attack family distribution">
           <defs>
-            <filter id="glowDonut" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="2.5" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            <filter id="donutGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.4" />
             </filter>
           </defs>
-          <!-- Background Track -->
-          <circle cx="65" cy="65" r="48" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="13" />
-          
-          <!-- Segments -->
+
+          <!-- Background Track Arc -->
+          <circle 
+            cx="80" 
+            cy="80" 
+            r="56" 
+            fill="none" 
+            stroke="rgba(255, 255, 255, 0.06)" 
+            stroke-width="14" 
+          />
+
+          <!-- Colored Segments with Smooth Fluid Interpolation -->
           <circle 
             v-for="(seg, idx) in donutSegments"
             :key="idx"
-            cx="65" 
-            cy="65" 
-            r="48" 
+            class="donut-segment"
+            cx="80" 
+            cy="80" 
+            r="56" 
             fill="none" 
-            stroke-width="13" 
-            :style="{ stroke: seg.color }" 
-            :stroke-dasharray="`${Math.max(seg.arcLength - 2.5, 0)} ${CIRCUMFERENCE}`" 
-            :stroke-dashoffset="-seg.offset" 
-            transform="rotate(-90 65 65)"
+            stroke-width="14" 
+            :style="{ 
+              stroke: seg.color,
+              strokeDasharray: `${Math.max(seg.arcLength - 2.5, 0)} ${CIRCUMFERENCE}`,
+              strokeDashoffset: -seg.offset
+            }" 
+            transform="rotate(-90 80 80)"
+            filter="url(#donutGlow)"
           />
 
-          <!-- Center Text -->
-          <text x="65" y="60" text-anchor="middle" class="donut-center-val">
+          <!-- Donut Center Content -->
+          <text x="80" y="58" text-anchor="middle" class="donut-center-label">
+            {{ store.t('donut.attacks').toUpperCase() }}
+          </text>
+
+          <text x="80" y="80" text-anchor="middle" class="donut-center-val">
             {{ formatNumber(totalAttacks) }}
           </text>
-          <text x="65" y="74" text-anchor="middle" class="donut-center-sub">
-            {{ store.t('donut.attacks') }}
-          </text>
+
+          <!-- Micro Pill Trend Badge -->
+          <g transform="translate(56, 89)">
+            <rect 
+              x="0" 
+              y="0" 
+              width="48" 
+              height="16" 
+              rx="8" 
+              fill="rgba(255, 77, 126, 0.16)" 
+              stroke="rgba(255, 77, 126, 0.35)" 
+              stroke-width="0.8"
+            />
+            <text x="24" y="11.5" text-anchor="middle" class="donut-center-trend">
+              ↑ {{ attackPct }}%
+            </text>
+          </g>
         </svg>
       </div>
 
-      <!-- Right: Compact Information on Each Color -->
+      <!-- Right: Legend List -->
       <div class="legend-list">
         <div 
           v-for="item in sortedDist" 
           :key="item.name" 
           class="legend-item"
-          :title="`${item.name}: ${formatNumber(item.count)} (${item.pct.toFixed(1)}%)`"
         >
-          <i class="legend-dot" :style="{ background: item.color, boxShadow: `0 0 6px ${item.color}` }"></i>
-          <span class="legend-name">{{ item.name }}</span>
-          <em class="legend-pct">{{ item.pct.toFixed(0) }}%</em>
-          <div class="legend-bar-track">
-            <b :style="{ width: `${item.barPct}%`, background: item.color }"></b>
+          <span 
+            class="legend-dot" 
+            :style="{ background: item.color, boxShadow: `0 0 8px ${item.color}66` }"
+          ></span>
+          <div class="legend-text-col">
+            <span class="legend-name" :title="item.name">{{ item.name }}</span>
+            <span class="legend-count">{{ formatNumber(item.count) }} flux</span>
           </div>
         </div>
       </div>
@@ -72,7 +102,7 @@ import { computed } from 'vue'
 import { useSocStore } from '@/stores/socStore'
 
 const store = useSocStore()
-const CIRCUMFERENCE = 2 * Math.PI * 48 // ~301.59
+const CIRCUMFERENCE = 2 * Math.PI * 56 // ~351.86
 
 const COLOR_MAP = {
   'DDoS': 'var(--cr)',
@@ -98,18 +128,16 @@ const sortedDist = computed(() => {
       { name: 'DoS-Hulk', count: 310, color: 'var(--hi)' },
       { name: 'SSH-Patator', count: 180, color: 'var(--lo)' },
       { name: 'WebAttack', count: 160, color: 'var(--zd)' },
-      { name: 'FTP-Patator', count: 110, color: 'var(--ac)' },
-      { name: 'Bot', count: 76, color: 'var(--ok)' }
+      { name: 'FTP-Patator', count: 110, color: 'var(--ac)' }
     ]
   }
 
   const tot = list.reduce((acc, curr) => acc + (curr.count || 0), 0) || 1
-  const maxVal = Math.max(...list.map(l => l.count || 0)) || 1
 
   return list
     .filter(i => (i.count || 0) > 0)
     .sort((a, b) => (b.count || 0) - (a.count || 0))
-    .slice(0, 7)
+    .slice(0, 6)
     .map(i => {
       const name = i.label || i.name || 'Threat'
       const count = i.count || 0
@@ -117,7 +145,6 @@ const sortedDist = computed(() => {
         name,
         count,
         pct: (count / tot) * 100,
-        barPct: (count / maxVal) * 100,
         color: i.color || COLOR_MAP[name] || 'var(--ac)'
       }
     })
@@ -125,6 +152,13 @@ const sortedDist = computed(() => {
 
 const totalAttacks = computed(() => {
   return sortedDist.value.reduce((acc, curr) => acc + curr.count, 0)
+})
+
+const attackPct = computed(() => {
+  if (store.kpis && store.kpis.attack_pct !== undefined) {
+    return Number(store.kpis.attack_pct).toFixed(1)
+  }
+  return '4.0'
 })
 
 const donutSegments = computed(() => {
@@ -149,18 +183,23 @@ function formatNumber(num) {
 
 <style scoped>
 .attack-donut-card {
-  height: 320px;
+  height: 330px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   padding: 16px 18px;
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.24s ease, box-shadow 0.24s ease;
+}
+
+.attack-donut-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .card-header-row {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   flex: none;
 }
 
@@ -186,24 +225,12 @@ function formatNumber(num) {
   line-height: 1.2;
 }
 
-.threat-count-pill {
-  font-size: 10.5px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: rgba(255, 77, 126, 0.14);
-  color: var(--cr);
-  border: 1px solid rgba(255, 77, 126, 0.28);
-  white-space: nowrap;
-  flex: none;
-}
-
 /* Side-by-side content row */
 .donut-content-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 16px;
   flex: 1;
   min-height: 0;
 }
@@ -217,113 +244,124 @@ function formatNumber(num) {
 }
 
 .donut-svg {
-  width: 195px;
-  height: 195px;
+  width: 215px;
+  height: 215px;
   display: block;
-  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
+}
+
+/* Fluid segment resizing without pop or stutter */
+.donut-segment {
+  transition: stroke-dasharray 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+              stroke-dashoffset 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.25s ease;
+  will-change: stroke-dasharray, stroke-dashoffset;
+}
+
+.donut-center-label {
+  font-size: 9px;
+  fill: var(--mu);
+  font-weight: 700;
+  letter-spacing: 0.8px;
 }
 
 .donut-center-val {
-  font-size: 20px;
+  font-size: 23px;
   font-weight: 800;
-  fill: #fff;
+  fill: #ffffff;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.5px;
 }
 
-.donut-center-sub {
+.donut-center-trend {
   font-size: 9.5px;
-  fill: var(--mu);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
+  font-weight: 700;
+  fill: #ff4d7e;
+  letter-spacing: 0.2px;
 }
 
-/* Right: Compact Information on Each Color */
+/* Right: Clean Attack Families List */
 .legend-list {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 7px;
+  gap: 8px;
   flex: 1;
   min-width: 0;
+  padding-left: 2px;
 }
 
 .legend-item {
-  display: grid;
-  grid-template-columns: 7px 1fr 28px 36px;
-  gap: 7px;
+  display: flex;
   align-items: center;
-  font-size: 11px;
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: background 0.15s ease;
+  gap: 9px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+              background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
 }
 
 .legend-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateX(3px);
 }
 
 .legend-dot {
   width: 7px;
   height: 7px;
-  border-radius: 2px;
+  border-radius: 50%;
   flex: none;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.legend-item:hover .legend-dot {
+  transform: scale(1.25);
+}
+
+.legend-text-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 
 .legend-name {
-  color: var(--tx);
-  font-size: 11px;
-  font-weight: 500;
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: 0.1px;
+  line-height: 1.2;
 }
 
-.legend-pct {
-  font-style: normal;
+.legend-count {
   color: var(--mu);
-  text-align: right;
+  font-size: 10px;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  font-size: 10.5px;
-}
-
-.legend-bar-track {
-  height: 4px;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 2px;
-  overflow: hidden;
-  width: 100%;
-}
-
-.legend-bar-track b {
-  display: block;
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.3s ease;
+  line-height: 1.2;
 }
 
 /* Tablet (769px to 1200px) */
 @media (max-width: 1200px) and (min-width: 769px) {
   .attack-donut-card {
-    height: 310px;
+    height: 330px;
   }
   .donut-svg {
-    width: 205px;
-    height: 205px;
+    width: 220px;
+    height: 220px;
   }
   .donut-content-row {
-    gap: 32px;
+    gap: 36px;
     justify-content: flex-start;
   }
   .legend-list {
-    max-width: 380px;
+    max-width: 320px;
   }
 }
 
-/* Mobile (< 768px) - can shrink as requested */
+/* Mobile (< 768px) */
 @media (max-width: 768px) {
   .attack-donut-card {
     height: auto;
@@ -336,8 +374,12 @@ function formatNumber(num) {
   }
 
   .donut-svg {
-    width: 150px;
-    height: 150px;
+    width: 160px;
+    height: 160px;
+  }
+
+  .donut-center-val {
+    font-size: 18px;
   }
 
   .card-title {
@@ -349,21 +391,20 @@ function formatNumber(num) {
   }
 
   .legend-item {
-    grid-template-columns: 6px 1fr 26px 30px;
-    gap: 5px;
-    font-size: 10.5px;
+    padding: 2px 4px;
+    gap: 7px;
   }
 
   .legend-name {
-    font-size: 10.5px;
+    font-size: 11px;
   }
 
-  .legend-pct {
-    font-size: 10px;
+  .legend-count {
+    font-size: 9.5px;
   }
 }
 
-/* Extra small mobile (<= 375px) */
+/* Small mobile (<= 375px) */
 @media (max-width: 375px) {
   .donut-svg {
     width: 130px;
@@ -373,14 +414,13 @@ function formatNumber(num) {
   .donut-content-row {
     gap: 8px;
   }
+}
 
-  .legend-bar-track {
-    display: none;
-  }
-
-  .legend-item {
-    grid-template-columns: 6px 1fr 26px;
-    gap: 5px;
+@media (prefers-reduced-motion: reduce) {
+  .donut-segment,
+  .legend-item,
+  .legend-dot {
+    transition: none !important;
   }
 }
 </style>

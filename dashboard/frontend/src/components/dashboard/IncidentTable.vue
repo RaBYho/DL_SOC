@@ -1,10 +1,13 @@
 <template>
   <section class="card incident-card" aria-label="Incident feed">
+    <!-- Header: Title and Subtitle strictly stacked beneath -->
     <div class="card-header-row">
-      <h2>
-        {{ store.t('table.title') }}
-        <span>{{ store.filteredAlerts.length }} of {{ store.alerts.length }} alerts</span>
-      </h2>
+      <div class="header-titles">
+        <h2 class="card-title">{{ store.t('table.title') }}</h2>
+        <span class="card-subtitle">
+          {{ store.t('table.subtitle') }} &middot; {{ store.filteredAlerts.length }} / {{ store.alerts.length }} alertes
+        </span>
+      </div>
       <div class="live-counter-pill">
         <span class="live-dot"></span>
         <span>{{ store.t('table.autoUpdating') }}</span>
@@ -66,14 +69,15 @@
       </button>
     </div>
 
-    <!-- Live Incident Table -->
+    <!-- Live Incident Table (Separate Source & Destination Columns, No Arrows) -->
     <div class="table-container">
       <table v-if="store.filteredAlerts.length > 0">
         <thead>
           <tr>
             <th>{{ store.t('table.timestamp') }}</th>
             <th>{{ store.t('table.sensor') }}</th>
-            <th v-html="store.t('table.route')"></th>
+            <th>{{ store.t('table.source') }}</th>
+            <th>{{ store.t('table.destination') }}</th>
             <th>{{ store.t('table.protocol') }}</th>
             <th>{{ store.t('table.classification') }}</th>
             <th>{{ store.t('table.confidence') }}</th>
@@ -97,13 +101,19 @@
             <td>
               <span class="sensor-pill">{{ alert.sensor_id || 'sensor-01' }}</span>
             </td>
-            <td class="mono ip-route-col">
-              <span class="src-ip">{{ alert.src_ip }}</span>
-              <span class="port-sub">:{{ alert.src_port || '–' }}</span>
-              <span class="route-arrow">&rarr;</span>
-              <span class="dst-ip">{{ alert.dst_ip }}</span>
-              <span class="port-sub">:{{ alert.dst_port }}</span>
+
+            <!-- Source Column (Distinct column, no arrows) -->
+            <td class="mono ip-cell src-cell">
+              <span class="ip-addr" :title="alert.src_ip">{{ alert.src_ip }}</span>
+              <span v-if="alert.src_port" class="port-tag">:{{ alert.src_port }}</span>
             </td>
+
+            <!-- Destination Column (Distinct column, no arrows) -->
+            <td class="mono ip-cell dst-cell">
+              <span class="ip-addr" :title="alert.dst_ip">{{ alert.dst_ip }}</span>
+              <span class="port-tag">:{{ alert.dst_port }}</span>
+            </td>
+
             <td>
               <span class="proto-badge">{{ resolveProto(alert.protocol) }}</span>
             </td>
@@ -201,30 +211,53 @@ function resolveProto(proto) {
 .incident-card {
   display: flex;
   flex-direction: column;
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.24s ease, box-shadow 0.24s ease;
+}
+
+.incident-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .card-header-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 14px;
 }
 
-.card-header-row h2 {
+.header-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.card-title {
   margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.card-subtitle {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--mu);
+  line-height: 1.2;
 }
 
 .live-counter-pill {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--ok);
   background: rgba(61, 220, 151, 0.1);
   padding: 3px 10px;
   border-radius: 20px;
-  border: 1px solid rgba(61, 220, 151, 0.2);
+  border: 1px solid rgba(61, 220, 151, 0.22);
 }
 
 .live-dot {
@@ -232,7 +265,13 @@ function resolveProto(proto) {
   height: 6px;
   border-radius: 50%;
   background: var(--ok);
-  animation: pulse-ring 1.6s infinite;
+  box-shadow: 0 0 6px rgba(61, 220, 151, 0.6);
+  animation: pulse-ring 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
 }
 
 .filters-bar {
@@ -248,38 +287,72 @@ function resolveProto(proto) {
 }
 
 .search-box {
-  position: relative;
   display: flex;
   align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 6px 12px;
+  border-radius: 8px;
   flex: 1;
   min-width: 220px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-box:focus-within {
+  border-color: var(--ac);
+  box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.2);
 }
 
 .search-icon {
-  position: absolute;
-  left: 10px;
   width: 15px;
   height: 15px;
   color: var(--mu);
-  pointer-events: none;
 }
 
 .search-box input {
+  border: 0;
+  background: none;
+  color: var(--tx);
+  outline: none;
+  font-size: 13px;
   width: 100%;
-  padding-left: 32px;
+}
+
+select {
   background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--tx);
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+select:focus {
+  border-color: var(--ac);
 }
 
 .slider-control {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 4px 12px;
+  border-radius: 8px;
+}
+
+.slider-label {
+  font-size: 11.5px;
   color: var(--mu);
 }
 
 .slider-val {
-  min-width: 32px;
+  font-size: 12px;
+  min-width: 30px;
   color: var(--tx);
   font-variant-numeric: tabular-nums;
 }
@@ -287,65 +360,98 @@ function resolveProto(proto) {
 .checkbox-control {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 12.5px;
   color: var(--tx);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-control input {
+  accent-color: var(--zd);
   cursor: pointer;
 }
 
 .clear-btn {
-  font-size: 12px;
-  padding: 6px 12px;
-  background: transparent;
-  color: var(--mu);
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--line);
+  color: var(--mu);
+  padding: 6px 12px;
   border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .clear-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.1);
   color: var(--tx);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .table-container {
-  overflow-x: auto;
+  height: 440px;
   max-height: 440px;
-  border-radius: 12px;
+  overflow-y: auto;
+  overflow-x: auto;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  background: var(--panel2);
-  -webkit-overflow-scrolling: touch;
+  background: rgba(0, 0, 0, 0.12);
+  position: relative;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
+.table-container::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
 }
 
 table {
   width: 100%;
-  min-width: 640px;
   border-collapse: collapse;
+  text-align: left;
 }
 
 th {
   position: sticky;
   top: 0;
-  background: #1b1c28;
-  color: var(--mu);
-  font-size: 11.5px;
+  z-index: 2;
+  padding: 11px 12px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 11px 12px;
-  text-align: left;
-  border-bottom: 1px solid var(--line);
-  z-index: 2;
+  color: var(--mu);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: #171825;
+  white-space: nowrap;
 }
 
 td {
   padding: 10px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 tbody tr {
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 tbody tr:hover {
@@ -357,48 +463,47 @@ tbody tr.row-selected {
 }
 
 tbody tr.row-new {
-  animation: flash-row 1.2s ease-out;
+  animation: flash-row 1.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes flash-row {
-  from { background: rgba(88, 101, 242, 0.4); }
+  0% { background: rgba(99, 102, 241, 0.35); }
+  100% { background: transparent; }
 }
 
 .time-col {
   color: var(--mu);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .sensor-pill {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--mu);
   background: rgba(255, 255, 255, 0.05);
   padding: 2px 7px;
   border-radius: 4px;
+  white-space: nowrap;
 }
 
-.ip-route-col {
-  display: flex;
-  align-items: center;
-  gap: 3px;
+/* Distinct Source & Destination Cells (No arrows) */
+.ip-cell {
+  white-space: nowrap;
 }
 
-.src-ip {
-  color: #fff;
+.ip-addr {
+  font-size: 12.5px;
   font-weight: 600;
+  color: #fff;
 }
 
-.dst-ip {
+.dst-cell .ip-addr {
   color: var(--tx);
 }
 
-.port-sub {
+.port-tag {
   color: var(--mu);
   font-size: 11px;
-}
-
-.route-arrow {
-  color: var(--ac);
-  margin: 0 4px;
 }
 
 .proto-badge {
@@ -414,6 +519,7 @@ tbody tr.row-new {
 .pred-label {
   color: #fff;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .conf-cell {
@@ -434,6 +540,8 @@ tbody tr.row-new {
   display: block;
   height: 100%;
   background: linear-gradient(90deg, var(--lo), var(--ac));
+  border-radius: 3px;
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .ae-cell {
@@ -479,5 +587,16 @@ tbody tr.row-new {
   height: 32px;
   margin-bottom: 8px;
   opacity: 0.5;
+}
+
+@media (max-width: 768px) {
+  .filters-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .table-container {
+    height: 380px;
+    max-height: 380px;
+  }
 }
 </style>
