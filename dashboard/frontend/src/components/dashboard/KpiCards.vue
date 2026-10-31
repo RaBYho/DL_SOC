@@ -78,32 +78,92 @@
     <!-- Card 5: Benign vs Malicious Traffic Distribution -->
     <div class="kpi-card kpi-ratio-card">
       <div class="kpi-top">
-        <div class="ratio-top-left">
-          <span class="kpi-label">{{ store.t('kpi.trafficDist') }}</span>
-        </div>
-        <div class="ratio-top-right">
-          <div class="kpi-value ratio-text">
-            <span class="benign-num">{{ (store.kpis.benign_pct || 96).toFixed(1) }}%</span>
-            <span class="ratio-slash">/</span>
-            <span class="malicious-num">{{ (store.kpis.attack_pct || 4).toFixed(1) }}%</span>
-          </div>
-          <div class="kpi-icon-pill icon-ratio" aria-hidden="true">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="10" cy="10" r="8" />
-              <path d="M10 2v16" />
-              <path d="M10 2a8 8 0 0 1 0 16z" fill="currentColor" fill-opacity="0.2" />
-            </svg>
-          </div>
+        <span class="kpi-label">{{ store.t('kpi.trafficDist') }}</span>
+        <div class="kpi-icon-pill icon-ratio" aria-hidden="true">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="10" cy="10" r="8" />
+            <path d="M10 2v16" />
+            <path d="M10 2a8 8 0 0 1 0 16z" fill="currentColor" fill-opacity="0.2" />
+          </svg>
         </div>
       </div>
+
       <div class="kpi-bottom">
-        <div class="ratio-bar-wrapper">
-          <div class="ratio-bar-bg" aria-hidden="true">
-            <i class="ratio-bar-fill" :style="{ width: `${Math.min(Math.max(store.kpis.attack_pct || 4, 3), 100)}%` }"></i>
+        <div class="ratio-values-row">
+          <div class="kpi-value ratio-text">
+            <!-- Normal (Green) -->
+            <div
+              class="pct-wrapper benign"
+              :class="{ active: activeType === 'benign' }"
+              @mouseenter="activeType = 'benign'"
+              @mouseleave="activeType = null"
+              @focus="activeType = 'benign'"
+              @blur="activeType = null"
+              @click="toggleType('benign')"
+              tabindex="0"
+              role="button"
+              aria-label="Trafic Normal"
+            >
+              <span class="benign-num">{{ benignPct }}%</span>
+              <span class="pct-tooltip">Normal</span>
+            </div>
+
+            <span class="ratio-slash">/</span>
+
+            <!-- Anormal (Red) -->
+            <div
+              class="pct-wrapper malicious"
+              :class="{ active: activeType === 'malicious' }"
+              @mouseenter="activeType = 'malicious'"
+              @mouseleave="activeType = null"
+              @focus="activeType = 'malicious'"
+              @blur="activeType = null"
+              @click="toggleType('malicious')"
+              tabindex="0"
+              role="button"
+              aria-label="Trafic Anormal"
+            >
+              <span class="malicious-num">{{ attackPct }}%</span>
+              <span class="pct-tooltip">Anormal</span>
+            </div>
           </div>
-          <div class="ratio-labels">
-            <span>{{ store.t('kpi.benign') }}</span>
-            <span style="color:var(--cr);">{{ store.t('kpi.malicious') }}</span>
+
+          <!-- Active feedback badge on hover / touch -->
+          <div class="ratio-feedback-col" aria-live="polite">
+            <transition name="badge-pop" mode="out-in">
+              <div v-if="activeType === 'benign'" key="benign" class="active-badge benign">
+                <span class="badge-dot green"></span>
+                <span class="badge-name">Normal</span>
+              </div>
+              <div v-else-if="activeType === 'malicious'" key="malicious" class="active-badge malicious">
+                <span class="badge-dot red"></span>
+                <span class="badge-name">Anormal</span>
+              </div>
+            </transition>
+          </div>
+        </div>
+
+        <!-- Interactive Dual Segment Bar -->
+        <div class="ratio-bar-wrapper">
+          <div class="ratio-bar-track" aria-hidden="true">
+            <div
+              class="bar-seg benign-seg"
+              :style="{ width: `${benignBarWidth}%` }"
+              :class="{ active: activeType === 'benign' }"
+              @mouseenter="activeType = 'benign'"
+              @mouseleave="activeType = null"
+              @click.stop="toggleType('benign')"
+              title="Trafic Normal"
+            ></div>
+            <div
+              class="bar-seg malicious-seg"
+              :style="{ width: `${maliciousBarWidth}%` }"
+              :class="{ active: activeType === 'malicious' }"
+              @mouseenter="activeType = 'malicious'"
+              @mouseleave="activeType = null"
+              @click.stop="toggleType('malicious')"
+              title="Trafic Anormal"
+            ></div>
           </div>
         </div>
       </div>
@@ -112,15 +172,46 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useSocStore } from '@/stores/socStore'
 
 const store = useSocStore()
+
+const activeType = ref(null)
+
+function toggleType(type) {
+  if (activeType.value === type) {
+    activeType.value = null
+  } else {
+    activeType.value = type
+  }
+}
 
 function formatNumber(num) {
   if (num === null || num === undefined) return '0'
   return Math.round(num).toLocaleString('en-US')
 }
+
+const attackPct = computed(() => {
+  const p = store.kpis.attack_pct !== undefined && store.kpis.attack_pct !== null ? store.kpis.attack_pct : 4.0
+  return Number(p).toFixed(1)
+})
+
+const benignPct = computed(() => {
+  const att = Number(attackPct.value)
+  return Math.max(0, 100 - att).toFixed(1)
+})
+
+const maliciousBarWidth = computed(() => {
+  const p = Number(attackPct.value)
+  if (p <= 0) return 0
+  if (p >= 100) return 100
+  return Math.min(Math.max(p, 4), 96)
+})
+
+const benignBarWidth = computed(() => {
+  return 100 - maliciousBarWidth.value
+})
 
 const sparkHeights = computed(() => {
   const rate = store.kpis.flow_rate_sec || 1000
@@ -315,58 +406,240 @@ const sparkHeights = computed(() => {
   background: var(--ok);
 }
 
-.ratio-top-right {
+/* Ratio Card (Card 5) Spec */
+.ratio-values-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  flex-wrap: nowrap;
+  min-height: 32px;
 }
 
 .ratio-text {
-  font-size: 18px;
-  display: flex;
+  font-size: 21px;
+  font-weight: 800;
+  display: inline-flex;
   align-items: baseline;
-  gap: 3px;
+  gap: 4px;
+  white-space: nowrap !important;
+  flex-shrink: 0;
+  letter-spacing: -0.4px;
+  line-height: 1.1;
+}
+
+.pct-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+  user-select: none;
+}
+
+.pct-wrapper:focus-visible {
+  box-shadow: 0 0 0 2px var(--ac);
+}
+
+.pct-wrapper:hover,
+.pct-wrapper.active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.pct-wrapper.benign:hover .benign-num,
+.pct-wrapper.benign.active .benign-num {
+  text-shadow: 0 0 14px rgba(61, 220, 151, 0.6);
+}
+
+.pct-wrapper.malicious:hover .malicious-num,
+.pct-wrapper.malicious.active .malicious-num {
+  text-shadow: 0 0 14px rgba(255, 77, 126, 0.6);
 }
 
 .benign-num {
   color: var(--ok);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.15s ease, text-shadow 0.15s ease;
 }
 
 .ratio-slash {
   color: var(--mu);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 400;
+  margin: 0 1px;
+  opacity: 0.6;
 }
 
 .malicious-num {
   color: var(--cr);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.15s ease, text-shadow 0.15s ease;
 }
 
+/* Floating micro-tooltip above hovered percentage */
+.pct-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  padding: 2px 7px;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+  z-index: 20;
+  line-height: 1.2;
+}
+
+.pct-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 4px;
+  border-style: solid;
+}
+
+.pct-wrapper.benign .pct-tooltip {
+  background: #141622;
+  color: var(--ok);
+  border: 1px solid rgba(61, 220, 151, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 8px rgba(61, 220, 151, 0.25);
+}
+
+.pct-wrapper.benign .pct-tooltip::after {
+  border-color: rgba(61, 220, 151, 0.4) transparent transparent transparent;
+}
+
+.pct-wrapper.malicious .pct-tooltip {
+  background: #141622;
+  color: var(--cr);
+  border: 1px solid rgba(255, 77, 126, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 0 0 8px rgba(255, 77, 126, 0.25);
+}
+
+.pct-wrapper.malicious .pct-tooltip::after {
+  border-color: rgba(255, 77, 126, 0.4) transparent transparent transparent;
+}
+
+.pct-wrapper:hover .pct-tooltip,
+.pct-wrapper.active .pct-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Dynamic Active Feedback Badge on the Right */
+.ratio-feedback-col {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  min-width: 0;
+}
+
+.active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 6px;
+  line-height: 1;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.active-badge.benign {
+  color: var(--ok);
+  background: rgba(61, 220, 151, 0.12);
+  border: 1px solid rgba(61, 220, 151, 0.3);
+  box-shadow: 0 0 10px rgba(61, 220, 151, 0.2);
+}
+
+.active-badge.malicious {
+  color: var(--cr);
+  background: rgba(255, 77, 126, 0.12);
+  border: 1px solid rgba(255, 77, 126, 0.3);
+  box-shadow: 0 0 10px rgba(255, 77, 126, 0.2);
+}
+
+.badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.badge-dot.green {
+  background: var(--ok);
+  box-shadow: 0 0 6px var(--ok);
+}
+
+.badge-dot.red {
+  background: var(--cr);
+  box-shadow: 0 0 6px var(--cr);
+}
+
+/* Badge animation */
+.badge-pop-enter-active,
+.badge-pop-leave-active {
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.badge-pop-enter-from,
+.badge-pop-leave-to {
+  opacity: 0;
+  transform: scale(0.9) translateX(4px);
+}
+
+/* Dual Segment Progress Bar */
 .ratio-bar-wrapper {
   margin-top: 6px;
 }
 
-.ratio-bar-bg {
-  height: 5px;
-  border-radius: 3px;
-  background: var(--ok);
-  overflow: hidden;
-}
-
-.ratio-bar-fill {
-  display: block;
-  height: 100%;
-  background: var(--cr);
-  transition: width 0.3s ease;
-}
-
-.ratio-labels {
+.ratio-bar-track {
+  height: 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
   display: flex;
-  justify-content: space-between;
-  font-size: 10px;
-  color: var(--mu);
-  margin-top: 3px;
-  font-weight: 500;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.bar-seg {
+  height: 100%;
+  transition: width 0.3s ease, filter 0.2s ease;
+  cursor: pointer;
+}
+
+.bar-seg.benign-seg {
+  background: var(--ok);
+  box-shadow: 0 0 6px rgba(61, 220, 151, 0.25);
+}
+
+.bar-seg.malicious-seg {
+  background: var(--cr);
+  box-shadow: 0 0 6px rgba(255, 77, 126, 0.3);
+}
+
+.bar-seg:hover,
+.bar-seg.active {
+  filter: brightness(1.3);
+  box-shadow: 0 0 10px currentColor;
 }
 
 /* Tablet Layout (2x2 + 1 span or 3 columns) */
@@ -445,11 +718,12 @@ const sparkHeights = computed(() => {
   }
 
   .ratio-text {
-    font-size: 15px;
+    font-size: 18px !important;
   }
 
-  .ratio-labels {
-    font-size: 9.5px;
+  .active-badge {
+    font-size: 10px;
+    padding: 2px 6px;
   }
 }
 
@@ -474,6 +748,16 @@ const sparkHeights = computed(() => {
 
   .kpi-icon-pill {
     display: none; /* Hide icon on ultra-narrow 320px to give full width to label */
+  }
+
+  .ratio-text {
+    font-size: 16px !important;
+  }
+
+  .active-badge {
+    font-size: 9px;
+    padding: 2px 5px;
+    gap: 3px;
   }
 }
 </style>
