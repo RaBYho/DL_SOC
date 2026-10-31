@@ -27,7 +27,12 @@
             @click="handleManualRefresh"
             title="Rafraîchir les sondes et métriques"
           >
-            <span class="refresh-icon">🔄</span>
+            <svg class="svg-icon refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+              <path d="M16 21h5v-5"/>
+            </svg>
             <span>Actualiser</span>
           </button>
         </div>
@@ -41,9 +46,11 @@
           :class="{ active: activeTab === 'replay' }"
           @click="activeTab = 'replay'"
         >
-          <span class="tab-icon">📂</span>
+          <svg class="svg-icon tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
           <span class="tab-title">Simulateur &amp; Rejeu PCAP</span>
-          <span class="tab-tag mode-lab">Mode Laboratoire</span>
+          <span class="tab-tag mode-lab">Laboratoire</span>
           <span v-if="store.replayStatus.active" class="active-pulse-badge">
             <span class="pulse-ring"></span>
             En cours ({{ store.replayStatus.speed }}x)
@@ -56,7 +63,13 @@
           :class="{ active: activeTab === 'fleet' }"
           @click="activeTab = 'fleet'"
         >
-          <span class="tab-icon">📡</span>
+          <svg class="svg-icon tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4.93 19.07a10 10 0 0 1 0-14.14"/>
+            <path d="M7.76 16.24a6 6 0 0 1 0-8.48"/>
+            <circle cx="12" cy="12" r="2"/>
+            <path d="M16.24 7.76a6 6 0 0 1 0 8.48"/>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+          </svg>
           <span class="tab-title">Parc de Sondes Réseau</span>
           <span class="tab-tag mode-fleet">Agents Réels</span>
           <span class="count-bubble">{{ store.sensorsList.length }}</span>
@@ -79,7 +92,7 @@
               </p>
             </div>
             <span v-if="store.replayStatus.active" class="badge-running" :class="{ 'is-paused': store.replayStatus.is_paused }">
-              {{ store.replayStatus.is_paused ? '⏸ Rejeu Suspendu' : '▶ Rejeu Actif' }}
+              {{ store.replayStatus.is_paused ? 'Rejeu Suspendu' : 'Rejeu Actif' }}
             </span>
           </div>
 
@@ -188,7 +201,9 @@
                 :disabled="!selectedPcap"
                 @click="startReplay"
               >
-                <span class="btn-icon">▶</span>
+                <svg class="svg-icon" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
                 <span>Lancer le Rejeu PCAP</span>
               </button>
 
@@ -199,7 +214,10 @@
                   class="btn-secondary-action" 
                   @click="pauseReplay"
                 >
-                  <span class="btn-icon">⏸</span>
+                  <svg class="svg-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16"/>
+                    <rect x="14" y="4" width="4" height="16"/>
+                  </svg>
                   <span>Mettre en Pause</span>
                 </button>
                 <button 
@@ -208,7 +226,9 @@
                   class="btn-secondary-action btn-resume" 
                   @click="resumeReplay"
                 >
-                  <span class="btn-icon">⏯</span>
+                  <svg class="svg-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
                   <span>Reprendre le Rejeu</span>
                 </button>
 
@@ -217,7 +237,9 @@
                   class="btn-danger-action" 
                   @click="stopReplay"
                 >
-                  <span class="btn-icon">⏹</span>
+                  <svg class="svg-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="5" y="5" width="14" height="14"/>
+                  </svg>
                   <span>Arrêter le Rejeu</span>
                 </button>
               </template>
@@ -225,7 +247,12 @@
 
             <!-- Accès au Terminal IA -->
             <router-link to="/models" class="link-to-terminal-card">
-              <div class="terminal-card-icon">🖥️</div>
+              <div class="terminal-card-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="4 17 10 11 4 5"/>
+                  <line x1="12" y1="19" x2="20" y2="19"/>
+                </svg>
+              </div>
               <div class="terminal-card-text">
                 <b>Terminal d'Inférence IA en Direct</b>
                 <span>Observez chaque batch analysé par le DNN et l'AutoEncodeur avec leur latence</span>
@@ -247,10 +274,14 @@
             
             <!-- Barre de recherche interne -->
             <div class="catalog-search-wrap">
+              <svg class="search-input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
               <input 
                 v-model="pcapSearch" 
                 type="text" 
-                placeholder="Rechercher (DDoS, Scan, normal...)" 
+                placeholder="Filtrer les captures..." 
                 class="catalog-search-input"
               />
               <span v-if="pcapSearch" class="clear-search-btn" @click="pcapSearch = ''">✕</span>
@@ -287,7 +318,9 @@
               <div class="card-item-body">
                 <div class="card-item-top">
                   <div class="item-name-wrap">
-                    <span class="item-category-icon">{{ getScenarioIcon(p.category) }}</span>
+                    <span class="item-category-icon">
+                      <component :is="getScenarioIconComponent(p.category)" />
+                    </span>
                     <b class="item-title">{{ p.title || p.filename }}</b>
                   </div>
                   <span class="sev-tag" :class="p.severity || 'Medium'">{{ p.category || 'PCAP' }}</span>
@@ -317,7 +350,14 @@
       <!-- Bandeau 4 Métriques KPI du Parc -->
       <div class="fleet-kpis-strip">
         <div class="fleet-kpi-card">
-          <div class="kpi-icon-wrap icon-blue">📡</div>
+          <div class="kpi-icon-wrap icon-blue">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+              <line x1="6" y1="6" x2="6.01" y2="6"/>
+              <line x1="6" y1="18" x2="6.01" y2="18"/>
+            </svg>
+          </div>
           <div class="kpi-content">
             <span class="kpi-card-label">Sondes Enregistrées</span>
             <div class="kpi-card-val-row">
@@ -328,7 +368,12 @@
         </div>
 
         <div class="fleet-kpi-card">
-          <div class="kpi-icon-wrap icon-emerald">🟢</div>
+          <div class="kpi-icon-wrap icon-emerald">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <polyline points="9 12 11 14 15 10"/>
+            </svg>
+          </div>
           <div class="kpi-content">
             <span class="kpi-card-label">Sondes En Ligne (Direct)</span>
             <div class="kpi-card-val-row">
@@ -339,7 +384,13 @@
         </div>
 
         <div class="fleet-kpi-card">
-          <div class="kpi-icon-wrap icon-indigo">📊</div>
+          <div class="kpi-icon-wrap icon-indigo">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/>
+              <line x1="12" y1="20" x2="12" y2="4"/>
+              <line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+          </div>
           <div class="kpi-content">
             <span class="kpi-card-label">Flux Transmis (Parc)</span>
             <div class="kpi-card-val-row">
@@ -350,7 +401,13 @@
         </div>
 
         <div class="fleet-kpi-card">
-          <div class="kpi-icon-wrap icon-rose">🚨</div>
+          <div class="kpi-icon-wrap icon-rose">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
           <div class="kpi-content">
             <span class="kpi-card-label">Menaces Interceptées</span>
             <div class="kpi-card-val-row">
@@ -362,11 +419,19 @@
       </div>
 
       <div class="grid">
-        <!-- Colonne Gauche : Liste Élégante des Sondes Réelles -->
+        <!-- Colonne Gauche : Carte Parc de Sondes Actives & Distantes -->
         <div class="card c7 fleet-list-card">
           <div class="fleet-list-header">
             <div>
-              <h3 class="section-title">Parc de Sondes Actives &amp; Distantes</h3>
+              <div class="header-title-flex">
+                <svg class="section-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                  <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                  <line x1="6" y1="6" x2="6.01" y2="6"/>
+                  <line x1="6" y1="18" x2="6.01" y2="18"/>
+                </svg>
+                <h3 class="section-title">Parc de Sondes Actives &amp; Distantes</h3>
+              </div>
               <p class="section-subtitle">
                 Supervision des sondes matérielles, virtuelles et agents edge transmettant des flux au serveur NIDS.
               </p>
@@ -388,7 +453,8 @@
                 :class="{ active: fleetStatusFilter === 'online' }"
                 @click="fleetStatusFilter = 'online'"
               >
-                ● En ligne ({{ store.sensorsOnline }})
+                <span class="pill-dot green"></span>
+                En ligne ({{ store.sensorsOnline }})
               </button>
               <button 
                 type="button" 
@@ -416,7 +482,10 @@
             </p>
             <div class="empty-actions">
               <button type="button" class="btn-glass" @click="activeTab = 'replay'">
-                📂 Lancer un Rejeu PCAP (Mode Lab)
+                <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span>Lancer un Rejeu PCAP</span>
               </button>
               <button type="button" class="btn-glass" @click="fleetStatusFilter = 'all'">
                 Réinitialiser le filtre
@@ -434,9 +503,20 @@
             >
               <!-- En-tête de la sonde -->
               <div class="sensor-card-top">
-                <div class="sensor-badge-icon">
-                  <span v-if="s.type === 'replay'">🧪</span>
-                  <span v-else>📡</span>
+                <div class="sensor-badge-icon" :class="{ 'icon-replay': s.type === 'replay' }">
+                  <!-- Icône Beaker pour simulateur Replay -->
+                  <svg v-if="s.type === 'replay'" class="sensor-svg-type" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10 2v7.31L4.69 19.3A2 2 0 0 0 6.36 22h11.28a2 2 0 0 0 1.67-2.7L14 9.31V2"/>
+                    <line x1="8.5" y1="2" x2="15.5" y2="2"/>
+                    <line x1="14" y1="9" x2="10" y2="9"/>
+                  </svg>
+                  <!-- Icône Server / Antenne pour Agent Réseau Réel -->
+                  <svg v-else class="sensor-svg-type" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                    <line x1="6" y1="6" x2="6.01" y2="6"/>
+                    <line x1="6" y1="18" x2="6.01" y2="18"/>
+                  </svg>
                 </div>
 
                 <div class="sensor-headline">
@@ -454,7 +534,10 @@
                   <div class="sensor-ids-row">
                     <span class="sensor-id-pill" @click="copySensorId(s.id)" title="Cliquez pour copier l'identifiant">
                       ID: <code>{{ s.id }}</code>
-                      <span class="copy-small-icon">📋</span>
+                      <svg class="copy-small-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                      </svg>
                     </span>
                     <span class="type-pill" :class="s.type">
                       {{ s.type === 'replay' ? 'Simulateur PCAP Interne' : 'Agent Edge Distant' }}
@@ -466,7 +549,13 @@
               <!-- Corps Télémétrie Réseau -->
               <div class="sensor-telemetry-box">
                 <div class="telemetry-item">
-                  <span class="telemetry-lbl">Interface d'écoute</span>
+                  <div class="telemetry-lbl-row">
+                    <svg class="telemetry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                      <line x1="6" y1="6" x2="6.01" y2="6"/>
+                    </svg>
+                    <span class="telemetry-lbl">Interface d'écoute</span>
+                  </div>
                   <b class="telemetry-val">
                     <span class="eth-bullet"></span>
                     {{ s.interface || (s.type === 'replay' ? 'Moteur PCAP' : 'eth0') }}
@@ -474,19 +563,37 @@
                 </div>
 
                 <div class="telemetry-item">
-                  <span class="telemetry-lbl">Flux analysés</span>
+                  <div class="telemetry-lbl-row">
+                    <svg class="telemetry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="18" y1="20" x2="18" y2="10"/>
+                      <line x1="12" y1="20" x2="12" y2="4"/>
+                      <line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                    <span class="telemetry-lbl">Flux analysés</span>
+                  </div>
                   <b class="telemetry-val">{{ (s.total_flows || 0).toLocaleString() }}</b>
                 </div>
 
                 <div class="telemetry-item">
-                  <span class="telemetry-lbl">Attaques bloquées</span>
+                  <div class="telemetry-lbl-row">
+                    <svg class="telemetry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    </svg>
+                    <span class="telemetry-lbl">Attaques bloquées</span>
+                  </div>
                   <b class="telemetry-val" :class="{ 'text-danger': (s.total_attacks || 0) > 0 }">
                     {{ (s.total_attacks || 0).toLocaleString() }}
                   </b>
                 </div>
 
                 <div class="telemetry-item">
-                  <span class="telemetry-lbl">Dernier Heartbeat</span>
+                  <div class="telemetry-lbl-row">
+                    <svg class="telemetry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    <span class="telemetry-lbl">Dernier Heartbeat</span>
+                  </div>
                   <span class="telemetry-val text-muted">
                     {{ s.last_seen || 'En attente' }}
                     <span v-if="s.elapsed_sec" class="elapsed-badge">
@@ -517,7 +624,9 @@
               <!-- Pied de Carte & Actions -->
               <div class="sensor-card-footer">
                 <div class="sensor-protocol-tag">
-                  <span class="proto-dot"></span>
+                  <svg class="proto-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
                   <span>Moteur : Scorer IA v4 + AE</span>
                 </div>
 
@@ -528,7 +637,11 @@
                     @click="filterAlertsBySensor(s.id)"
                     title="Voir toutes les alertes de cette sonde dans la table d'incidents"
                   >
-                    <span>🔍 Voir les alertes</span>
+                    <svg class="action-btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="11" cy="11" r="8"/>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <span>Voir les alertes</span>
                   </button>
                 </div>
               </div>
@@ -539,7 +652,11 @@
         <!-- Colonne Droite : Centre de Déploiement & Onboarding d'Agents -->
         <div class="card c5 deployment-hub-card">
           <div class="deploy-header">
-            <div class="deploy-icon-badge">🚀</div>
+            <div class="deploy-icon-badge">
+              <svg class="deploy-header-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 19 21 12 17 5 21 12 2"/>
+              </svg>
+            </div>
             <div>
               <h3 class="section-title">Déployer une Nouvelle Sonde</h3>
               <p class="section-subtitle">
@@ -556,7 +673,12 @@
               :class="{ active: deployMethod === 'linux' }"
               @click="deployMethod = 'linux'"
             >
-              🐧 Agent Linux
+              <svg class="method-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+              <span>Agent Linux</span>
             </button>
             <button 
               type="button" 
@@ -564,7 +686,12 @@
               :class="{ active: deployMethod === 'docker' }"
               @click="deployMethod = 'docker'"
             >
-              🐳 Docker
+              <svg class="method-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+              <span>Docker</span>
             </button>
             <button 
               type="button" 
@@ -572,29 +699,45 @@
               :class="{ active: deployMethod === 'curl' }"
               @click="deployMethod = 'curl'"
             >
-              ⚡ Test API
+              <svg class="method-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+              <span>Test API</span>
             </button>
           </div>
 
           <!-- Schéma d'Architecture Miniature -->
           <div class="arch-flow-box">
             <div class="flow-step">
-              <span class="flow-icon">🖥️</span>
+              <svg class="flow-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+              </svg>
               <span class="flow-label">Sonde Edge</span>
             </div>
-            <div class="flow-arrow">➔</div>
+            <div class="flow-arrow">&rarr;</div>
             <div class="flow-step">
-              <span class="flow-icon">🔒</span>
+              <svg class="flow-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
               <span class="flow-label">POST /ingest</span>
             </div>
-            <div class="flow-arrow">➔</div>
+            <div class="flow-arrow">&rarr;</div>
             <div class="flow-step">
-              <span class="flow-icon">🧠</span>
-              <span class="flow-label">Moteur IA DNN</span>
+              <svg class="flow-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="4" y="4" width="16" height="16" rx="2" ry="2"/>
+                <rect x="9" y="9" width="6" height="6"/>
+                <line x1="9" y1="1" x2="9" y2="4"/>
+                <line x1="15" y1="1" x2="15" y2="4"/>
+              </svg>
+              <span class="flow-label">Moteur IA</span>
             </div>
-            <div class="flow-arrow">➔</div>
+            <div class="flow-arrow">&rarr;</div>
             <div class="flow-step">
-              <span class="flow-icon">🚨</span>
+              <svg class="flow-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
               <span class="flow-label">Alertes SOC</span>
             </div>
           </div>
@@ -698,7 +841,11 @@
 
           <!-- Fiche de Bonnes Pratiques -->
           <div class="deploy-tip-box">
-            <span class="tip-icon">💡</span>
+            <svg class="tip-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
             <div class="tip-body">
               <b>Conseil de durcissement en production :</b>
               Activez le mode promiscuité sur le switch (port mirroring / SPAN) afin que la sonde capture tout le trafic du segment réseau.
@@ -711,7 +858,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSocStore } from '@/stores/socStore'
 
@@ -826,15 +973,52 @@ const formatElapsed = (sec) => {
   return `${(sec / 3600).toFixed(1)} h`
 }
 
-const getScenarioIcon = (category) => {
+// Composants Iconographiques Vectoriels
+const IconDDoS = () => h('svg', { class: 'svg-icon-mini text-danger', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [
+  h('polygon', { points: '13 2 3 14 12 14 11 22 21 10 12 10 13 2' })
+])
+
+const IconScan = () => h('svg', { class: 'svg-icon-mini text-warning', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [
+  h('circle', { cx: '11', cy: '11', r: '8' }),
+  h('line', { x1: '21', y1: '21', x2: '16.65', y2: '16.65' })
+])
+
+const IconBot = () => h('svg', { class: 'svg-icon-mini text-purple', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [
+  h('rect', { x: '4', y: '4', width: '16', height: '16', rx: '2' }),
+  h('circle', { cx: '9', cy: '9', r: '2' }),
+  h('circle', { cx: '15', cy: '9', r: '2' }),
+  h('line', { x1: '9', y1: '15', x2: '15', y2: '15' })
+])
+
+const IconBrute = () => h('svg', { class: 'svg-icon-mini text-orange', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [
+  h('rect', { x: '3', y: '11', width: '18', height: '11', rx: '2', ry: '2' }),
+  h('path', { d: 'M7 11V7a5 5 0 0 1 10 0v4' })
+])
+
+const IconWeb = () => h('svg', { class: 'svg-icon-mini text-blue', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [
+  h('circle', { cx: '12', cy: '12', r: '10' }),
+  h('line', { x1: '2', y1: '12', x2: '22', y2: '12' }),
+  h('path', { d: 'M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z' })
+])
+
+const IconShield = () => h('svg', { class: 'svg-icon-mini text-success', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [
+  h('path', { d: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' }),
+  h('polyline', { points: '9 12 11 14 15 10' })
+])
+
+const IconGeneric = () => h('svg', { class: 'svg-icon-mini text-muted', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, [
+  h('path', { d: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z' })
+])
+
+const getScenarioIconComponent = (category) => {
   const cat = (category || '').toLowerCase()
-  if (cat.includes('ddos') || cat.includes('dos')) return '💥'
-  if (cat.includes('scan')) return '🔍'
-  if (cat.includes('bot')) return '🤖'
-  if (cat.includes('brute')) return '🔨'
-  if (cat.includes('web')) return '🌐'
-  if (cat.includes('benign') || cat.includes('normal')) return '🛡️'
-  return '📦'
+  if (cat.includes('ddos') || cat.includes('dos')) return IconDDoS
+  if (cat.includes('scan')) return IconScan
+  if (cat.includes('bot')) return IconBot
+  if (cat.includes('brute')) return IconBrute
+  if (cat.includes('web')) return IconWeb
+  if (cat.includes('benign') || cat.includes('normal')) return IconShield
+  return IconGeneric
 }
 
 const selectScenario = (filename) => {
@@ -902,6 +1086,27 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* ========================================================================= */
+/* SVG ET ICONES VECTORIELLES                                                */
+/* ========================================================================= */
+.svg-icon {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.svg-icon-mini {
+  width: 15px;
+  height: 15px;
+  display: inline-block;
+}
+
+.tab-icon {
+  width: 18px;
+  height: 18px;
+}
+
 /* ========================================================================= */
 /* EN-TÊTE PRINCIPAL                                                         */
 /* ========================================================================= */
@@ -1047,10 +1252,6 @@ onMounted(async () => {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 4px 18px rgba(88, 101, 242, 0.3);
 }
 
-.tab-icon {
-  font-size: 17px;
-}
-
 .tab-tag {
   font-size: 10.5px;
   font-weight: 700;
@@ -1150,14 +1351,18 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
   flex-shrink: 0;
 }
 
-.kpi-icon-wrap.icon-blue { background: rgba(88, 101, 242, 0.15); border: 1px solid rgba(88, 101, 242, 0.3); }
-.kpi-icon-wrap.icon-emerald { background: rgba(61, 220, 151, 0.15); border: 1px solid rgba(61, 220, 151, 0.3); }
-.kpi-icon-wrap.icon-indigo { background: rgba(155, 92, 246, 0.15); border: 1px solid rgba(155, 92, 246, 0.3); }
-.kpi-icon-wrap.icon-rose { background: rgba(255, 77, 126, 0.15); border: 1px solid rgba(255, 77, 126, 0.3); }
+.kpi-icon-wrap .svg-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.kpi-icon-wrap.icon-blue { background: rgba(88, 101, 242, 0.15); border: 1px solid rgba(88, 101, 242, 0.3); color: #8fa0ff; }
+.kpi-icon-wrap.icon-emerald { background: rgba(61, 220, 151, 0.15); border: 1px solid rgba(61, 220, 151, 0.3); color: #3ddc97; }
+.kpi-icon-wrap.icon-indigo { background: rgba(155, 92, 246, 0.15); border: 1px solid rgba(155, 92, 246, 0.3); color: #c4b5fd; }
+.kpi-icon-wrap.icon-rose { background: rgba(255, 77, 126, 0.15); border: 1px solid rgba(255, 77, 126, 0.3); color: #ff85a5; }
 
 .kpi-content {
   display: flex;
@@ -1195,6 +1400,18 @@ onMounted(async () => {
 /* ========================================================================= */
 /* PANNEAUX ET CARTES DU SOC                                                 */
 /* ========================================================================= */
+.header-title-flex {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title-icon {
+  width: 18px;
+  height: 18px;
+  color: #8fa0ff;
+}
+
 .section-title {
   margin: 0;
   font-size: 16px;
@@ -1590,7 +1807,17 @@ onMounted(async () => {
 }
 
 .terminal-card-icon {
-  font-size: 24px;
+  width: 24px;
+  height: 24px;
+  color: #8fa0ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.terminal-card-icon svg {
+  width: 22px;
+  height: 22px;
 }
 
 .terminal-card-text {
@@ -1631,13 +1858,23 @@ onMounted(async () => {
   width: 240px;
 }
 
+.search-input-icon {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  width: 14px;
+  height: 14px;
+  color: #7982a9;
+  pointer-events: none;
+}
+
 .catalog-search-input {
   width: 100%;
   height: 36px;
   background: #141524;
   border: 1px solid #2e3047;
   border-radius: 8px;
-  padding: 0 28px 0 12px;
+  padding: 0 28px 0 32px;
   font-size: 12px;
   color: #ffffff;
   outline: none;
@@ -1755,10 +1992,6 @@ onMounted(async () => {
   gap: 8px;
 }
 
-.item-category-icon {
-  font-size: 15px;
-}
-
 .item-title {
   font-size: 13.5px;
   color: #ffffff;
@@ -1830,6 +2063,9 @@ onMounted(async () => {
   font-weight: 600;
   color: #8b8ea8;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   transition: all 0.2s;
 }
 
@@ -1850,6 +2086,17 @@ onMounted(async () => {
 .status-pill-btn.offline.active {
   background: rgba(99, 107, 142, 0.3);
   color: #c4ccff;
+}
+
+.pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.pill-dot.green {
+  background: #3ddc97;
+  box-shadow: 0 0 6px #3ddc97;
 }
 
 /* État vide avec radar */
@@ -1972,16 +2219,27 @@ onMounted(async () => {
 }
 
 .sensor-badge-icon {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 10px;
   background: #1b1d2e;
   border: 1px solid #2e314a;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  color: #8fa0ff;
   flex-shrink: 0;
+}
+
+.sensor-badge-icon.icon-replay {
+  color: #c4b5fd;
+  border-color: rgba(155, 92, 246, 0.3);
+  background: rgba(155, 92, 246, 0.1);
+}
+
+.sensor-svg-type {
+  width: 22px;
+  height: 22px;
 }
 
 .sensor-headline {
@@ -2054,7 +2312,7 @@ onMounted(async () => {
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   background: rgba(255, 255, 255, 0.04);
   padding: 2px 8px;
   border-radius: 5px;
@@ -2067,9 +2325,10 @@ onMounted(async () => {
   border-color: #5865f2;
 }
 
-.copy-small-icon {
-  font-size: 10px;
-  opacity: 0.7;
+.copy-small-svg {
+  width: 12px;
+  height: 12px;
+  color: #8fa0ff;
 }
 
 .type-pill {
@@ -2097,7 +2356,19 @@ onMounted(async () => {
 .telemetry-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+}
+
+.telemetry-lbl-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.telemetry-icon {
+  width: 12px;
+  height: 12px;
+  color: #7982a9;
 }
 
 .telemetry-lbl {
@@ -2183,11 +2454,10 @@ onMounted(async () => {
   color: #7982a9;
 }
 
-.proto-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #3ddc97;
+.proto-svg {
+  width: 13px;
+  height: 13px;
+  color: #3ddc97;
 }
 
 .btn-sensor-action {
@@ -2200,12 +2470,20 @@ onMounted(async () => {
   border: 1px solid rgba(88, 101, 242, 0.3);
   color: #8fa0ff;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   transition: all 0.2s;
 }
 
 .btn-sensor-action:hover {
   background: #5865f2;
   color: #ffffff;
+}
+
+.action-btn-svg {
+  width: 12px;
+  height: 12px;
 }
 
 /* ========================================================================= */
@@ -2227,7 +2505,12 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  color: #8fa0ff;
+}
+
+.deploy-header-svg {
+  width: 20px;
+  height: 20px;
 }
 
 .deploy-method-nav {
@@ -2250,6 +2533,10 @@ onMounted(async () => {
   font-weight: 600;
   color: #8b8ea8;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   transition: all 0.2s;
 }
 
@@ -2261,6 +2548,11 @@ onMounted(async () => {
   background: #5865f2;
   color: #ffffff;
   box-shadow: 0 2px 10px rgba(88, 101, 242, 0.35);
+}
+
+.method-svg {
+  width: 14px;
+  height: 14px;
 }
 
 .arch-flow-box {
@@ -2278,11 +2570,13 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
 }
 
-.flow-icon {
-  font-size: 16px;
+.flow-svg {
+  width: 16px;
+  height: 16px;
+  color: #8fa0ff;
 }
 
 .flow-label {
@@ -2293,7 +2587,7 @@ onMounted(async () => {
 
 .flow-arrow {
   color: #4a57e0;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
 }
 
@@ -2393,9 +2687,12 @@ onMounted(async () => {
   margin-top: 18px;
 }
 
-.tip-icon {
-  font-size: 16px;
+.tip-svg {
+  width: 18px;
+  height: 18px;
+  color: #ffb547;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .tip-body {
@@ -2416,6 +2713,10 @@ onMounted(async () => {
 .text-accent  { color: #5865f2 !important; }
 .text-success { color: #3ddc97 !important; }
 .text-danger  { color: #ff4d7e !important; }
+.text-warning { color: #ffb547 !important; }
+.text-orange  { color: #ff7a45 !important; }
+.text-purple  { color: #b266ff !important; }
+.text-blue    { color: #6c8cff !important; }
 .text-muted   { color: #7982a9 !important; }
 
 .sev-tag {
