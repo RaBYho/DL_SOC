@@ -18,6 +18,13 @@ from dashboard.backend.database import (
 from dashboard.backend.model_logger import clear_logs, get_recent_logs, MODEL_LOG_FILE
 from dashboard.backend.replay_service import replay_service
 from dashboard.backend.services.health_service import health_service
+from dashboard.backend.services.notifications import (
+    get_masked_config,
+    get_notifications_config,
+    save_notifications_config,
+    TelegramNotifier,
+    EmailNotifier,
+)
 from dashboard.backend.ws_manager import ws_manager
 
 logger = logging.getLogger("dashboard.routes")
@@ -419,6 +426,38 @@ class SettingsUpdateRequest(BaseModel):
     min_confidence: Optional[float] = None
 
 
+class NotificationsUpdateRequest(BaseModel):
+    telegram_enabled: Optional[bool] = None
+    telegram_bot_token: Optional[str] = None
+    telegram_chat_id: Optional[str] = None
+    email_enabled: Optional[bool] = None
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_use_tls: Optional[bool] = None
+    email_from: Optional[str] = None
+    email_to: Optional[str] = None
+    notify_critical_only: Optional[bool] = None
+    notify_zero_day: Optional[bool] = None
+    notify_traffic_burst: Optional[bool] = None
+
+
+class TelegramTestRequest(BaseModel):
+    bot_token: Optional[str] = None
+    chat_id: Optional[str] = None
+
+
+class EmailTestRequest(BaseModel):
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_use_tls: Optional[bool] = None
+    email_from: Optional[str] = None
+    email_to: Optional[str] = None
+
+
 @router.post("/database/reset")
 async def reset_db_endpoint():
     """Réinitialise la base de données (supprime tous les flux enregistrés) et notifie les clients."""
@@ -448,6 +487,61 @@ async def update_settings_endpoint(req: SettingsUpdateRequest):
         "ae_threshold": cfg.AE_THRESHOLD,
         "min_confidence": req.min_confidence,
     }
+
+
+@router.get("/settings/notifications")
+def get_notifications_settings():
+    """Récupère la configuration des notifications (avec secrets masqués)."""
+    return get_masked_config()
+
+
+@router.post("/settings/notifications")
+def update_notifications_settings(req: NotificationsUpdateRequest):
+    """Enregistre les paramètres d'alerte Telegram et Email."""
+    data = req.model_dump(exclude_unset=True) if hasattr(req, "model_dump") else req.dict(exclude_unset=True)
+    save_notifications_config(data)
+    health_service.record_log("notifications", "Paramètres de notification mis à jour", "INFO")
+    return {
+        "status": "success",
+        "config": get_masked_config(),
+    }
+
+
+@router.post("/notifications/test-telegram")
+async def test_telegram_endpoint(req: TelegramTestRequest):
+    """Teste la connexion et l'envoi d'alerte Telegram."""
+    cfg = get_notifications_config()
+    token = req.bot_token or cfg.telegram_bot_token
+    chat = req.chat_id or cfg.telegram_chat_id
+    if not token or not chat:
+        return {"success": False, "message": "Bot token et Chat ID requis pour le test"}
+    success, msg = await TelegramNotifier.send_test(token, chat)
+    health_service.record_log("notifications", f"Test Telegram: {msg}", "INFO" if success else "WARN")
+    return {"success": success, "message": msg}
+
+
+@router.post("/notifications/test-email")
+async def test_email_endpoint(req: EmailTestRequest):
+    """Teste la connexion et l'envoi d'email SMTP."""
+    cfg = get_notifications_config()
+    test_cfg = type(
+        "TestCfg",
+        (),
+        {
+            "smtp_host": req.smtp_host or cfg.smtp_host,
+            "smtp_port": req.smtp_port or cfg.smtp_port,
+            "smtp_user": req.smtp_user if req.smtp_user is not None else cfg.smtp_user,
+            "smtp_password": req.smtp_password if req.smtp_password is not None else cfg.smtp_password,
+            "smtp_use_tls": req.smtp_use_tls if req.smtp_use_tls is not None else cfg.smtp_use_tls,
+            "email_from": req.email_from or cfg.email_from,
+            "email_to": req.email_to or cfg.email_to,
+        },
+    )()
+    if not test_cfg.smtp_host or not test_cfg.email_from or not test_cfg.email_to:
+        return {"success": False, "message": "Hôte SMTP, expéditeur et destinataire requis"}
+    success, msg = await EmailNotifier.send_test(test_cfg)
+    health_service.record_log("notifications", f"Test Email: {msg}", "INFO" if success else "WARN")
+    return {"success": success, "message": msg}
 
 
 @router.get("/models/logs")

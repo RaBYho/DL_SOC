@@ -48,6 +48,16 @@ class HealthService:
             "details": details or {}
         }
         self._system_logs.append(entry)
+
+    def record_log(
+        self,
+        source: str,
+        message: str,
+        level: str = "INFO",
+        details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Helper alias pour consigner un log d'infrastructure."""
+        self.log_system_event(level=level, source=source, message=message, details=details)
         if level.upper() in ("ERROR", "CRITICAL"):
             logger.error(f"[{source}] {message} - {details or ''}")
         elif level.upper() == "WARNING":

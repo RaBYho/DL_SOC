@@ -16,6 +16,7 @@ from dashboard.backend.formatters import (
 )
 from dashboard.backend.routes import router as dashboard_router, websocket_endpoint
 from dashboard.backend.services.health_service import health_service
+from dashboard.backend.services.notifications import notification_dispatcher
 from dashboard.backend.ws_manager import ws_manager
 
 DEFAULT_BASE = str(Path(__file__).resolve().parent)
@@ -30,6 +31,11 @@ app = FastAPI(title="DL_SOC NIDS Server", version="1.2.0")
 # Inclusion des routes du Dashboard et du canal WebSocket
 app.include_router(dashboard_router)
 app.add_api_websocket_route("/ws", websocket_endpoint)
+
+
+@app.on_event("startup")
+async def on_startup():
+    notification_dispatcher.start_digest_worker()
 
 
 class Batch(BaseModel):
@@ -181,6 +187,11 @@ async def ingest(batch: Batch, x_api_key: str = Header(None)):
                 }
             )
         )
+
+        # Distribution multi-canal asynchrone (Telegram & Email) avec anti-spam
+        if alert_rows:
+            for alert in alert_rows:
+                asyncio.create_task(notification_dispatcher.notify_incident(alert))
 
     return {
         "received": len(df),

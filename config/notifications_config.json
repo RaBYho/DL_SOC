@@ -1,0 +1,16 @@
+{
+  "telegram_enabled": false,
+  "telegram_bot_token": "",
+  "telegram_chat_id": "",
+  "email_enabled": false,
+  "smtp_host": "",
+  "smtp_port": 587,
+  "smtp_user": "",
+  "smtp_password": "",
+  "smtp_use_tls": true,
+  "email_from": "",
+  "email_to": "",
+  "notify_critical_only": true,
+  "notify_zero_day": true,
+  "notify_traffic_burst": false
+}

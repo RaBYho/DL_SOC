@@ -48,5 +48,9 @@ export const api = {
     return request(`/system/logs?${params.toString()}`)
   },
   optimizeDatabase: () => request('/system/optimize-db', { method: 'POST' }),
-  testComponent: (component = 'all') => request('/system/test-component', { method: 'POST', body: JSON.stringify({ component }) })
+  testComponent: (component = 'all') => request('/system/test-component', { method: 'POST', body: JSON.stringify({ component }) }),
+  getNotificationSettings: () => request('/settings/notifications'),
+  updateNotificationSettings: (settings) => request('/settings/notifications', { method: 'POST', body: JSON.stringify(settings) }),
+  testTelegramNotification: (payload = {}) => request('/notifications/test-telegram', { method: 'POST', body: JSON.stringify(payload) }),
+  testEmailNotification: (payload = {}) => request('/notifications/test-email', { method: 'POST', body: JSON.stringify(payload) })
 }

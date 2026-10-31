@@ -177,6 +177,9 @@
           </div>
         </div>
       </div>
+
+      <!-- Section 4: Multi-Channel Alerts & Notifications (Telegram & SMTP) -->
+      <NotificationSettingsCard />
     </section>
 
     <!-- Floating Dock: Single Unified Bottom Save Bar when changes exist -->
@@ -351,6 +354,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useSocStore } from '@/stores/socStore'
+import NotificationSettingsCard from '@/components/settings/NotificationSettingsCard.vue'
 
 const store = useSocStore()
 
