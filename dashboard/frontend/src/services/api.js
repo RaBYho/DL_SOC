@@ -1,0 +1,37 @@
+// Centralized API Client for DL_SOC Dashboard
+
+const BASE_URL = '/api/dashboard'
+
+async function request(endpoint, options = {}) {
+  try {
+    const res = await fetch(`${BASE_URL}${endpoint}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      },
+      ...options
+    })
+    if (!res.ok) {
+      const errText = await res.text()
+      throw new Error(`API Error ${res.status}: ${errText}`)
+    }
+    return await res.json()
+  } catch (err) {
+    console.error(`[API Error] ${endpoint}:`, err)
+    throw err
+  }
+}
+
+export const api = {
+  getInitData: (timeRange = '15m') => request(`/init?time_range=${encodeURIComponent(timeRange)}`),
+  getPcaps: () => request('/pcaps'),
+  startReplay: (pcapName, speed = 1.0) => 
+    request(`/replay/start?pcap_name=${encodeURIComponent(pcapName)}&speed=${speed}`, { method: 'POST' }),
+  stopReplay: () => request('/replay/stop', { method: 'POST' }),
+  getReplayStatus: () => request('/replay/status'),
+  getAlerts: (limit = 100, offset = 0, pred = null, anomalieOnly = false) => {
+    const params = new URLSearchParams({ limit, offset, anomalie_only: anomalieOnly })
+    if (pred) params.append('pred', pred)
+    return request(`/alerts?${params.toString()}`)
+  }
+}

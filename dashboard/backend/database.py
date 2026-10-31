@@ -4,16 +4,21 @@ from typing import Any, Dict, List, Optional
 from dashboard.backend.config import DB_PATH
 
 
+_initialized_dbs = set()
+
+
 def get_connection(db_path: Optional[str] = None) -> sqlite3.Connection:
     path = str(db_path or DB_PATH)
+    if path not in _initialized_dbs:
+        _init_db_schema(path)
+        _initialized_dbs.add(path)
     con = sqlite3.connect(path, check_same_thread=False)
     con.row_factory = sqlite3.Row
     return con
 
 
-def init_db(db_path: Optional[str] = None) -> None:
-    """Initialise le schéma de la base et crée les index pour des requêtes analytiques ultra-rapides."""
-    con = get_connection(db_path)
+def _init_db_schema(path: str) -> None:
+    con = sqlite3.connect(path, check_same_thread=False)
     with con:
         con.execute(
             """CREATE TABLE IF NOT EXISTS flows (
@@ -33,14 +38,12 @@ def init_db(db_path: Optional[str] = None) -> None:
             anomalie_ae INTEGER)"""
         )
 
-        # Migration à chaud des colonnes de l'auto-encodeur si manquantes
         cols = [r[1] for r in con.execute("PRAGMA table_info(flows)").fetchall()]
         if "mse_ae" not in cols:
             con.execute("ALTER TABLE flows ADD COLUMN mse_ae REAL")
         if "anomalie_ae" not in cols:
             con.execute("ALTER TABLE flows ADD COLUMN anomalie_ae INTEGER")
 
-        # Index pour optimiser les requêtes du Dashboard SOC (< 5 ms)
         con.execute(
             "CREATE INDEX IF NOT EXISTS idx_flows_received ON flows(received_at DESC)"
         )
@@ -51,6 +54,14 @@ def init_db(db_path: Optional[str] = None) -> None:
         con.execute("CREATE INDEX IF NOT EXISTS idx_flows_src_ip ON flows(src_ip)")
         con.execute("CREATE INDEX IF NOT EXISTS idx_flows_dst_port ON flows(dst_port)")
     con.close()
+
+
+def init_db(db_path: Optional[str] = None) -> None:
+    """Initialise le schéma de la base et crée les index pour des requêtes analytiques ultra-rapides."""
+    path = str(db_path or DB_PATH)
+    _init_db_schema(path)
+    _initialized_dbs.add(path)
+
 
 
 def get_kpis(db_path: Optional[str] = None) -> Dict[str, Any]:

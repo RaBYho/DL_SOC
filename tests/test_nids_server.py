@@ -117,3 +117,17 @@ def test_ingest_valid_flows_and_stats(client, feature_cols):
     assert "total_flows" in anom_data
     assert "anomalies" in anom_data
     assert anom_data["total_flows"] == 2
+
+
+def test_spa_dashboard_serving(client):
+    # Test index.html à la racine
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert "DL_SOC" in resp.text
+    assert 'id="app"' in resp.text
+
+    # Test route SPA (HTML5 history fallback)
+    route_resp = client.get("/alerts")
+    assert route_resp.status_code == 200
+    assert 'id="app"' in route_resp.text
+

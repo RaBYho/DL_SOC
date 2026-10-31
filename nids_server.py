@@ -183,3 +183,25 @@ def stats_anomalies(x_api_key: str = Header(None)):
     total_flows = con.execute("SELECT COUNT(*) FROM flows").fetchone()[0]
     con.close()
     return {"total_flows": total_flows, "anomalies": total_anomalies}
+
+
+# Montage des fichiers statiques du Dashboard (SPA Vue 3)
+DIST_DIR = Path(BASE) / "dashboard" / "dist"
+if DIST_DIR.is_dir():
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
+
+    assets_dir = DIST_DIR / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="spa_assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        target = DIST_DIR / full_path
+        if full_path and target.is_file():
+            return FileResponse(target)
+        index_file = DIST_DIR / "index.html"
+        if index_file.is_file():
+            return FileResponse(index_file)
+        raise HTTPException(status_code=404, detail="Dashboard non trouvé")
+

@@ -161,3 +161,4 @@ def test_dashboard_api_endpoints(test_db, monkeypatch):
     stop_res = client.post("/api/dashboard/replay/stop")
     assert stop_res.status_code == 200
     assert stop_res.json()["status"] == "stopped"
+
