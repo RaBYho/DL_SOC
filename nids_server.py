@@ -1,3 +1,4 @@
+import asyncio
 import os
 from pathlib import Path
 import sqlite3
@@ -7,13 +8,22 @@ import pandas as pd
 from pydantic import BaseModel
 from nids_core import Scorer
 
+from dashboard.backend import database as db_mod
+from dashboard.backend.routes import router as dashboard_router, websocket_endpoint
+from dashboard.backend.ws_manager import ws_manager
+
 DEFAULT_BASE = str(Path(__file__).resolve().parent)
 BASE = os.environ.get("NIDS_BASE", DEFAULT_BASE)
 DB = os.environ.get("NIDS_DB", str(Path(BASE) / "nids.db"))
 API_KEY = os.environ.get("NIDS_API_KEY", "dev-secret-key")
 
+# Initialisation du modèle et de la base avec indexation
 scorer = Scorer(BASE)
-app = FastAPI(title="DL_SOC NIDS Server", version="1.1.0")
+app = FastAPI(title="DL_SOC NIDS Server", version="1.2.0")
+
+# Inclusion des routes du Dashboard et du canal WebSocket
+app.include_router(dashboard_router)
+app.add_api_websocket_route("/ws", websocket_endpoint)
 
 
 class Batch(BaseModel):
@@ -22,21 +32,8 @@ class Batch(BaseModel):
 
 
 def db():
-    con = sqlite3.connect(DB)
-    con.execute("""CREATE TABLE IF NOT EXISTS flows (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, received_at REAL, sensor_id TEXT,
-        flow_start_ms REAL, src_ip TEXT, src_mac TEXT, src_port INTEGER,
-        dst_ip TEXT, dst_port INTEGER, protocol INTEGER, pred TEXT, confiance REAL,
-        mse_ae REAL, anomalie_ae INTEGER)""")
-
-    # Migration à chaud si les colonnes de l'auto-encodeur n'existent pas encore
-    cols = [r[1] for r in con.execute("PRAGMA table_info(flows)").fetchall()]
-    if "mse_ae" not in cols:
-        con.execute("ALTER TABLE flows ADD COLUMN mse_ae REAL")
-    if "anomalie_ae" not in cols:
-        con.execute("ALTER TABLE flows ADD COLUMN anomalie_ae INTEGER")
-
-    return con
+    db_mod.init_db(DB)
+    return db_mod.get_connection(DB)
 
 
 @app.get("/health")
@@ -50,7 +47,7 @@ def health():
 
 
 @app.post("/ingest")
-def ingest(batch: Batch, x_api_key: str = Header(None)):
+async def ingest(batch: Batch, x_api_key: str = Header(None)):
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="clé invalide")
     if not batch.flows:
@@ -58,7 +55,9 @@ def ingest(batch: Batch, x_api_key: str = Header(None)):
 
     df = pd.DataFrame(batch.flows)
     try:
-        df[scorer.feature_cols] = df[scorer.feature_cols].apply(pd.to_numeric, errors="raise")
+        df[scorer.feature_cols] = df[scorer.feature_cols].apply(
+            pd.to_numeric, errors="raise"
+        )
         res = scorer.predict_df(df)
     except (ValueError, KeyError) as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -100,9 +99,60 @@ def ingest(batch: Batch, x_api_key: str = Header(None)):
     con.close()
 
     anomalies_count = int(res["anomalie_ae"].sum()) if has_ae else 0
+    alerts_count = int((res["pred"] != "BENIGN").sum())
+
+    # Notification en temps réel sur le canal WebSocket du Dashboard
+    if ws_manager.active_connections:
+        severity_map = {
+            "DDoS": "Critical",
+            "Bot": "Critical",
+            "DoS-Hulk": "High",
+            "DoS-GoldenEye": "High",
+            "DoS-slowloris": "High",
+            "SSH-Patator": "High",
+            "WebAttack": "High",
+            "DoS-Slowhttptest": "Medium",
+            "PortScan": "Medium",
+            "FTP-Patator": "Medium",
+            "Scan-Vista": "Low",
+        }
+        alert_rows = [
+            {
+                "timestamp": time.strftime("%H:%M:%S", time.localtime(now)),
+                "sensor": batch.sensor_id,
+                "src_ip": r.get("src_ip", "0.0.0.0"),
+                "src_port": r.get("src_port", 0),
+                "dst_ip": r.get("dst_ip", "0.0.0.0"),
+                "dst_port": r.get("dst_port", 0),
+                "protocol": "TCP" if r.get("protocol") == 6 else "UDP",
+                "classification": p,
+                "confidence": round(float(c) * 100.0, 1),
+                "mse_ae": round(float(m), 3) if m is not None else 0.0,
+                "is_anomaly": bool(a),
+                "severity": severity_map.get(
+                    p, "High" if bool(a) else "Medium"
+                ),
+            }
+            for r, p, c, m, a in zip(
+                batch.flows, res["pred"], res["confiance"], mse_vals, anom_vals
+            )
+            if p != "BENIGN" or (a and a == 1)
+        ]
+        asyncio.create_task(
+            ws_manager.broadcast(
+                {
+                    "type": "new_flows",
+                    "received": len(df),
+                    "alerts_count": alerts_count,
+                    "anomalies_count": anomalies_count,
+                    "recent_alerts": alert_rows,
+                }
+            )
+        )
+
     return {
         "received": len(df),
-        "alerts": int((res["pred"] != "BENIGN").sum()),
+        "alerts": alerts_count,
         "anomalies": anomalies_count,
         "preds": res["pred"].tolist(),
     }
@@ -113,7 +163,11 @@ def stats(x_api_key: str = Header(None)):
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="clé invalide")
     con = db()
-    out = dict(con.execute("SELECT pred, COUNT(*) FROM flows GROUP BY pred").fetchall())
+    out = dict(
+        con.execute(
+            "SELECT pred, COUNT(*) FROM flows GROUP BY pred"
+        ).fetchall()
+    )
     con.close()
     return out
 
@@ -123,7 +177,9 @@ def stats_anomalies(x_api_key: str = Header(None)):
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="clé invalide")
     con = db()
-    total_anomalies = con.execute("SELECT COUNT(*) FROM flows WHERE anomalie_ae = 1").fetchone()[0]
+    total_anomalies = con.execute(
+        "SELECT COUNT(*) FROM flows WHERE anomalie_ae = 1"
+    ).fetchone()[0]
     total_flows = con.execute("SELECT COUNT(*) FROM flows").fetchone()[0]
     con.close()
     return {"total_flows": total_flows, "anomalies": total_anomalies}
