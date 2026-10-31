@@ -241,6 +241,7 @@ export const useSocStore = defineStore('soc', {
 
         if (data.replay_status) this.replayStatus = data.replay_status
         if (data.ae_threshold) this.aeThreshold = data.ae_threshold
+        if (data.system_health) this.systemHealth = data.system_health
         if (data.sensors && Array.isArray(data.sensors)) {
           this.sensorsList = data.sensors
           this.sensorsOnline = data.sensors.filter(s => s.status === 'Online').length

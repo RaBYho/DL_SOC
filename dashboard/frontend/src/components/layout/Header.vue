@@ -42,7 +42,7 @@
       </button>
 
       <!-- Live Stream / Replay Status Indicator -->
-      <div class="stat-pill" aria-live="polite">
+      <div class="stat-pill stream-pill" aria-live="polite">
         <span 
           class="pulse-dot" 
           :class="{ 
@@ -98,56 +98,51 @@ const statusSubtitle = computed(() => {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(15, 16, 23, 0.92);
-  backdrop-filter: blur(16px);
-  padding: 14px 20px;
   display: flex;
-  gap: 12px 18px;
+  justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px 28px;
+  background: rgba(15, 16, 23, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
 }
 
 .header-top-bar {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .mobile-menu-trigger {
   display: none;
-  background: var(--panel2);
-  border: 1px solid var(--line);
+  background: transparent;
+  border: none;
   color: var(--tx);
-  width: 38px;
-  height: 38px;
-  border-radius: 9px;
-  padding: 0;
-  align-items: center;
-  justify-content: center;
-  flex: none;
   cursor: pointer;
+  padding: 4px;
 }
 
 .mobile-menu-trigger svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
 }
 
 .header-main-title h1 {
-  font-size: 17px;
+  font-size: 18px;
+  font-weight: 800;
   margin: 0;
-  font-weight: 700;
-  letter-spacing: -0.2px;
-  color: #fff;
-  line-height: 1.2;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  letter-spacing: -0.3px;
 }
 
 .header-main-title small {
-  display: block;
-  font-weight: 400;
-  color: var(--mu);
   font-size: 12px;
-  margin-top: 2px;
+  color: var(--mu);
+  font-weight: 500;
 }
 
 .header-spacer {
@@ -157,19 +152,30 @@ const statusSubtitle = computed(() => {
 .header-right-actions {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.stat-pill {
+  display: flex;
+  align-items: center;
   gap: 10px;
+  padding: 6px 14px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(28, 29, 43, 0.9) 0%, rgba(22, 23, 34, 0.9) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .health-pill {
   cursor: pointer;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .health-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.22);
   transform: translateY(-1px);
 }
 
@@ -201,16 +207,6 @@ const statusSubtitle = computed(() => {
   0% { transform: scale(0.9); opacity: 0.7; }
   50% { transform: scale(1.3); opacity: 1; }
   100% { transform: scale(0.9); opacity: 0.7; }
-}
-
-.stat-pill {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 12px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(28, 29, 43, 0.9) 0%, rgba(22, 23, 34, 0.9) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .pulse-dot {
@@ -249,11 +245,13 @@ const statusSubtitle = computed(() => {
   font-size: 12px;
   font-weight: 700;
   color: var(--tx);
+  white-space: nowrap;
 }
 
 .stat-subtitle {
   font-size: 10.5px;
   color: var(--mu);
+  white-space: nowrap;
 }
 
 @media (max-width: 900px) {
@@ -263,67 +261,28 @@ const statusSubtitle = computed(() => {
   .soc-header {
     padding: 12px 16px;
   }
-  .header-top-bar {
-    width: 100%;
-    justify-content: space-between;
-  }
   .header-main-title h1 {
     font-size: 15px;
   }
   .header-main-title small {
     display: none;
   }
-  .header-right-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.health-pill {
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.health-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
-}
-
-.health-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.health-healthy .health-dot {
-  background: #3ddc97;
-  box-shadow: 0 0 8px #3ddc97;
-}
-
-.health-degraded .health-dot {
-  background: #ffb547;
-  box-shadow: 0 0 8px #ffb547;
-  animation: pulse-health 1.5s infinite;
-}
-
-.health-critical .health-dot {
-  background: #ff4d7e;
-  box-shadow: 0 0 8px #ff4d7e;
-  animation: pulse-health 1s infinite;
-}
-
-@keyframes pulse-health {
-  0% { transform: scale(0.9); opacity: 0.7; }
-  50% { transform: scale(1.3); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.7; }
-}
-
-.stat-pill {
+  .stat-pill {
+    padding: 5px 9px;
+    gap: 7px;
+  }
+  .stat-subtitle {
     display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .stat-title {
+    display: none;
+  }
+  .stat-pill {
+    padding: 6px;
+    border-radius: 50%;
   }
 }
 </style>

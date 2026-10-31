@@ -321,6 +321,7 @@ def get_initial_dashboard_state(time_range: str = Query("15m")):
         "pcap_files": pcaps,
         "replay_status": replay_service.get_status(),
         "ae_threshold": AE_THRESHOLD,
+        "system_health": health_service.get_health_status(),
         "time_range": time_range,
     }
 

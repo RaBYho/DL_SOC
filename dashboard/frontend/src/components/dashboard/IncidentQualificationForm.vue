@@ -7,8 +7,8 @@
           <path d="m9 12 2 2 4-4"/>
         </svg>
         <div>
-          <h4 class="form-title">Triage Humain & Active Learning</h4>
-          <span class="form-subtitle">Enregistrement de la décision analyste pour le ré-entraînement du NIDS</span>
+          <h4 class="form-title">Triage Humain &amp; Active Learning</h4>
+          <span class="form-subtitle">Enregistrement et labellisation d'attaque pour le ré-entraînement du NIDS</span>
         </div>
       </div>
 
@@ -18,7 +18,59 @@
       </div>
     </div>
 
-    <!-- Choix du Verdict (3 cartes) -->
+    <!-- BANNIÈRE D'ASSISTANCE & RECOMMANDATION IA -->
+    <div class="ai-assistant-rec-box">
+      <div v-if="isLoadingAi" class="ai-rec-loading">
+        <span class="btn-spinner"></span>
+        <span>L'assistant IA analyse le flux et détermine l'étiquette optimale...</span>
+      </div>
+
+      <div v-else-if="aiSuggestion" class="ai-rec-content">
+        <div class="ai-rec-header">
+          <div class="ai-rec-title-wrap">
+            <svg class="ai-spark-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a4 4 0 0 0-4 4v1a4 4 0 0 0-3 3.87V13a4 4 0 0 0 3 3.87V18a4 4 0 0 0 4 4h0a4 4 0 0 0 4-4v-1.13A4 4 0 0 0 19 13v-2.13A4 4 0 0 0 16 7V6a4 4 0 0 0-4-4z"/>
+              <line x1="12" y1="2" x2="12" y2="22"/>
+            </svg>
+            <span class="ai-rec-heading">Détermination Assistée par IA</span>
+          </div>
+          <span class="ai-rec-confidence mono">{{ aiSuggestion.confidence_pct }}% certitude</span>
+        </div>
+
+        <div class="ai-rec-verdict-row">
+          <span class="ai-verdict-badge" :class="aiRecPillClass">
+            {{ aiRecVerdictLabel }}
+          </span>
+          <b class="ai-suggested-label">{{ aiSuggestion.suggested_label }}</b>
+        </div>
+
+        <p class="ai-rec-desc">{{ aiSuggestion.justification }}</p>
+
+        <div class="ai-rec-actions">
+          <button 
+            type="button" 
+            class="btn-prefill" 
+            @click="prefillFromAi"
+            title="Copier les recommandations de l'IA dans les champs du formulaire"
+          >
+            ⚡ Pré-remplir avec l'IA
+          </button>
+          <button 
+            type="button" 
+            class="btn-direct-save" 
+            :disabled="isSubmitting"
+            @click="directSaveAi"
+            title="Valider et sauvegarder immédiatement cette étiquette"
+          >
+            <svg v-if="!isSubmitting" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span v-else class="btn-spinner"></span>
+            <span>Valider directement cette étiquette</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Choix du Verdict (3 cartes manuelles / ajustables) -->
     <div class="verdict-cards-grid">
       <!-- 1. Faux Positif -->
       <button 
@@ -103,7 +155,7 @@
 
     <!-- Commentaires libres de l'analyste -->
     <div class="subform-group">
-      <label class="input-label" for="analystNotes">Notes d'investigation forensique (optionnel) :</label>
+      <label class="input-label" for="analystNotes">Notes d'investigation forensique :</label>
       <textarea 
         id="analystNotes"
         v-model="analystNotes" 
@@ -154,6 +206,9 @@ const analystNotes = ref('')
 const isSubmitting = ref(false)
 const feedbackSuccessMsg = ref('')
 
+const aiSuggestion = ref(null)
+const isLoadingAi = ref(false)
+
 const incidentId = computed(() => {
   return props.flow ? (props.flow.id || `${props.flow.src_ip}-${props.flow.dst_port}-${props.flow.received_at}`) : ''
 })
@@ -180,6 +235,52 @@ const verdictLabel = computed(() => {
   return v
 })
 
+const aiRecPillClass = computed(() => {
+  if (!aiSuggestion.value) return ''
+  const v = aiSuggestion.value.determined_verdict
+  if (v === 'FALSE_POSITIVE') return 'pill-fp'
+  if (v === 'KNOWN_ATTACK') return 'pill-reclass'
+  if (v === 'CONFIRMED_ZERODAY') return 'pill-zd'
+  return ''
+})
+
+const aiRecVerdictLabel = computed(() => {
+  if (!aiSuggestion.value) return ''
+  const v = aiSuggestion.value.determined_verdict
+  if (v === 'FALSE_POSITIVE') return 'Faux Positif'
+  if (v === 'KNOWN_ATTACK') return 'Attaque'
+  if (v === 'CONFIRMED_ZERODAY') return 'Zero-Day'
+  return v
+})
+
+const fetchAiAssistance = async () => {
+  if (!props.flow) return
+  isLoadingAi.value = true
+  try {
+    const res = await api.analyzeIncidentAi(incidentId.value, props.flow)
+    if (res && res.success) {
+      aiSuggestion.value = res
+    }
+  } catch (err) {
+    console.error('Failed to get AI assistance for labeling:', err)
+  } finally {
+    isLoadingAi.value = false
+  }
+}
+
+const prefillFromAi = () => {
+  if (!aiSuggestion.value) return
+  selectedVerdict.value = aiSuggestion.value.determined_verdict || 'KNOWN_ATTACK'
+  correctedAttack.value = aiSuggestion.value.suggested_label || ''
+  analystNotes.value = `[IA Assist] ${aiSuggestion.value.justification || ''}`
+}
+
+const directSaveAi = async () => {
+  if (!aiSuggestion.value || !incidentId.value) return
+  prefillFromAi()
+  await submit()
+}
+
 const loadExisting = async () => {
   if (!incidentId.value) return
   try {
@@ -194,13 +295,14 @@ const loadExisting = async () => {
       }
     }
   } catch (e) {
-    // Silently ignore if not found
+    // Ignore
   }
 }
 
 watch(() => props.flow, () => {
   feedbackSuccessMsg.value = ''
   loadExisting()
+  fetchAiAssistance()
 }, { immediate: true })
 
 const submit = async () => {
@@ -255,7 +357,7 @@ const submit = async () => {
 .header-icon {
   width: 20px;
   height: 20px;
-  color: var(--bl);
+  color: var(--ac);
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -308,6 +410,130 @@ const submit = async () => {
   border: 1px solid rgba(178, 102, 255, 0.3);
 }
 
+/* BANNIÈRE IA D'ASSISTANCE */
+.ai-assistant-rec-box {
+  background: linear-gradient(135deg, rgba(88, 101, 242, 0.08) 0%, rgba(155, 92, 246, 0.08) 100%);
+  border: 1px solid rgba(155, 92, 246, 0.3);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.ai-rec-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #c4b5fd;
+}
+
+.ai-rec-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-rec-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ai-rec-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-spark-icon {
+  width: 15px;
+  height: 15px;
+  color: #a78bfa;
+}
+
+.ai-rec-heading {
+  font-size: 12px;
+  font-weight: 700;
+  color: #c4b5fd;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ai-rec-confidence {
+  font-size: 11px;
+  color: var(--ok);
+  background: rgba(61, 220, 151, 0.12);
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.ai-rec-verdict-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-verdict-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.ai-suggested-label {
+  font-size: 14px;
+  color: var(--tx);
+}
+
+.ai-rec-desc {
+  margin: 0;
+  font-size: 12px;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+.ai-rec-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.btn-prefill {
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: var(--tx);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-prefill:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.btn-direct-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--ac);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-direct-save:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
 /* Verdict Cards */
 .verdict-cards-grid {
   display: grid;
@@ -335,7 +561,7 @@ const submit = async () => {
 
 .verdict-card.selected {
   background: rgba(88, 101, 242, 0.1);
-  border-color: var(--bl);
+  border-color: var(--ac);
 }
 
 .card-radio-circle {
@@ -350,14 +576,14 @@ const submit = async () => {
 }
 
 .verdict-card.selected .card-radio-circle {
-  border-color: var(--bl);
+  border-color: var(--ac);
 }
 
 .radio-inner {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--bl);
+  background: var(--ac);
 }
 
 .card-content {
@@ -371,17 +597,9 @@ const submit = async () => {
   font-weight: 700;
 }
 
-.fp-color {
-  color: var(--ok);
-}
-
-.reclass-color {
-  color: var(--md);
-}
-
-.zd-color {
-  color: var(--zd);
-}
+.fp-color { color: var(--ok); }
+.reclass-color { color: var(--md); }
+.zd-color { color: var(--zd); }
 
 .verdict-desc {
   font-size: 11.5px;
@@ -414,7 +632,7 @@ const submit = async () => {
 }
 
 .soc-select:focus, .soc-text-input:focus, .soc-textarea:focus {
-  border-color: var(--bl);
+  border-color: var(--ac);
 }
 
 .soc-textarea {
@@ -444,7 +662,7 @@ const submit = async () => {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: var(--bl);
+  background: var(--ac);
   border: none;
   border-radius: 7px;
   color: white;

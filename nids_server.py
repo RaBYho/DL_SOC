@@ -33,9 +33,26 @@ app.include_router(dashboard_router)
 app.add_api_websocket_route("/ws", websocket_endpoint)
 
 
+async def periodic_health_worker():
+    """Diffuse l'état de santé système toutes les 10s aux analystes connectés."""
+    while True:
+        try:
+            await asyncio.sleep(10.0)
+            if ws_manager.active_connections:
+                await ws_manager.broadcast({
+                    "type": "system_health",
+                    "system_health": health_service.get_health_status(),
+                })
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            pass
+
+
 @app.on_event("startup")
 async def on_startup():
     notification_dispatcher.start_digest_worker()
+    asyncio.create_task(periodic_health_worker())
 
 
 class Batch(BaseModel):
