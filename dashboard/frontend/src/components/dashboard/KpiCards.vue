@@ -13,10 +13,6 @@
         </div>
       </div>
       <div class="kpi-value">{{ formatNumber(store.kpis.total_flows) }}</div>
-      <div class="kpi-sub">
-        <span class="kpi-sub-badge">Indexed</span>
-        <span>{{ store.t('kpi.totalFlowsSub') }}</span>
-      </div>
     </div>
 
     <!-- Card 2: Confirmed Cyber Attacks -->
@@ -32,10 +28,6 @@
         </div>
       </div>
       <div class="kpi-value text-attacks">{{ formatNumber(store.kpis.attacks) }}</div>
-      <div class="kpi-sub">
-        <span class="kpi-sub-badge badge-attacks">DNN v4</span>
-        <span>{{ store.t('kpi.confirmedAttacksSub') }}</span>
-      </div>
     </div>
 
     <!-- Card 3: Zero-Day / Unknown Anomalies -->
@@ -51,10 +43,6 @@
         </div>
       </div>
       <div class="kpi-value text-anomalies">{{ formatNumber(store.kpis.anomalies) }}</div>
-      <div class="kpi-sub">
-        <span class="kpi-sub-badge badge-anomalies">AE v1</span>
-        <span>MSE &gt; {{ store.aeThreshold.toFixed(4) }}</span>
-      </div>
     </div>
 
     <!-- Card 4: Ingestion Rate -->
