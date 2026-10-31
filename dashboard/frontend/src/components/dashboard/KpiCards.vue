@@ -4,7 +4,7 @@
     <div class="kpi-card">
       <div class="kpi-top">
         <span class="kpi-label">{{ store.t('kpi.totalFlows') }}</span>
-        <div class="kpi-icon-pill icon-flows">
+        <div class="kpi-icon-pill icon-flows" aria-hidden="true">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <ellipse cx="10" cy="5" rx="7" ry="2.5" />
             <path d="M3 5v5c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V5" />
@@ -12,14 +12,16 @@
           </svg>
         </div>
       </div>
-      <div class="kpi-value">{{ formatNumber(store.kpis.total_flows) }}</div>
+      <div class="kpi-bottom">
+        <div class="kpi-value">{{ formatNumber(store.kpis.total_flows) }}</div>
+      </div>
     </div>
 
     <!-- Card 2: Confirmed Cyber Attacks -->
     <div class="kpi-card kpi-attacks">
       <div class="kpi-top">
         <span class="kpi-label">{{ store.t('kpi.confirmedAttacks') }}</span>
-        <div class="kpi-icon-pill icon-attacks">
+        <div class="kpi-icon-pill icon-attacks" aria-hidden="true">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M10 2L3 6v6c0 4.5 3.5 7.5 7 8 3.5-.5 7-3.5 7-8V6l-7-4z" />
             <path d="M10 7v4" />
@@ -27,14 +29,16 @@
           </svg>
         </div>
       </div>
-      <div class="kpi-value text-attacks">{{ formatNumber(store.kpis.attacks) }}</div>
+      <div class="kpi-bottom">
+        <div class="kpi-value text-attacks">{{ formatNumber(store.kpis.attacks) }}</div>
+      </div>
     </div>
 
     <!-- Card 3: Zero-Day / Unknown Anomalies -->
     <div class="kpi-card kpi-anomalies">
       <div class="kpi-top">
         <span class="kpi-label">{{ store.t('kpi.anomalies') }}</span>
-        <div class="kpi-icon-pill icon-anomalies">
+        <div class="kpi-icon-pill icon-anomalies" aria-hidden="true">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="10" cy="10" r="7" />
             <path d="M10 7v3l2 2" />
@@ -42,55 +46,65 @@
           </svg>
         </div>
       </div>
-      <div class="kpi-value text-anomalies">{{ formatNumber(store.kpis.anomalies) }}</div>
+      <div class="kpi-bottom">
+        <div class="kpi-value text-anomalies">{{ formatNumber(store.kpis.anomalies) }}</div>
+      </div>
     </div>
 
     <!-- Card 4: Ingestion Rate -->
-    <div class="kpi-card">
+    <div class="kpi-card kpi-rate-card">
       <div class="kpi-top">
         <span class="kpi-label">{{ store.t('kpi.rate') }}</span>
-        <div class="kpi-icon-pill icon-rate">
+        <div class="kpi-icon-pill icon-rate" aria-hidden="true">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="11 2 4 11 10 11 9 18 16 9 10 9 11 2" />
           </svg>
         </div>
       </div>
-      <div class="kpi-value">
-        <span>{{ formatNumber(store.kpis.flow_rate_sec) }}</span>
-        <small class="kpi-unit">{{ store.t('kpi.flowsSec') }}</small>
-      </div>
-      <div class="kpi-spark-group">
-        <div class="kpi-bandwidth-text">{{ store.kpis.bandwidth_mbps }} Mbps</div>
+      <div class="kpi-bottom">
+        <div class="rate-value-row">
+          <div class="kpi-value">
+            <span>{{ formatNumber(store.kpis.flow_rate_sec) }}</span>
+            <small class="kpi-unit">{{ store.t('kpi.flowsSec') }}</small>
+          </div>
+          <span class="kpi-bandwidth-pill">{{ store.kpis.bandwidth_mbps }} Mbps</span>
+        </div>
         <div class="spark-bars" aria-hidden="true">
           <i v-for="(h, idx) in sparkHeights" :key="idx" :style="{ height: `${h}%` }"></i>
         </div>
       </div>
     </div>
 
-    <!-- Card 5: Benign vs Malicious (Spans 2 columns on mobile) -->
-    <div class="kpi-card kpi-card-full-mobile">
+    <!-- Card 5: Benign vs Malicious Traffic Distribution -->
+    <div class="kpi-card kpi-ratio-card">
       <div class="kpi-top">
-        <span class="kpi-label">{{ store.t('kpi.trafficDist') }}</span>
-        <div class="kpi-icon-pill icon-ratio">
-          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="10" cy="10" r="8" />
-            <path d="M10 2v16" />
-            <path d="M10 2a8 8 0 0 1 0 16z" fill="currentColor" fill-opacity="0.2" />
-          </svg>
+        <div class="ratio-top-left">
+          <span class="kpi-label">{{ store.t('kpi.trafficDist') }}</span>
+        </div>
+        <div class="ratio-top-right">
+          <div class="kpi-value ratio-text">
+            <span class="benign-num">{{ (store.kpis.benign_pct || 96).toFixed(1) }}%</span>
+            <span class="ratio-slash">/</span>
+            <span class="malicious-num">{{ (store.kpis.attack_pct || 4).toFixed(1) }}%</span>
+          </div>
+          <div class="kpi-icon-pill icon-ratio" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="10" cy="10" r="8" />
+              <path d="M10 2v16" />
+              <path d="M10 2a8 8 0 0 1 0 16z" fill="currentColor" fill-opacity="0.2" />
+            </svg>
+          </div>
         </div>
       </div>
-      <div class="kpi-value ratio-text">
-        <span style="color:var(--ok);">{{ (store.kpis.benign_pct || 96).toFixed(1) }}%</span>
-        <span style="color:var(--mu); font-size: 18px; font-weight:400; margin: 0 4px;">/</span>
-        <span style="color:var(--cr);">{{ (store.kpis.attack_pct || 4).toFixed(1) }}%</span>
-      </div>
-      <div class="ratio-bar-wrapper">
-        <div class="ratio-bar-bg" aria-hidden="true">
-          <i class="ratio-bar-fill" :style="{ width: `${Math.min(Math.max(store.kpis.attack_pct || 4, 3), 100)}%` }"></i>
-        </div>
-        <div class="ratio-labels">
-          <span>{{ store.t('kpi.benign') }}</span>
-          <span style="color:var(--cr);">{{ store.t('kpi.malicious') }}</span>
+      <div class="kpi-bottom">
+        <div class="ratio-bar-wrapper">
+          <div class="ratio-bar-bg" aria-hidden="true">
+            <i class="ratio-bar-fill" :style="{ width: `${Math.min(Math.max(store.kpis.attack_pct || 4, 3), 100)}%` }"></i>
+          </div>
+          <div class="ratio-labels">
+            <span>{{ store.t('kpi.benign') }}</span>
+            <span style="color:var(--cr);">{{ store.t('kpi.malicious') }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -129,55 +143,27 @@ const sparkHeights = computed(() => {
 </script>
 
 <style scoped>
+/* Base Desktop Container (5 equal columns) */
 .kpis-container {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
+  width: 100%;
 }
 
-@media (max-width: 1350px) {
-  .kpis-container {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 900px) {
-  .kpis-container {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-  .kpi-card-full-mobile {
-    grid-column: span 2;
-  }
-  .kpi-card {
-    padding: 12px 14px !important;
-  }
-  .kpi-value {
-    font-size: 22px !important;
-  }
-}
-
-@media (max-width: 480px) {
-  .kpis-container {
-    grid-template-columns: 1fr;
-  }
-  .kpi-card-full-mobile {
-    grid-column: span 1;
-  }
-}
-
+/* Base Card Styling */
 .kpi-card {
-  background: linear-gradient(180deg, rgba(34, 35, 51, 0.95) 0%, rgba(27, 28, 40, 0.95) 100%);
+  background: linear-gradient(180deg, rgba(30, 31, 46, 0.96) 0%, rgba(22, 23, 34, 0.96) 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 16px 18px;
+  border-radius: 14px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.22);
+  min-height: 104px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.24);
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
-  position: relative;
-  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .kpi-card:hover {
@@ -187,32 +173,37 @@ const sparkHeights = computed(() => {
 }
 
 .kpi-attacks {
-  background: linear-gradient(180deg, rgba(255, 77, 126, 0.08) 0%, rgba(27, 28, 40, 0.95) 100%);
-  border-color: rgba(255, 77, 126, 0.28);
+  background: linear-gradient(180deg, rgba(255, 77, 126, 0.08) 0%, rgba(22, 23, 34, 0.96) 100%);
+  border-color: rgba(255, 77, 126, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 77, 126, 0.2), 0 6px 20px rgba(255, 77, 126, 0.1);
 }
 
 .kpi-anomalies {
-  background: linear-gradient(180deg, rgba(178, 102, 255, 0.08) 0%, rgba(27, 28, 40, 0.95) 100%);
-  border-color: rgba(178, 102, 255, 0.28);
+  background: linear-gradient(180deg, rgba(178, 102, 255, 0.08) 0%, rgba(22, 23, 34, 0.96) 100%);
+  border-color: rgba(178, 102, 255, 0.25);
+  box-shadow: inset 0 1px 0 rgba(178, 102, 255, 0.2), 0 6px 20px rgba(178, 102, 255, 0.1);
 }
 
 .kpi-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   margin-bottom: 6px;
 }
 
 .kpi-label {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 11.5px;
+  font-weight: 600;
   color: var(--mu);
+  letter-spacing: 0.2px;
+  line-height: 1.25;
 }
 
 .kpi-icon-pill {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -220,47 +211,51 @@ const sparkHeights = computed(() => {
 }
 
 .kpi-icon-pill svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
 }
 
 .icon-flows {
-  background: rgba(88, 101, 242, 0.15);
+  background: rgba(88, 101, 242, 0.16);
   color: var(--lo);
-  border: 1px solid rgba(88, 101, 242, 0.25);
+  border: 1px solid rgba(88, 101, 242, 0.28);
 }
 
 .icon-attacks {
-  background: rgba(255, 77, 126, 0.15);
+  background: rgba(255, 77, 126, 0.16);
   color: var(--cr);
-  border: 1px solid rgba(255, 77, 126, 0.3);
+  border: 1px solid rgba(255, 77, 126, 0.32);
 }
 
 .icon-anomalies {
-  background: rgba(178, 102, 255, 0.15);
+  background: rgba(178, 102, 255, 0.16);
   color: var(--zd);
-  border: 1px solid rgba(178, 102, 255, 0.3);
+  border: 1px solid rgba(178, 102, 255, 0.32);
 }
 
 .icon-rate {
-  background: rgba(61, 220, 151, 0.15);
+  background: rgba(61, 220, 151, 0.16);
   color: var(--ok);
-  border: 1px solid rgba(61, 220, 151, 0.25);
+  border: 1px solid rgba(61, 220, 151, 0.28);
 }
 
 .icon-ratio {
-  background: rgba(255, 181, 71, 0.15);
+  background: rgba(255, 181, 71, 0.16);
   color: var(--md);
-  border: 1px solid rgba(255, 181, 71, 0.25);
+  border: 1px solid rgba(255, 181, 71, 0.28);
+}
+
+.kpi-bottom {
+  display: flex;
+  flex-direction: column;
 }
 
 .kpi-value {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.5px;
   font-variant-numeric: tabular-nums;
-  margin: 2px 0 6px;
-  line-height: 1.15;
+  line-height: 1.1;
   color: #fff;
 }
 
@@ -273,74 +268,45 @@ const sparkHeights = computed(() => {
 
 .text-attacks {
   color: var(--cr);
-  text-shadow: 0 0 16px rgba(255, 77, 126, 0.3);
+  text-shadow: 0 0 14px rgba(255, 77, 126, 0.32);
 }
 
 .text-anomalies {
   color: var(--zd);
-  text-shadow: 0 0 16px rgba(178, 102, 255, 0.3);
+  text-shadow: 0 0 14px rgba(178, 102, 255, 0.32);
 }
 
-.ratio-text {
-  font-size: 22px;
-}
-
-.kpi-sub {
+.rate-value-row {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-  color: var(--mu);
-}
-
-.kpi-sub-badge {
-  font-size: 9.5px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--panel2);
-  color: var(--tx);
-  letter-spacing: 0.3px;
-}
-
-.badge-attacks {
-  background: rgba(255, 77, 126, 0.2);
-  color: var(--cr);
-}
-
-.badge-anomalies {
-  background: rgba(178, 102, 255, 0.2);
-  color: var(--zd);
-}
-
-.kpi-spark-group {
-  display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 6px;
 }
 
-.kpi-bandwidth-text {
-  font-size: 11.5px;
-  font-weight: 600;
+.kpi-bandwidth-pill {
+  font-size: 10.5px;
+  font-weight: 700;
   color: var(--mu);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-variant-numeric: tabular-nums;
 }
 
 .spark-bars {
   display: flex;
   align-items: flex-end;
-  gap: 2.5px;
-  height: 20px;
-  flex: 1;
-  max-width: 80px;
+  gap: 2px;
+  height: 14px;
+  margin-top: 6px;
 }
 
 .spark-bars i {
   flex: 1;
   background: linear-gradient(180deg, var(--ac2), var(--ac));
   border-radius: 2px;
-  opacity: 0.55;
+  opacity: 0.5;
   transition: height 0.3s ease;
 }
 
@@ -349,12 +315,39 @@ const sparkHeights = computed(() => {
   background: var(--ok);
 }
 
+.ratio-top-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ratio-text {
+  font-size: 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.benign-num {
+  color: var(--ok);
+}
+
+.ratio-slash {
+  color: var(--mu);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.malicious-num {
+  color: var(--cr);
+}
+
 .ratio-bar-wrapper {
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .ratio-bar-bg {
-  height: 6px;
+  height: 5px;
   border-radius: 3px;
   background: var(--ok);
   overflow: hidden;
@@ -370,8 +363,117 @@ const sparkHeights = computed(() => {
 .ratio-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--mu);
   margin-top: 3px;
+  font-weight: 500;
+}
+
+/* Tablet Layout (2x2 + 1 span or 3 columns) */
+@media (max-width: 1200px) and (min-width: 769px) {
+  .kpis-container {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .kpi-ratio-card {
+    grid-column: span 2;
+  }
+}
+
+/* Mobile Layout (< 768px down to 320px) */
+/* Elegant 2x2 Grid + Full Width Ratio Banner (No 1-column stacking) */
+@media (max-width: 768px) {
+  .kpis-container {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px;
+  }
+
+  .kpi-ratio-card {
+    grid-column: span 2 !important;
+    min-height: auto;
+    padding: 10px 14px;
+  }
+
+  .kpi-card {
+    min-height: 86px;
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
+
+  .kpi-top {
+    margin-bottom: 4px;
+    gap: 4px;
+  }
+
+  .kpi-label {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .kpi-icon-pill {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+  }
+
+  .kpi-icon-pill svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .kpi-value {
+    font-size: 21px;
+  }
+
+  .kpi-unit {
+    font-size: 11px;
+  }
+
+  .rate-value-row {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .kpi-bandwidth-pill {
+    font-size: 9.5px;
+    padding: 0 4px;
+  }
+
+  .spark-bars {
+    height: 10px;
+    margin-top: 4px;
+  }
+
+  .ratio-text {
+    font-size: 15px;
+  }
+
+  .ratio-labels {
+    font-size: 9.5px;
+  }
+}
+
+/* Extra small devices (iPhone SE, 320-375px) */
+@media (max-width: 375px) {
+  .kpis-container {
+    gap: 6px;
+  }
+
+  .kpi-card {
+    padding: 8px 10px;
+    min-height: 82px;
+  }
+
+  .kpi-value {
+    font-size: 19px;
+  }
+
+  .kpi-label {
+    font-size: 10px;
+  }
+
+  .kpi-icon-pill {
+    display: none; /* Hide icon on ultra-narrow 320px to give full width to label */
+  }
 }
 </style>
