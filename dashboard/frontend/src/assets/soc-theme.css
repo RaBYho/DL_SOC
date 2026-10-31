@@ -316,6 +316,34 @@ aside h3 {
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Universal Skeleton Loading Shimmer (Agency-grade dark mode) */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.11) 50%,
+    rgba(255, 255, 255, 0.04) 75%
+  ) !important;
+  background-size: 200% 100% !important;
+  animation: skeleton-shimmer 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+  border-radius: 6px;
+}
+
+.skeleton-box {
+  display: block;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+}
+
 /* Reduced Motion Guard */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

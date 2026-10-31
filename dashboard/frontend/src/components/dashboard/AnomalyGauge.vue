@@ -9,143 +9,163 @@
       <span class="threshold-pill">Seuil: {{ store.aeThreshold.toFixed(2) }}</span>
     </div>
 
-    <!-- Gauge Visual: Inspired by jauge.webp with Fluid Spring Needle -->
-    <svg 
-      viewBox="0 0 240 145" 
-      class="gauge-svg"
-      role="img" 
-      aria-label="Reconstruction error gauge"
-    >
-      <defs>
-        <!-- Continuous Multi-Stop Gradient (Green -> Amber -> Red) -->
-        <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#10b981" />
-          <stop offset="50%" stop-color="#f59e0b" />
-          <stop offset="100%" stop-color="#ef4444" />
-        </linearGradient>
+    <!-- Skeleton Loading State -->
+    <template v-if="store.isLoading">
+      <div class="gauge-skeleton-area">
+        <div class="skeleton-gauge-arc skeleton-shimmer">
+          <div class="skeleton-gauge-inner"></div>
+        </div>
+      </div>
+      <div class="gauge-center-readout">
+        <div class="skeleton-shimmer skeleton-box" style="width: 60px; height: 24px; border-radius: 6px;"></div>
+        <div class="skeleton-shimmer skeleton-box" style="width: 80px; height: 16px; border-radius: 12px; margin-top: 4px;"></div>
+      </div>
+      <div class="gauge-details">
+        <div class="skeleton-shimmer skeleton-box" style="width: 100%; height: 12px; margin-bottom: 4px;"></div>
+        <div class="skeleton-shimmer skeleton-box" style="width: 100%; height: 12px;"></div>
+      </div>
+    </template>
 
-        <!-- Needle Drop Shadow -->
-        <filter id="needleShadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.6" />
-        </filter>
-
-        <!-- Center Hub Drop Shadow -->
-        <filter id="hubShadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#000" flood-opacity="0.5" />
-        </filter>
-      </defs>
-
-      <!-- Background Semicircular Track with Rounded End Caps -->
-      <path 
-        :d="arcPath(0, MAX_MSE, R)" 
-        stroke="rgba(255, 255, 255, 0.08)" 
-        stroke-width="14" 
-        stroke-linecap="round"
-        fill="none" 
-      />
-
-      <!-- Active Gradient Scale Arc with Rounded End Caps -->
-      <path 
-        :d="arcPath(0, MAX_MSE, R)" 
-        stroke="url(#gaugeGrad)" 
-        stroke-width="12" 
-        stroke-linecap="round"
-        fill="none" 
-        opacity="0.9"
-      />
-
-      <!-- Concentric Tachometer Inner Tick Ring -->
-      <path 
-        :d="arcPath(0, MAX_MSE, R_INNER)" 
-        stroke="rgba(255, 255, 255, 0.22)" 
-        stroke-width="2.5" 
-        stroke-dasharray="1.5 5" 
-        fill="none" 
-      />
-
-      <!-- Threshold Tick Marker & Label -->
-      <line 
-        :x1="threshCoords.outer[0]" 
-        :y1="threshCoords.outer[1]" 
-        :x2="threshCoords.inner[0]" 
-        :y2="threshCoords.inner[1]" 
-        stroke="#ffffff" 
-        stroke-width="2" 
-        stroke-linecap="round"
-      />
-      <text 
-        :x="threshCoords.outer[0] + (threshCoords.outer[0] > CX ? 4 : -4)" 
-        :y="threshCoords.outer[1] - 4"
-        :text-anchor="threshCoords.outer[0] > CX ? 'start' : 'end'"
-        class="threshold-marker-text"
+    <!-- Normal Loaded State -->
+    <template v-else>
+      <!-- Gauge Visual: Inspired by jauge.webp with Fluid Spring Needle -->
+      <svg 
+        viewBox="0 0 240 145" 
+        class="gauge-svg"
+        role="img" 
+        aria-label="Reconstruction error gauge"
       >
-        {{ store.aeThreshold.toFixed(2) }}
-      </text>
+        <defs>
+          <!-- Continuous Multi-Stop Gradient (Green -> Amber -> Red) -->
+          <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#10b981" />
+            <stop offset="50%" stop-color="#f59e0b" />
+            <stop offset="100%" stop-color="#ef4444" />
+          </linearGradient>
 
-      <!-- Scale Extremity Labels -->
-      <text :x="CX - R - 2" :y="CY + 14" text-anchor="middle" class="scale-label">0.0</text>
-      <text :x="CX + R + 2" :y="CY + 14" text-anchor="middle" class="scale-label">{{ MAX_MSE.toFixed(1) }}</text>
+          <!-- Needle Drop Shadow -->
+          <filter id="needleShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.6" />
+          </filter>
 
-      <!-- Hardware Needle with Physics Spring Rotation (GPU Transform) -->
-      <g 
-        class="gauge-needle-group" 
-        :style="{ transform: `rotate(${needleAngleDeg}deg)`, transformOrigin: `${CX}px ${CY}px` }"
-      >
-        <polygon 
-          points="120,36 116,108 120,115 124,108" 
-          fill="#ffffff" 
-          filter="url(#needleShadow)"
+          <!-- Center Hub Drop Shadow -->
+          <filter id="hubShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#000" flood-opacity="0.5" />
+          </filter>
+        </defs>
+
+        <!-- Background Semicircular Track with Rounded End Caps -->
+        <path 
+          :d="arcPath(0, MAX_MSE, R)" 
+          stroke="rgba(255, 255, 255, 0.08)" 
+          stroke-width="14" 
+          stroke-linecap="round"
+          fill="none" 
         />
-      </g>
 
-      <!-- Center Pivot Hub (Hardware Machined Bezel) -->
-      <circle 
-        :cx="CX" 
-        :cy="CY" 
-        r="8" 
-        fill="#1e222d" 
-        stroke="rgba(255, 255, 255, 0.45)" 
-        stroke-width="2"
-        filter="url(#hubShadow)"
-      />
-      <circle 
-        :cx="CX" 
-        :cy="CY" 
-        r="3.5" 
-        fill="#ffffff" 
-      />
-    </svg>
+        <!-- Active Gradient Scale Arc with Rounded End Caps -->
+        <path 
+          :d="arcPath(0, MAX_MSE, R)" 
+          stroke="url(#gaugeGrad)" 
+          stroke-width="12" 
+          stroke-linecap="round"
+          fill="none" 
+          opacity="0.9"
+        />
 
-    <!-- Digital Readout & Status Pill Centered Below Gauge -->
-    <div class="gauge-center-readout">
-      <div 
-        class="readout-val" 
-        :style="{ color: isAboveThreshold ? 'var(--cr)' : '#ffffff' }"
-      >
-        {{ store.currentMse.toFixed(2) }}
-      </div>
-      <div 
-        class="readout-badge" 
-        :style="{ color: statusColor, background: statusBg, borderColor: statusColor }"
-      >
-        <span class="status-indicator-dot" :style="{ background: statusColor }"></span>
-        {{ statusText }}
-      </div>
-    </div>
+        <!-- Concentric Tachometer Inner Tick Ring -->
+        <path 
+          :d="arcPath(0, MAX_MSE, R_INNER)" 
+          stroke="rgba(255, 255, 255, 0.22)" 
+          stroke-width="2.5" 
+          stroke-dasharray="1.5 5" 
+          fill="none" 
+        />
 
-    <!-- Bottom Technical Details Strip -->
-    <div class="gauge-details">
-      <div class="detail-row">
-        <span>{{ store.t('gauge.baselineThreshold') }}</span>
-        <b class="mono">{{ store.aeThreshold.toFixed(4) }}</b>
+        <!-- Threshold Tick Marker & Label -->
+        <line 
+          :x1="threshCoords.outer[0]" 
+          :y1="threshCoords.outer[1]" 
+          :x2="threshCoords.inner[0]" 
+          :y2="threshCoords.inner[1]" 
+          stroke="#ffffff" 
+          stroke-width="2" 
+          stroke-linecap="round"
+        />
+        <text 
+          :x="threshCoords.outer[0] + (threshCoords.outer[0] > CX ? 4 : -4)" 
+          :y="threshCoords.outer[1] - 4"
+          :text-anchor="threshCoords.outer[0] > CX ? 'start' : 'end'"
+          class="threshold-marker-text"
+        >
+          {{ store.aeThreshold.toFixed(2) }}
+        </text>
+
+        <!-- Scale Extremity Labels -->
+        <text :x="CX - R - 2" :y="CY + 14" text-anchor="middle" class="scale-label">0.0</text>
+        <text :x="CX + R + 2" :y="CY + 14" text-anchor="middle" class="scale-label">{{ MAX_MSE.toFixed(1) }}</text>
+
+        <!-- Hardware Needle with Physics Spring Rotation (GPU Transform) -->
+        <g 
+          class="gauge-needle-group" 
+          :style="{ transform: `rotate(${needleAngleDeg}deg)`, transformOrigin: `${CX}px ${CY}px` }"
+        >
+          <polygon 
+            points="120,36 116,108 120,115 124,108" 
+            fill="#ffffff" 
+            filter="url(#needleShadow)"
+          />
+        </g>
+
+        <!-- Center Pivot Hub (Hardware Machined Bezel) -->
+        <circle 
+          :cx="CX" 
+          :cy="CY" 
+          r="8" 
+          fill="#1e222d" 
+          stroke="rgba(255, 255, 255, 0.45)" 
+          stroke-width="2"
+          filter="url(#hubShadow)"
+        />
+        <circle 
+          :cx="CX" 
+          :cy="CY" 
+          r="3.5" 
+          fill="#ffffff" 
+        />
+      </svg>
+
+      <!-- Digital Readout & Status Pill Centered Below Needle -->
+      <div class="gauge-center-readout">
+        <div 
+          class="readout-val" 
+          :style="{ color: isAboveThreshold ? 'var(--cr)' : '#ffffff' }"
+        >
+          {{ store.currentMse.toFixed(2) }}
+        </div>
+        <div 
+          class="readout-badge" 
+          :style="{ color: statusColor, background: statusBg, borderColor: statusColor }"
+        >
+          <span class="status-indicator-dot" :style="{ background: statusColor }"></span>
+          {{ statusText }}
+        </div>
       </div>
-      <div class="detail-row">
-        <span>{{ store.t('gauge.rollingMean') }}</span>
-        <b class="mono" :style="{ color: isAboveThreshold ? 'var(--cr)' : '#ffffff' }">
-          {{ store.currentMse.toFixed(4) }}
-        </b>
+
+      <!-- Bottom Technical Details Strip -->
+      <div class="gauge-details">
+        <div class="detail-row">
+          <span>{{ store.t('gauge.baselineThreshold') }}</span>
+          <b class="mono">{{ store.aeThreshold.toFixed(4) }}</b>
+        </div>
+        <div class="detail-row">
+          <span>{{ store.t('gauge.rollingMean') }}</span>
+          <b class="mono" :style="{ color: isAboveThreshold ? 'var(--cr)' : '#ffffff' }">
+            {{ store.currentMse.toFixed(4) }}
+          </b>
+        </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -274,7 +294,38 @@ const statusBg = computed(() => {
   display: block;
 }
 
-/* Physics-based needle rotation: spring damping with zero jank */
+/* Skeleton Gauge Shimmer Placeholder */
+.gauge-skeleton-area {
+  width: 100%;
+  max-width: 215px;
+  height: 125px;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  position: relative;
+}
+
+.skeleton-gauge-arc {
+  width: 170px;
+  height: 85px;
+  border-top-left-radius: 85px;
+  border-top-right-radius: 85px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  position: relative;
+}
+
+.skeleton-gauge-inner {
+  width: 136px;
+  height: 68px;
+  border-top-left-radius: 68px;
+  border-top-right-radius: 68px;
+  background: #171825;
+}
+
+/* Physics-based needle rotation */
 .gauge-needle-group {
   transition: transform 0.65s cubic-bezier(0.34, 1.28, 0.64, 1);
   will-change: transform;

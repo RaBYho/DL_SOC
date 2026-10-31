@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import time
 import joblib
 import numpy as np
 import pandas as pd
@@ -12,6 +13,8 @@ class Scorer:
 
     def __init__(self, base, version="v4", ae_version="v1", device=None):
         self.base = str(base)
+        self.version = version
+        self.ae_version = ae_version
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
         with open(f"{base}/models/feature_cols.json", "r", encoding="utf-8") as f:
@@ -76,6 +79,8 @@ class Scorer:
                 cols += ["mse_ae", "anomalie_ae"]
             return pd.DataFrame(columns=cols, index=flows.index)
 
+        t_start = time.perf_counter()
+
         manquantes = [c for c in self.feature_cols if c not in flows.columns]
         if manquantes:
             raise ValueError(f"Colonnes manquantes : {manquantes}")
@@ -126,5 +131,22 @@ class Scorer:
             mse_ae = np.concatenate(out_ae) if out_ae else np.empty((0,))
             res_dict["mse_ae"] = mse_ae
             res_dict["anomalie_ae"] = mse_ae > self.ae_seuil
+
+        duration_ms = (time.perf_counter() - t_start) * 1000.0
+        try:
+            from dashboard.backend.model_logger import log_inference
+            log_inference(
+                flows_count=len(flows),
+                duration_ms=duration_ms,
+                predictions=res_dict["pred"],
+                confidences=res_dict.get("confiance"),
+                mse_ae=res_dict.get("mse_ae"),
+                anomalie_ae=res_dict.get("anomalie_ae"),
+                device=str(self.device),
+                model_version=getattr(self, "version", "v4"),
+                flows_df=flows,
+            )
+        except Exception:
+            pass
 
         return pd.DataFrame(res_dict, index=flows.index)

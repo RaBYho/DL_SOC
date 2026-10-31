@@ -38,7 +38,7 @@
         <div class="flow-hero-summary">
           <div class="hero-top">
             <span class="sev" :class="flow.severity">{{ flow.severity }}</span>
-            <b class="hero-pred">{{ flow.pred }}</b>
+            <b class="hero-pred">{{ flow.classification || flow.pred }}</b>
           </div>
           <div class="mono hero-route">
             {{ flow.src_ip }}:{{ flow.src_port || '–' }} &rarr; {{ flow.dst_ip }}:{{ flow.dst_port }}
@@ -50,17 +50,17 @@
         <h3>{{ store.t('drawer.aiDetection') }}</h3>
         <div class="kv">
           <span>{{ store.t('drawer.classifierConf') }}</span>
-          <span><b>{{ (flow.confiance * 100).toFixed(1) }}%</b></span>
+          <span><b>{{ ((flow.confiance !== undefined ? flow.confiance : (flow.confidence ? flow.confidence / 100 : 0.9)) * 100).toFixed(1) }}%</b></span>
 
           <span>{{ store.t('drawer.reconstructionMse') }}</span>
-          <span :style="{ color: flow.anomalie_ae === 1 ? 'var(--cr)' : 'inherit', fontWeight: flow.anomalie_ae === 1 ? '700' : 'normal' }">
+          <span :style="{ color: (flow.anomalie_ae === 1 || flow.is_anomaly) ? 'var(--cr)' : 'inherit', fontWeight: (flow.anomalie_ae === 1 || flow.is_anomaly) ? '700' : 'normal' }">
             {{ flow.mse_ae !== null && flow.mse_ae !== undefined ? flow.mse_ae.toFixed(4) : '–' }} 
             <small style="color:var(--mu);">({{ store.t('drawer.threshold') }} {{ store.aeThreshold.toFixed(4) }})</small>
           </span>
 
           <span>{{ store.t('drawer.aeFlag') }}</span>
-          <span :class="flow.anomalie_ae === 1 ? 'flag y' : 'flag n'">
-            {{ flow.anomalie_ae === 1 ? store.t('drawer.anomaly') : store.t('drawer.normal') }}
+          <span :class="(flow.anomalie_ae === 1 || flow.is_anomaly) ? 'flag y' : 'flag n'">
+            {{ (flow.anomalie_ae === 1 || flow.is_anomaly) ? store.t('drawer.anomaly') : store.t('drawer.normal') }}
           </span>
 
           <span>{{ store.t('drawer.sensorOrigin') }}</span>

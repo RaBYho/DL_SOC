@@ -314,25 +314,118 @@ def get_recent_alerts(
     for r in rows:
         pred = r["pred"]
         sev = severity_map.get(pred, "High" if r["anomalie_ae"] == 1 else "Medium")
+        t_str = time.strftime("%H:%M:%S", time.localtime(r["received_at"]))
+        conf_float = float(r["confiance"] or 0.0)
+        anom_int = int(r["anomalie_ae"] or 0)
+        sid = r["sensor_id"] or "sensor-edge-01"
+
         alerts.append(
             {
                 "id": r["id"],
-                "timestamp": time.strftime(
-                    "%H:%M:%S", time.localtime(r["received_at"])
-                ),
-                "sensor": r["sensor_id"] or "sensor-edge-01",
+                "timestamp": t_str,
+                "received_at": t_str,
+                "sensor": sid,
+                "sensor_id": sid,
                 "src_ip": r["src_ip"] or "0.0.0.0",
                 "src_port": r["src_port"] or 0,
                 "dst_ip": r["dst_ip"] or "0.0.0.0",
                 "dst_port": r["dst_port"] or 0,
                 "protocol": "TCP" if r["protocol"] == 6 else "UDP",
                 "classification": pred,
-                "confidence": round((r["confiance"] or 0.0) * 100.0, 1),
+                "pred": pred,
+                "confidence": round(conf_float * 100.0, 1),
+                "confiance": conf_float,
                 "mse_ae": round(r["mse_ae"], 3) if r["mse_ae"] is not None else 0.0,
-                "is_anomaly": bool(r["anomalie_ae"]),
+                "anomalie_ae": anom_int,
+                "is_anomaly": bool(anom_int),
                 "severity": sev,
             }
         )
 
     con.close()
     return alerts
+
+
+def get_active_sensors(db_path: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Récupère la liste des sondes réellement enregistrées et leur état d'activité."""
+    con = get_connection(db_path)
+    try:
+        rows = con.execute(
+            """SELECT 
+                sensor_id,
+                COUNT(*) as total_flows,
+                SUM(CASE WHEN pred != 'BENIGN' OR anomalie_ae = 1 THEN 1 ELSE 0 END) as total_attacks,
+                MAX(received_at) as last_seen,
+                MIN(received_at) as first_seen
+            FROM flows 
+            WHERE sensor_id IS NOT NULL AND sensor_id != ''
+            GROUP BY sensor_id
+            ORDER BY last_seen DESC"""
+        ).fetchall()
+
+        now = time.time()
+        sensors = []
+        for r in rows:
+            sid = r["sensor_id"]
+            last_seen = float(r["last_seen"]) if r["last_seen"] else 0.0
+            elapsed = now - last_seen if last_seen > 0 else 999999.0
+
+            if elapsed < 45.0:
+                status = "Online"
+                status_label = "En direct"
+            elif elapsed < 300.0:
+                status = "Idle"
+                status_label = "En attente"
+            else:
+                status = "Offline"
+                status_label = "Inactif"
+
+            last_seen_str = (
+                time.strftime("%H:%M:%S", time.localtime(last_seen))
+                if last_seen > 0
+                else "N/A"
+            )
+
+            is_lab_replay = (sid == "lab-replay")
+            sensors.append(
+                {
+                    "id": sid,
+                    "name": "Simulateur Lab (PCAP)" if is_lab_replay else sid,
+                    "type": "replay" if is_lab_replay else "edge_sensor",
+                    "interface": "PCAP Replay Engine" if is_lab_replay else "Capture Réseau",
+                    "status": status,
+                    "status_label": status_label,
+                    "total_flows": int(r["total_flows"] or 0),
+                    "total_attacks": int(r["total_attacks"] or 0),
+                    "last_seen": last_seen_str,
+                    "last_seen_epoch": last_seen,
+                    "elapsed_sec": round(elapsed, 1),
+                }
+            )
+        return sensors
+    finally:
+        con.close()
+
+
+def reset_database(db_path: Optional[str] = None) -> Dict[str, Any]:
+    """Vide la table flows, remet à zéro l'auto-incrément et optimise la base."""
+    con = get_connection(db_path)
+    with con:
+        con.execute("DELETE FROM flows")
+        try:
+            con.execute("DELETE FROM sqlite_sequence WHERE name='flows'")
+        except Exception:
+            pass
+    try:
+        con.isolation_level = None
+        con.execute("VACUUM")
+    except Exception:
+        pass
+    finally:
+        con.close()
+    return {
+        "status": "success",
+        "message": "Base de données réinitialisée avec succès",
+        "flows_remaining": 0,
+    }
+

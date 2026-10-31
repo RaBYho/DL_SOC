@@ -47,11 +47,15 @@
         </p>
       </div>
     </section>
+
+    <!-- Console d'Inférence Temps Réel pour le Modèle IA -->
+    <ModelTerminal />
   </main>
 </template>
 
 <script setup>
 import { useSocStore } from '@/stores/socStore'
+import ModelTerminal from '@/components/models/ModelTerminal.vue'
 
 const store = useSocStore()
 

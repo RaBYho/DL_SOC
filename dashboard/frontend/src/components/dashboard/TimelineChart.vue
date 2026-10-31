@@ -29,8 +29,14 @@
       </div>
     </div>
 
+    <!-- Skeleton Loading State -->
+    <div v-if="store.isLoading" class="timeline-skeleton-area">
+      <div class="skeleton-shimmer skeleton-box" style="width: 100%; height: 185px; border-radius: 8px;"></div>
+    </div>
+
     <!-- Chart: Centered L-Axis and Smooth Spline Waves -->
     <svg 
+      v-else
       viewBox="0 0 560 220" 
       class="timeline-svg"
       role="img" 
@@ -211,19 +217,14 @@ function changeRange(range) {
 }
 
 const series = computed(() => {
-  if (store.timelineSeries && store.timelineSeries.length > 5) {
+  if (store.timelineSeries && store.timelineSeries.length > 0) {
     return store.timelineSeries.map(item => item.count || 0)
   }
-  return [
-    820, 890, 840, 920, 860, 910, 870, 930, 890, 960,
-    910, 880, 940, 1120, 1450, 1780, 1340, 960, 910, 890,
-    930, 950, 910, 890, 920, 940, 900, 920, 960, 980,
-    940, 910, 890, 930, 1380, 1890, 1520, 980, 920, 950
-  ]
+  return new Array(40).fill(0)
 })
 
 const maxVal = computed(() => {
-  const m = Math.max(...series.value, 1400)
+  const m = Math.max(...series.value, 100)
   return m * 1.15
 })
 
@@ -439,7 +440,8 @@ const xTicks = computed(() => {
   box-shadow: 0 1px 6px rgba(99, 102, 241, 0.4);
 }
 
-.timeline-svg {
+.timeline-svg,
+.timeline-skeleton-area {
   width: 100%;
   flex: 1;
   min-height: 0;

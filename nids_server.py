@@ -9,6 +9,11 @@ from pydantic import BaseModel
 from nids_core import Scorer
 
 from dashboard.backend import database as db_mod
+from dashboard.backend.formatters import (
+    format_distribution,
+    format_kpis,
+    format_threat_vectors,
+)
 from dashboard.backend.routes import router as dashboard_router, websocket_endpoint
 from dashboard.backend.ws_manager import ws_manager
 
@@ -116,28 +121,41 @@ async def ingest(batch: Batch, x_api_key: str = Header(None)):
             "FTP-Patator": "Medium",
             "Scan-Vista": "Low",
         }
+        time_str = time.strftime("%H:%M:%S", time.localtime(now))
         alert_rows = [
             {
-                "timestamp": time.strftime("%H:%M:%S", time.localtime(now)),
+                "id": int(now * 1000) + idx,
+                "timestamp": time_str,
+                "received_at": time_str,
                 "sensor": batch.sensor_id,
+                "sensor_id": batch.sensor_id,
                 "src_ip": r.get("src_ip", "0.0.0.0"),
                 "src_port": r.get("src_port", 0),
                 "dst_ip": r.get("dst_ip", "0.0.0.0"),
                 "dst_port": r.get("dst_port", 0),
                 "protocol": "TCP" if r.get("protocol") == 6 else "UDP",
                 "classification": p,
+                "pred": p,
                 "confidence": round(float(c) * 100.0, 1),
+                "confiance": float(c),
                 "mse_ae": round(float(m), 3) if m is not None else 0.0,
+                "anomalie_ae": int(a) if a is not None else 0,
                 "is_anomaly": bool(a),
                 "severity": severity_map.get(
                     p, "High" if bool(a) else "Medium"
                 ),
             }
-            for r, p, c, m, a in zip(
-                batch.flows, res["pred"], res["confiance"], mse_vals, anom_vals
+            for idx, (r, p, c, m, a) in enumerate(
+                zip(batch.flows, res["pred"], res["confiance"], mse_vals, anom_vals)
             )
             if p != "BENIGN" or (a and a == 1)
         ]
+
+        raw_kpis = db_mod.get_kpis(DB)
+        raw_dist = db_mod.get_attack_distribution(DB)
+        raw_tv = db_mod.get_threat_vectors(limit=5, db_path=DB)
+        raw_tl = db_mod.get_timeline(window_seconds=900, buckets=60, db_path=DB)
+
         asyncio.create_task(
             ws_manager.broadcast(
                 {
@@ -146,6 +164,10 @@ async def ingest(batch: Batch, x_api_key: str = Header(None)):
                     "alerts_count": alerts_count,
                     "anomalies_count": anomalies_count,
                     "recent_alerts": alert_rows,
+                    "kpis": format_kpis(raw_kpis),
+                    "distribution": format_distribution(raw_dist),
+                    "timeline": raw_tl,
+                    "threat_vectors": format_threat_vectors(raw_tv),
                 }
             )
         )

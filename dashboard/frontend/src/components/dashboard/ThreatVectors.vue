@@ -18,8 +18,27 @@
           <h3>{{ store.t('vectors.topIps') }}</h3>
         </div>
 
-        <div class="vector-list">
+        <div v-if="store.isLoading" class="vector-list">
           <div 
+            v-for="i in 5" 
+            :key="'ip-skel-' + i" 
+            class="vector-row skeleton-vector-row"
+          >
+            <div class="skeleton-shimmer skeleton-rank"></div>
+            <div class="row-identity">
+              <div class="skeleton-shimmer skeleton-ip-bar"></div>
+              <div class="skeleton-shimmer skeleton-meter-bar"></div>
+            </div>
+            <div class="skeleton-shimmer skeleton-count-box"></div>
+          </div>
+        </div>
+        <div v-else class="vector-list">
+          <div v-if="topIps.length === 0" class="vector-empty-box">
+            <span class="empty-ok-icon">✓</span>
+            <span>{{ store.lang === 'FR' ? 'Aucun assaillant détecté' : 'No attacker detected' }}</span>
+          </div>
+          <div 
+            v-else
             v-for="(ip, idx) in topIps" 
             :key="ip.ip || idx" 
             class="vector-row"
@@ -46,8 +65,27 @@
           <h3>{{ store.t('vectors.topPorts') }}</h3>
         </div>
 
-        <div class="vector-list">
+        <div v-if="store.isLoading" class="vector-list">
           <div 
+            v-for="i in 5" 
+            :key="'port-skel-' + i" 
+            class="vector-row skeleton-vector-row"
+          >
+            <div class="skeleton-shimmer skeleton-rank"></div>
+            <div class="row-identity">
+              <div class="skeleton-shimmer skeleton-port-bar"></div>
+              <div class="skeleton-shimmer skeleton-meter-bar"></div>
+            </div>
+            <div class="skeleton-shimmer skeleton-count-box"></div>
+          </div>
+        </div>
+        <div v-else class="vector-list">
+          <div v-if="topPorts.length === 0" class="vector-empty-box">
+            <span class="empty-ok-icon">✓</span>
+            <span>{{ store.lang === 'FR' ? 'Aucun port ciblé' : 'No port targeted' }}</span>
+          </div>
+          <div 
+            v-else
             v-for="(p, idx) in topPorts" 
             :key="p.port || idx" 
             class="vector-row"
@@ -92,20 +130,7 @@ function resolveServiceName(port) {
 }
 
 const topIps = computed(() => {
-  const ips = store.threatVectors.top_source_ips || store.threatVectors.top_ips || []
-  if (ips.length === 0) {
-    return [
-      { ip: '185.220.101.5', count: 420 },
-      { ip: '45.154.255.89', count: 310 },
-      { ip: '194.26.29.112', count: 250 },
-      { ip: '91.240.118.44', count: 190 },
-      { ip: '103.145.13.2', count: 140 },
-      { ip: '198.51.100.23', count: 115 },
-      { ip: '203.0.113.88', count: 88 },
-      { ip: '192.0.2.14', count: 64 }
-    ]
-  }
-  return ips
+  return store.threatVectors.top_source_ips || store.threatVectors.top_ips || []
 })
 
 const maxIpCount = computed(() => {
@@ -114,20 +139,7 @@ const maxIpCount = computed(() => {
 })
 
 const topPorts = computed(() => {
-  const ports = store.threatVectors.top_dest_ports || store.threatVectors.top_ports || []
-  if (ports.length === 0) {
-    return [
-      { port: 80, service: 'HTTP', count: 520 },
-      { port: 443, service: 'HTTPS', count: 380 },
-      { port: 22, service: 'SSH', count: 290 },
-      { port: 21, service: 'FTP', count: 160 },
-      { port: 3389, service: 'RDP', count: 95 },
-      { port: 445, service: 'SMB', count: 82 },
-      { port: 8080, service: 'HTTP-Alt', count: 64 },
-      { port: 53, service: 'DNS', count: 45 }
-    ]
-  }
-  return ports
+  return store.threatVectors.top_dest_ports || store.threatVectors.top_ports || []
 })
 
 const maxPortCount = computed(() => {
@@ -366,6 +378,64 @@ function formatNumber(num) {
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
   color: var(--tx);
+  flex: none;
+}
+
+.vector-empty-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(61, 220, 151, 0.08);
+  border: 1px solid rgba(61, 220, 151, 0.2);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--ok);
+  font-weight: 500;
+}
+
+.empty-ok-icon {
+  font-weight: 800;
+  font-size: 11px;
+}
+
+/* Skeleton Loaders */
+.skeleton-vector-row {
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.skeleton-rank {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  flex: none;
+}
+
+.skeleton-ip-bar {
+  width: 100px;
+  height: 12px;
+  border-radius: 4px;
+  margin-bottom: 5px;
+}
+
+.skeleton-port-bar {
+  width: 85px;
+  height: 12px;
+  border-radius: 4px;
+  margin-bottom: 5px;
+}
+
+.skeleton-meter-bar {
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.skeleton-count-box {
+  width: 30px;
+  height: 13px;
+  border-radius: 4px;
   flex: none;
 }
 

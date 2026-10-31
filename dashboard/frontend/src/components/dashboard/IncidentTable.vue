@@ -71,7 +71,7 @@
 
     <!-- Live Incident Table (Separate Source & Destination Columns, No Arrows) -->
     <div class="table-container">
-      <table v-if="store.filteredAlerts.length > 0">
+      <table v-if="store.isLoading || store.filteredAlerts.length > 0">
         <thead>
           <tr>
             <th>{{ store.t('table.timestamp') }}</th>
@@ -85,7 +85,20 @@
             <th>{{ store.t('table.severity') }}</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody v-if="store.isLoading">
+          <tr v-for="i in 6" :key="'table-skel-' + i" class="skeleton-table-row">
+            <td><div class="skeleton-shimmer skel-cell skel-time"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-sensor"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-ip"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-ip"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-proto"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-pred"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-conf"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-ae"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-sev"></div></td>
+          </tr>
+        </tbody>
+        <tbody v-else>
           <tr 
             v-for="(alert, idx) in displayedAlerts" 
             :key="alert.id || idx"
@@ -97,9 +110,9 @@
             @click="store.openFlowDrawer(alert)"
             @keydown.enter="store.openFlowDrawer(alert)"
           >
-            <td class="mono time-col">{{ formatTime(alert.received_at) }}</td>
+            <td class="mono time-col">{{ formatTime(alert.received_at || alert.timestamp) }}</td>
             <td>
-              <span class="sensor-pill">{{ alert.sensor_id || 'sensor-01' }}</span>
+              <span class="sensor-pill">{{ alert.sensor_id || alert.sensor || 'sensor-01' }}</span>
             </td>
 
             <!-- Source Column (Distinct column, no arrows) -->
@@ -118,23 +131,23 @@
               <span class="proto-badge">{{ resolveProto(alert.protocol) }}</span>
             </td>
             <td>
-              <b class="pred-label">{{ alert.pred }}</b>
+              <b class="pred-label">{{ alert.classification || alert.pred || 'BENIGN' }}</b>
             </td>
             <td>
               <div class="conf-cell">
                 <div class="conf-bar-bg">
-                  <i :style="{ width: `${((alert.confiance || 0.9) * 100).toFixed(0)}%` }"></i>
+                  <i :style="{ width: `${((alert.confiance !== undefined ? alert.confiance : (alert.confidence ? alert.confidence / 100 : 0.9)) * 100).toFixed(0)}%` }"></i>
                 </div>
-                <span class="mono">{{ ((alert.confiance || 0.9) * 100).toFixed(1) }}%</span>
+                <span class="mono">{{ ((alert.confiance !== undefined ? alert.confiance : (alert.confidence ? alert.confidence / 100 : 0.9)) * 100).toFixed(1) }}%</span>
               </div>
             </td>
             <td>
               <div class="ae-cell">
                 <span 
                   class="flag-pill" 
-                  :class="alert.anomalie_ae === 1 ? 'flag-anomaly' : 'flag-nominal'"
+                  :class="(alert.anomalie_ae === 1 || alert.is_anomaly) ? 'flag-anomaly' : 'flag-nominal'"
                 >
-                  {{ alert.anomalie_ae === 1 ? '0-Day' : 'Nominal' }}
+                  {{ (alert.anomalie_ae === 1 || alert.is_anomaly) ? '0-Day' : 'Nominal' }}
                 </span>
                 <span class="mono mse-num">
                   {{ alert.mse_ae !== null && alert.mse_ae !== undefined ? alert.mse_ae.toFixed(2) : '–' }}
@@ -571,6 +584,58 @@ tbody tr.row-new {
 .mse-num {
   font-size: 11px;
   color: var(--mu);
+}
+
+/* Skeleton Rows for Incident Feed */
+.skeleton-table-row {
+  pointer-events: none;
+}
+
+.skel-cell {
+  height: 14px;
+  border-radius: 4px;
+  margin: 3px 0;
+}
+
+.skel-time {
+  width: 70px;
+}
+
+.skel-sensor {
+  width: 60px;
+  height: 18px;
+  border-radius: 12px;
+}
+
+.skel-ip {
+  width: 100px;
+}
+
+.skel-proto {
+  width: 38px;
+  height: 18px;
+  border-radius: 4px;
+}
+
+.skel-pred {
+  width: 80px;
+}
+
+.skel-conf {
+  width: 85px;
+  height: 12px;
+}
+
+.skel-ae {
+  width: 70px;
+  height: 18px;
+  border-radius: 12px;
+}
+
+.skel-sev {
+  width: 55px;
+  height: 18px;
+  border-radius: 12px;
 }
 
 .empty-state {

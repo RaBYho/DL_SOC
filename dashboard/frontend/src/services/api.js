@@ -27,11 +27,18 @@ export const api = {
   getPcaps: () => request('/pcaps'),
   startReplay: (pcapName, speed = 1.0) => 
     request(`/replay/start?pcap_name=${encodeURIComponent(pcapName)}&speed=${speed}`, { method: 'POST' }),
+  pauseReplay: () => request('/replay/pause', { method: 'POST' }),
+  resumeReplay: () => request('/replay/resume', { method: 'POST' }),
   stopReplay: () => request('/replay/stop', { method: 'POST' }),
   getReplayStatus: () => request('/replay/status'),
+  getSensors: () => request('/sensors'),
   getAlerts: (limit = 100, offset = 0, pred = null, anomalieOnly = false) => {
     const params = new URLSearchParams({ limit, offset, anomalie_only: anomalieOnly })
     if (pred) params.append('pred', pred)
     return request(`/alerts?${params.toString()}`)
-  }
+  },
+  resetDatabase: () => request('/database/reset', { method: 'POST' }),
+  updateSettings: (settings) => request('/settings', { method: 'POST', body: JSON.stringify(settings) }),
+  getModelLogs: (limit = 100) => request(`/models/logs?limit=${limit}`),
+  clearModelLogs: () => request('/models/logs/clear', { method: 'POST' })
 }

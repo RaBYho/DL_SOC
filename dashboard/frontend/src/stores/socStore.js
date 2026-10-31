@@ -14,21 +14,24 @@ export const useSocStore = defineStore('soc', {
     mobileNavOpen: false,
 
     // Connection & status
+    _initialized: false,
+    _initPromise: null,
     wsConnected: false,
     isStreamPaused: false,
     activeTimeRange: '15m',
-    aeThreshold: 0.6029,
+    isLoading: true,
+    aeThreshold: Number(localStorage.getItem('soc_ae_threshold')) || 0.6029,
     currentMse: 0.28,
 
     // Core Metrics (KPIs)
     kpis: {
-      total_flows: 48210,
-      attacks: 1842,
-      anomalies: 96,
-      flow_rate_sec: 1045,
-      bandwidth_mbps: 3.6,
-      benign_pct: 96.0,
-      attack_pct: 4.0
+      total_flows: 0,
+      attacks: 0,
+      anomalies: 0,
+      flow_rate_sec: 0,
+      bandwidth_mbps: 0.0,
+      benign_pct: 100.0,
+      attack_pct: 0.0
     },
 
     // Visualizations
@@ -59,13 +62,18 @@ export const useSocStore = defineStore('soc', {
     },
 
     // Sensor status
-    sensorsOnline: 4,
+    sensorsOnline: 0,
+    sensorsList: [],
 
     // Filter controls for Incident Feed
     filterSearch: '',
     filterCategory: '',
     filterMinConfidence: 0,
     filterAutoencoderOnly: false,
+
+    // Model inference logs terminal
+    modelLogs: [],
+    modelLogsAutoScroll: true,
 
     _socket: null
   }),
@@ -132,11 +140,22 @@ export const useSocStore = defineStore('soc', {
     },
 
     async init() {
-      await this.loadDashboardData(this.activeTimeRange)
-      this.initWebSocket()
+      if (this._initialized) return
+      if (this._initPromise) return this._initPromise
+      this._initPromise = (async () => {
+        try {
+          await this.loadDashboardData(this.activeTimeRange)
+          this.initWebSocket()
+          this._initialized = true
+        } finally {
+          this._initPromise = null
+        }
+      })()
+      return this._initPromise
     },
 
     async loadDashboardData(range = '15m') {
+      this.isLoading = true
       try {
         this.activeTimeRange = range
         const data = await api.getInitData(range)
@@ -173,10 +192,25 @@ export const useSocStore = defineStore('soc', {
         }
 
         if (data.recent_alerts && data.recent_alerts.length > 0) {
-          this.alerts = data.recent_alerts.map(a => ({
-            ...a,
-            severity: a.severity || this.resolveSeverity(a.pred, a.anomalie_ae)
-          }))
+          this.alerts = data.recent_alerts.map(a => {
+            const pred = a.pred || a.classification || 'BENIGN'
+            const anom = a.anomalie_ae !== undefined ? a.anomalie_ae : (a.is_anomaly ? 1 : 0)
+            const conf = a.confiance !== undefined ? a.confiance : (a.confidence ? a.confidence / 100 : 0.9)
+            return {
+              ...a,
+              pred: pred,
+              classification: pred,
+              confiance: conf,
+              confidence: a.confidence !== undefined ? a.confidence : Math.round(conf * 100),
+              sensor: a.sensor || a.sensor_id || 'sensor-edge-01',
+              sensor_id: a.sensor_id || a.sensor || 'sensor-edge-01',
+              received_at: a.received_at || a.timestamp || '',
+              timestamp: a.timestamp || a.received_at || '',
+              anomalie_ae: anom,
+              is_anomaly: Boolean(anom),
+              severity: a.severity || this.resolveSeverity(pred, anom)
+            }
+          })
         }
 
         if (data.pcap_files && data.pcap_files.length > 0) {
@@ -187,8 +221,16 @@ export const useSocStore = defineStore('soc', {
 
         if (data.replay_status) this.replayStatus = data.replay_status
         if (data.ae_threshold) this.aeThreshold = data.ae_threshold
+        if (data.sensors && Array.isArray(data.sensors)) {
+          this.sensorsList = data.sensors
+          this.sensorsOnline = data.sensors.filter(s => s.status === 'Online').length
+        }
       } catch (err) {
         console.error('Failed to load initial dashboard data:', err)
+      } finally {
+        setTimeout(() => {
+          this.isLoading = false
+        }, 380)
       }
     },
 
@@ -209,6 +251,38 @@ export const useSocStore = defineStore('soc', {
     },
 
     handleLiveMessage(msg) {
+      if (msg.type === 'model_log' && msg.log) {
+        this.modelLogs.push(msg.log)
+        if (this.modelLogs.length > 300) {
+          this.modelLogs.shift()
+        }
+        return
+      }
+
+      if (msg.type === 'init') {
+        if (msg.recent_model_logs && Array.isArray(msg.recent_model_logs)) {
+          this.modelLogs = msg.recent_model_logs
+        }
+      }
+
+      if (msg.type === 'database_reset') {
+        this.kpis = msg.kpis || {
+          total_flows: 0,
+          attacks: 0,
+          anomalies: 0,
+          flow_rate_sec: 0,
+          bandwidth_mbps: 0.0,
+          benign_pct: 100.0,
+          attack_pct: 0.0
+        }
+        this.alerts = []
+        this.attackDistribution = msg.distribution || []
+        this.timelineSeries = msg.timeline || []
+        this.threatVectors = msg.threat_vectors || { top_source_ips: [], top_dest_ports: [] }
+        this.currentMse = 0.0
+        return
+      }
+
       if (msg.type === 'connected') {
         if (msg.ae_threshold) this.aeThreshold = msg.ae_threshold
         return
@@ -219,25 +293,64 @@ export const useSocStore = defineStore('soc', {
         const alertsCount = msg.alerts_count || 0
         const anomaliesCount = msg.anomalies_count || 0
 
-        this.kpis.total_flows += received
-        this.kpis.attacks += alertsCount
-        this.kpis.anomalies += anomaliesCount
+        // Synchroniser les KPIs réels
+        if (msg.kpis) {
+          this.kpis = { ...this.kpis, ...msg.kpis }
+        } else {
+          this.kpis.total_flows += received
+          this.kpis.attacks += alertsCount
+          this.kpis.anomalies += anomaliesCount
 
-        const mal = this.kpis.attacks + this.kpis.anomalies
-        this.kpis.attack_pct = this.kpis.total_flows > 0 ? (mal / this.kpis.total_flows) * 100 : 0
-        this.kpis.benign_pct = 100 - this.kpis.attack_pct
+          const mal = this.kpis.attacks + this.kpis.anomalies
+          this.kpis.attack_pct = this.kpis.total_flows > 0 ? (mal / this.kpis.total_flows) * 100 : 0
+          this.kpis.benign_pct = 100 - this.kpis.attack_pct
 
-        // Flow rate estimate
-        this.kpis.flow_rate_sec = Math.round(received * 1.5 + (this.kpis.flow_rate_sec * 0.4))
-        this.kpis.bandwidth_mbps = (this.kpis.flow_rate_sec * 0.0035).toFixed(1)
+          this.kpis.flow_rate_sec = Math.round(received * 1.5 + (this.kpis.flow_rate_sec * 0.4))
+          this.kpis.bandwidth_mbps = (this.kpis.flow_rate_sec * 0.0035).toFixed(1)
+        }
 
-        // Prepend new alerts
+        // Mettre à jour la répartition des attaques (Attack Donut)
+        if (msg.distribution && Array.isArray(msg.distribution) && msg.distribution.length > 0) {
+          this.attackDistribution = msg.distribution
+        }
+
+        // Mettre à jour la chronologie d'activité (Timeline Chart)
+        if (msg.timeline && Array.isArray(msg.timeline) && msg.timeline.length > 0) {
+          this.timelineSeries = msg.timeline
+        }
+
+        // Mettre à jour les vecteurs de menaces (Threat Vectors: IPs & Ports)
+        if (msg.threat_vectors) {
+          this.threatVectors = msg.threat_vectors
+        }
+
+        // Mettre à jour le statut du rejeu
+        if (msg.replay_status) {
+          this.replayStatus = { ...this.replayStatus, ...msg.replay_status }
+        }
+
+        // Normaliser et ajouter les nouvelles alertes
         if (msg.recent_alerts && msg.recent_alerts.length > 0) {
-          const markedAlerts = msg.recent_alerts.map(a => ({
-            ...a,
-            isNew: true,
-            severity: a.severity || this.resolveSeverity(a.pred, a.anomalie_ae)
-          }))
+          const markedAlerts = msg.recent_alerts.map(a => {
+            const pred = a.pred || a.classification || 'BENIGN'
+            const anom = a.anomalie_ae !== undefined ? a.anomalie_ae : (a.is_anomaly ? 1 : 0)
+            const conf = a.confiance !== undefined ? a.confiance : (a.confidence ? a.confidence / 100 : 0.9)
+            return {
+              ...a,
+              isNew: true,
+              pred: pred,
+              classification: pred,
+              confiance: conf,
+              confidence: a.confidence !== undefined ? a.confidence : Math.round(conf * 100),
+              sensor: a.sensor || a.sensor_id || 'sensor-edge-01',
+              sensor_id: a.sensor_id || a.sensor || 'sensor-edge-01',
+              received_at: a.received_at || a.timestamp || '',
+              timestamp: a.timestamp || a.received_at || '',
+              anomalie_ae: anom,
+              is_anomaly: Boolean(anom),
+              severity: a.severity || this.resolveSeverity(pred, anom)
+            }
+          })
           this.alerts = [...markedAlerts, ...this.alerts].slice(0, 300)
 
           // Update current MSE
@@ -246,23 +359,21 @@ export const useSocStore = defineStore('soc', {
             this.currentMse = Number((this.currentMse * 0.7 + latestMse.mse_ae * 0.3).toFixed(3))
           }
         }
-
-        // Update Replay progress if applicable
-        if (msg.type === 'replay_batch') {
-          this.replayStatus.active = true
-          this.replayStatus.pcap_name = msg.pcap_name
-          this.replayStatus.progress_pct = msg.progress_pct || 0
-          this.replayStatus.processed_flows = (this.replayStatus.processed_flows || 0) + received
-        }
       }
 
-      if (msg.type === 'replay_completed') {
+      if (msg.type === 'replay_finished') {
         this.replayStatus.active = false
+        this.replayStatus.is_paused = false
         this.replayStatus.progress_pct = 100
+        if (msg.kpis) this.kpis = { ...this.kpis, ...msg.kpis }
+        if (msg.distribution && Array.isArray(msg.distribution)) this.attackDistribution = msg.distribution
+        if (msg.timeline && Array.isArray(msg.timeline)) this.timelineSeries = msg.timeline
+        if (msg.threat_vectors) this.threatVectors = msg.threat_vectors
       }
 
       if (msg.type === 'replay_stopped') {
         this.replayStatus.active = false
+        this.replayStatus.is_paused = false
       }
     },
 
@@ -300,8 +411,39 @@ export const useSocStore = defineStore('soc', {
       try {
         await api.stopReplay()
         this.replayStatus.active = false
+        this.replayStatus.is_paused = false
       } catch (err) {
         console.error('Error stopping PCAP replay:', err)
+      }
+    },
+
+    async pausePcapReplay() {
+      try {
+        await api.pauseReplay()
+        this.replayStatus.is_paused = true
+      } catch (err) {
+        console.error('Error pausing PCAP replay:', err)
+      }
+    },
+
+    async resumePcapReplay() {
+      try {
+        await api.resumeReplay()
+        this.replayStatus.is_paused = false
+      } catch (err) {
+        console.error('Error resuming PCAP replay:', err)
+      }
+    },
+
+    async fetchSensors() {
+      try {
+        const res = await api.getSensors()
+        if (res && res.sensors) {
+          this.sensorsList = res.sensors
+          this.sensorsOnline = res.online_count || 0
+        }
+      } catch (err) {
+        console.error('Error fetching sensors:', err)
       }
     },
 
@@ -315,11 +457,84 @@ export const useSocStore = defineStore('soc', {
       this.selectedFlow = null
     },
 
+    async fetchModelLogs(limit = 100) {
+      try {
+        const data = await api.getModelLogs(limit)
+        if (data && data.logs) {
+          this.modelLogs = data.logs
+        }
+      } catch (err) {
+        console.error('Error fetching model logs:', err)
+      }
+    },
+
+    async clearModelLogs() {
+      try {
+        await api.clearModelLogs()
+        this.modelLogs = []
+      } catch (err) {
+        console.error('Error clearing model logs:', err)
+      }
+    },
+
     clearFilters() {
       this.filterSearch = ''
       this.filterCategory = ''
       this.filterMinConfidence = 0
       this.filterAutoencoderOnly = false
+    },
+
+    async applySettings({ lang, aeThreshold, minConfidence }) {
+      if (lang) {
+        this.setLanguage(lang)
+      }
+      if (aeThreshold !== undefined && aeThreshold !== null) {
+        this.aeThreshold = Number(aeThreshold)
+        localStorage.setItem('soc_ae_threshold', String(aeThreshold))
+      }
+      if (minConfidence !== undefined && minConfidence !== null) {
+        this.filterMinConfidence = Number(minConfidence)
+        localStorage.setItem('soc_min_confidence', String(minConfidence))
+      }
+      try {
+        await api.updateSettings({
+          ae_threshold: aeThreshold,
+          min_confidence: minConfidence
+        })
+      } catch (err) {
+        console.warn('Could not persist settings to server, saved locally:', err)
+      }
+    },
+
+    async resetDatabase() {
+      this.isLoading = true
+      try {
+        await api.resetDatabase()
+        this.kpis = {
+          total_flows: 0,
+          attacks: 0,
+          anomalies: 0,
+          flow_rate_sec: 0,
+          bandwidth_mbps: 0.0,
+          benign_pct: 100.0,
+          attack_pct: 0.0
+        }
+        this.attackDistribution = []
+        this.timelineSeries = []
+        this.threatVectors = { top_source_ips: [], top_dest_ports: [] }
+        this.alerts = []
+        this.currentMse = 0.0
+        this.sensorsList = []
+        this.sensorsOnline = 0
+        await this.loadDashboardData(this.activeTimeRange)
+      } catch (err) {
+        console.error('Failed to reset database:', err)
+        throw err
+      } finally {
+        setTimeout(() => {
+          this.isLoading = false
+        }, 300)
+      }
     }
   }
 })

@@ -9,6 +9,7 @@ const routes = [
   },
   {
     path: '/alerts',
+    alias: '/incidents',
     name: 'alerts',
     component: () => import('@/views/AlertsView.vue')
   },

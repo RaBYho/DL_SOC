@@ -1,5 +1,5 @@
 <template>
-  <div class="card c3 critical-card" :class="{ 'has-threat': alert }">
+  <div class="card c3 critical-card" :class="{ 'has-threat': !store.isLoading && alert }">
     <!-- Consistent Card Header across all dashboard cards -->
     <div class="card-header-row">
       <div class="header-titles">
@@ -8,14 +8,28 @@
       </div>
 
       <!-- Pulse Status Indicator Badge -->
-      <span class="status-indicator-pill" :class="alert ? 'pill-threat' : 'pill-safe'">
+      <div v-if="store.isLoading" class="skeleton-shimmer skeleton-pill-badge"></div>
+      <span v-else class="status-indicator-pill" :class="alert ? 'pill-threat' : 'pill-safe'">
         <span class="pulse-dot"></span>
         {{ alert ? store.t('banner.badge') : store.t('banner.safePill') }}
       </span>
     </div>
 
+    <!-- State 0: Skeleton Loading -->
+    <div v-if="store.isLoading" class="safe-content-box skeleton-banner-box">
+      <div class="skeleton-shimmer skeleton-shield-circle"></div>
+      <div class="safe-text-stack">
+        <div class="skeleton-shimmer skeleton-line-title"></div>
+        <div class="skeleton-shimmer skeleton-line-desc"></div>
+      </div>
+      <div class="safe-telemetry-strip">
+        <div class="skeleton-shimmer skeleton-chip"></div>
+        <div class="skeleton-shimmer skeleton-chip"></div>
+      </div>
+    </div>
+
     <!-- State 1: Active Critical Threat Alert -->
-    <div v-if="alert" class="threat-content-box">
+    <div v-else-if="alert" class="threat-content-box">
       <!-- Threat Classification & Engine Chip -->
       <div class="threat-header-band">
         <div class="threat-type-name">{{ alert.pred }}</div>
@@ -520,6 +534,44 @@ const alert = computed(() => store.latestCriticalAlert)
 .check-icon {
   font-size: 9px;
   font-weight: 800;
+}
+
+/* Skeleton Loaders */
+.skeleton-pill-badge {
+  width: 72px;
+  height: 20px;
+  border-radius: 12px;
+}
+
+.skeleton-banner-box {
+  pointer-events: none;
+}
+
+.skeleton-shield-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.skeleton-line-title {
+  width: 140px;
+  height: 15px;
+  border-radius: 4px;
+  margin: 0 auto 6px;
+}
+
+.skeleton-line-desc {
+  width: 210px;
+  height: 11px;
+  border-radius: 4px;
+  margin: 0 auto;
+}
+
+.skeleton-chip {
+  width: 95px;
+  height: 20px;
+  border-radius: 10px;
 }
 
 @media (max-width: 768px) {

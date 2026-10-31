@@ -7,12 +7,15 @@ from pydantic import BaseModel
 
 from dashboard.backend.config import AE_THRESHOLD, PCAP_DIR
 from dashboard.backend.database import (
+    get_active_sensors,
     get_attack_distribution,
     get_kpis,
     get_recent_alerts,
     get_threat_vectors,
     get_timeline,
+    reset_database,
 )
+from dashboard.backend.model_logger import clear_logs, get_recent_logs, MODEL_LOG_FILE
 from dashboard.backend.replay_service import replay_service
 from dashboard.backend.ws_manager import ws_manager
 
@@ -27,6 +30,70 @@ class ReplayRequest(BaseModel):
     sensor_id: str = "lab-replay"
 
 
+PCAP_METADATA = {
+    "PortScan.pcap": {
+        "title": "Scan de Ports Réseau (Nmap)",
+        "category": "PortScan",
+        "severity": "Medium",
+        "description": "Balayage méthodique de ports TCP/UDP pour cartographier les services ouverts.",
+    },
+    "portscan(1).pcap": {
+        "title": "Scan de Ports Réseau (Variante)",
+        "category": "PortScan",
+        "severity": "Medium",
+        "description": "Balayage rapide de ports avec drapeaux TCP furtifs.",
+    },
+    "DDoS.pcap": {
+        "title": "Attaque DDoS Volumétrique",
+        "category": "DDoS",
+        "severity": "Critical",
+        "description": "Inondation distribuée de paquets ciblant la saturation de la bande passante.",
+    },
+    "DoS.pcap": {
+        "title": "Déni de Service (DoS Applicatif)",
+        "category": "DoS",
+        "severity": "High",
+        "description": "Épuisement des connexions du serveur web par requêtes lentes et incomplètes.",
+    },
+    "dos(1).pcap": {
+        "title": "Déni de Service (Variante)",
+        "category": "DoS",
+        "severity": "High",
+        "description": "Attaque DoS ciblée contre les services applicatifs.",
+    },
+    "Bot.pcap": {
+        "title": "Trafic de Botnet (C2)",
+        "category": "Bot",
+        "severity": "Critical",
+        "description": "Canal de commande et contrôle chiffré et exfiltration de données.",
+    },
+    "BruteForce.pcap": {
+        "title": "Force Brute Authentification",
+        "category": "BruteForce",
+        "severity": "High",
+        "description": "Tentatives massives de connexion par dictionnaire (SSH / FTP Patator).",
+    },
+    "WebAttack.pcap": {
+        "title": "Attaques Applicatives Web",
+        "category": "WebAttack",
+        "severity": "High",
+        "description": "Tentatives d'injection SQL, Cross-Site Scripting (XSS) et directory traversal.",
+    },
+    "normal.pcap": {
+        "title": "Trafic Nominal Bénin",
+        "category": "BENIGN",
+        "severity": "Info",
+        "description": "Trafic bureautique légitime (navigation web HTTPS, DNS, requêtes API standard).",
+    },
+    "Normal_dell.pcap": {
+        "title": "Trafic d'Entreprise Nominal",
+        "category": "BENIGN",
+        "severity": "Info",
+        "description": "Activité réseau standard d'un poste de travail bureautique.",
+    },
+}
+
+
 def _get_pcap_list() -> List[Dict[str, Any]]:
     if not PCAP_DIR.exists():
         return []
@@ -36,7 +103,25 @@ def _get_pcap_list() -> List[Dict[str, Any]]:
             size_mb = round(f.stat().st_size / (1024 * 1024), 2)
         except Exception:
             size_mb = 0.0
-        pcaps.append({"filename": f.name, "size_mb": size_mb})
+        meta = PCAP_METADATA.get(
+            f.name,
+            {
+                "title": f.stem,
+                "category": "Inconnu",
+                "severity": "Medium",
+                "description": "Fichier de capture réseau PCAP.",
+            },
+        )
+        pcaps.append(
+            {
+                "filename": f.name,
+                "size_mb": size_mb,
+                "title": meta["title"],
+                "category": meta["category"],
+                "severity": meta["severity"],
+                "description": meta["description"],
+            }
+        )
     return pcaps
 
 
@@ -48,18 +133,7 @@ def _format_kpis(kpis: Dict[str, Any]) -> Dict[str, Any]:
     rate = kpis.get("rate_flows_sec", 0.0)
     benign_pct = kpis.get("benign_pct", 100.0)
     malicious_pct = kpis.get("malicious_pct", 0.0)
-    current_mse = kpis.get("current_mse", 0.28)
-
-    # Si la base est encore vierge (0 flux), injecter une baseline représentative pour un affichage opérationnel immédiat
-    if total == 0:
-        total = 48210
-        attacks = 1842
-        anomalies = 96
-        rate = 1045.0
-        malicious = attacks + anomalies
-        malicious_pct = round((malicious / total) * 100, 2)
-        benign_pct = round(100.0 - malicious_pct, 2)
-        current_mse = 0.312
+    current_mse = kpis.get("current_mse", 0.0)
 
     return {
         "total_flows": total,
@@ -79,17 +153,7 @@ def _format_kpis(kpis: Dict[str, Any]) -> Dict[str, Any]:
 
 def _format_distribution(dist: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     if not dist:
-        # Baseline de répartition représentative des 12 classes CIC-IDS2017
-        return [
-            {"label": "DDoS", "name": "DDoS", "count": 680, "pct": 35.1, "color": "var(--cr)"},
-            {"label": "PortScan", "name": "PortScan", "count": 420, "pct": 21.7, "color": "var(--md)"},
-            {"label": "DoS-Hulk", "name": "DoS-Hulk", "count": 310, "pct": 16.0, "color": "var(--hi)"},
-            {"label": "SSH-Patator", "name": "SSH-Patator", "count": 180, "pct": 9.3, "color": "var(--lo)"},
-            {"label": "WebAttack", "name": "WebAttack", "count": 160, "pct": 8.3, "color": "var(--zd)"},
-            {"label": "FTP-Patator", "name": "FTP-Patator", "count": 110, "pct": 5.7, "color": "var(--ac)"},
-            {"label": "Bot", "name": "Bot", "count": 76, "pct": 3.9, "color": "var(--ok)"},
-        ]
-    # S'assurer que chaque item a 'label', 'name', 'color', 'count' et 'pct'
+        return []
     out = []
     tot = sum(d.get("count", 0) for d in dist) or 1
     for d in dist:
@@ -108,22 +172,6 @@ def _format_distribution(dist: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 def _format_threat_vectors(tv: Dict[str, Any]) -> Dict[str, Any]:
     top_ips = tv.get("top_ips", [])
     top_ports = tv.get("top_ports", [])
-    if not top_ips:
-        top_ips = [
-            {"ip": "185.220.101.5", "count": 420},
-            {"ip": "45.154.255.89", "count": 310},
-            {"ip": "194.26.29.112", "count": 250},
-            {"ip": "91.240.118.44", "count": 190},
-            {"ip": "103.145.13.2", "count": 140},
-        ]
-    if not top_ports:
-        top_ports = [
-            {"port": 80, "service": "HTTP", "count": 520},
-            {"port": 443, "service": "HTTPS", "count": 380},
-            {"port": 22, "service": "SSH", "count": 290},
-            {"port": 21, "service": "FTP", "count": 160},
-            {"port": 3389, "service": "RDP", "count": 95},
-        ]
     return {
         "top_ips": top_ips,
         "top_source_ips": top_ips,
@@ -240,7 +288,7 @@ def get_initial_dashboard_state(time_range: str = Query("15m")):
     dist = _format_distribution(get_attack_distribution())
     tv = _format_threat_vectors(get_threat_vectors(limit=5))
     alerts_raw = get_recent_alerts(limit=60)
-    alerts = [_enrich_alert(a) for a in alerts_raw] if alerts_raw else _get_baseline_alerts()
+    alerts = [_enrich_alert(a) for a in alerts_raw]
     pcaps = _get_pcap_list()
 
     return {
@@ -250,6 +298,7 @@ def get_initial_dashboard_state(time_range: str = Query("15m")):
         "timeline": get_timeline(window_seconds=900, buckets=60),
         "threat_vectors": tv,
         "recent_alerts": alerts,
+        "sensors": get_active_sensors(),
         "pcap_files": pcaps,
         "replay_status": replay_service.get_status(),
         "ae_threshold": AE_THRESHOLD,
@@ -290,6 +339,17 @@ def get_alerts(
     if not raw:
         return _get_baseline_alerts()
     return [_enrich_alert(a) for a in raw]
+
+
+@router.get("/sensors")
+def list_sensors():
+    """Liste les sondes réseau réelles enregistrées en base SQLite."""
+    sensors = get_active_sensors()
+    return {
+        "sensors": sensors,
+        "total": len(sensors),
+        "online_count": sum(1 for s in sensors if s["status"] == "Online"),
+    }
 
 
 @router.get("/pcaps")
@@ -353,6 +413,69 @@ def replay_status():
     return replay_service.get_status()
 
 
+class SettingsUpdateRequest(BaseModel):
+    ae_threshold: Optional[float] = None
+    min_confidence: Optional[float] = None
+
+
+@router.post("/database/reset")
+async def reset_db_endpoint():
+    """Réinitialise la base de données (supprime tous les flux enregistrés) et notifie les clients."""
+    replay_service.stop_replay()
+    res = reset_database()
+    reset_event = {
+        "type": "database_reset",
+        "kpis": _format_kpis(get_kpis()),
+        "distribution": _format_distribution(get_attack_distribution()),
+        "timeline": get_timeline(),
+        "threat_vectors": _format_threat_vectors(get_threat_vectors()),
+        "recent_alerts": [],
+        "ae_threshold": AE_THRESHOLD,
+    }
+    await ws_manager.broadcast(reset_event)
+    return res
+
+
+@router.post("/settings")
+async def update_settings_endpoint(req: SettingsUpdateRequest):
+    """Met à jour les paramètres opérationnels et le seuil de détection."""
+    import dashboard.backend.config as cfg
+    if req.ae_threshold is not None:
+        cfg.AE_THRESHOLD = float(req.ae_threshold)
+    return {
+        "status": "success",
+        "ae_threshold": cfg.AE_THRESHOLD,
+        "min_confidence": req.min_confidence,
+    }
+
+
+@router.get("/models/logs")
+def get_model_logs(limit: int = 100):
+    """Retourne les derniers événements d'inférence du modèle."""
+    return {
+        "logs": get_recent_logs(limit=limit),
+        "log_file": str(MODEL_LOG_FILE),
+    }
+
+
+@router.post("/models/logs/clear")
+def clear_model_logs():
+    """Efface les logs du modèle en mémoire et sur disque."""
+    success = clear_logs()
+    return {"status": "cleared" if success else "error"}
+
+
+@router.get("/models/logs/raw")
+def get_raw_model_log():
+    """Télécharge le fichier brut .log."""
+    from fastapi.responses import PlainTextResponse
+    if MODEL_LOG_FILE.exists():
+        content = MODEL_LOG_FILE.read_text(encoding="utf-8", errors="ignore")
+    else:
+        content = ""
+    return PlainTextResponse(content)
+
+
 async def websocket_endpoint(websocket: WebSocket):
     """Canal WebSocket temps réel pour pousser les alertes et les métriques sans recharger la page."""
     await ws_manager.connect(websocket)
@@ -363,7 +486,8 @@ async def websocket_endpoint(websocket: WebSocket):
             "distribution": _format_distribution(get_attack_distribution()),
             "timeline": get_timeline(),
             "threat_vectors": _format_threat_vectors(get_threat_vectors()),
-            "recent_alerts": [_enrich_alert(a) for a in get_recent_alerts(limit=30)] or _get_baseline_alerts(),
+            "recent_alerts": [_enrich_alert(a) for a in get_recent_alerts(limit=30)],
+            "recent_model_logs": get_recent_logs(limit=50),
             "replay_status": replay_service.get_status(),
             "ae_threshold": AE_THRESHOLD,
         }

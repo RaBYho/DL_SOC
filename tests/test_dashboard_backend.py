@@ -134,6 +134,12 @@ def test_dashboard_api_endpoints(test_db, monkeypatch):
     assert res_pcap.status_code == 200
     assert "pcaps" in res_pcap.json()
 
+    # Test /api/dashboard/sensors
+    res_sensors = client.get("/api/dashboard/sensors")
+    assert res_sensors.status_code == 200
+    assert "sensors" in res_sensors.json()
+    assert "total" in res_sensors.json()
+
     # Test WebSocket connection
     with client.websocket_connect("/ws") as websocket:
         init_event = websocket.receive_json()
@@ -161,4 +167,31 @@ def test_dashboard_api_endpoints(test_db, monkeypatch):
     stop_res = client.post("/api/dashboard/replay/stop")
     assert stop_res.status_code == 200
     assert stop_res.json()["status"] == "stopped"
+
+    # Test Settings update
+    set_res = client.post("/api/dashboard/settings", json={"ae_threshold": 0.75, "min_confidence": 80.0})
+    assert set_res.status_code == 200
+    assert set_res.json()["status"] == "success"
+    assert set_res.json()["ae_threshold"] == 0.75
+
+    # Test Database Reset
+    reset_res = client.post("/api/dashboard/database/reset")
+    assert reset_res.status_code == 200
+    assert reset_res.json()["status"] == "success"
+    assert reset_res.json()["flows_remaining"] == 0
+
+    # Test Model Logs Endpoints
+    logs_res = client.get("/api/dashboard/models/logs")
+    assert logs_res.status_code == 200
+    assert "logs" in logs_res.json()
+    assert "log_file" in logs_res.json()
+
+    raw_res = client.get("/api/dashboard/models/logs/raw")
+    assert raw_res.status_code == 200
+
+    clear_res = client.post("/api/dashboard/models/logs/clear")
+    assert clear_res.status_code == 200
+    assert clear_res.json()["status"] == "cleared"
+
+
 

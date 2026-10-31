@@ -8,8 +8,29 @@
       </div>
     </div>
 
-    <!-- Content: Large Donut on Left, Clean Legend List on Right -->
-    <div class="donut-content-row">
+    <!-- Skeleton Loading State -->
+    <div v-if="store.isLoading" class="donut-content-row">
+      <div class="donut-wrapper">
+        <div class="skeleton-donut-placeholder skeleton-shimmer">
+          <div class="skeleton-donut-hole">
+            <div class="skeleton-shimmer skeleton-box" style="width: 45px; height: 9px; margin-bottom: 6px;"></div>
+            <div class="skeleton-shimmer skeleton-box" style="width: 60px; height: 18px; border-radius: 4px;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="legend-list">
+        <div v-for="i in 5" :key="i" class="legend-item">
+          <div class="skeleton-shimmer skeleton-box" style="width: 7px; height: 7px; border-radius: 50%; flex: none;"></div>
+          <div class="legend-text-col" style="gap: 4px;">
+            <div class="skeleton-shimmer skeleton-box" :style="{ width: `${60 + (i * 10)}px`, height: '11px' }"></div>
+            <div class="skeleton-shimmer skeleton-box" style="width: 45px; height: 9px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loaded Content: Large Donut on Left, Clean Legend List on Right -->
+    <div v-else class="donut-content-row">
       <!-- Left: Large Donut Ring with Multi-Level Center Metrics -->
       <div class="donut-wrapper">
         <svg viewBox="0 0 160 160" class="donut-svg" role="img" aria-label="Attack family distribution">
@@ -65,12 +86,12 @@
               width="48" 
               height="16" 
               rx="8" 
-              fill="rgba(255, 77, 126, 0.16)" 
-              stroke="rgba(255, 77, 126, 0.35)" 
+              :fill="totalAttacks > 0 ? 'rgba(255, 77, 126, 0.16)' : 'rgba(61, 220, 151, 0.16)'" 
+              :stroke="totalAttacks > 0 ? 'rgba(255, 77, 126, 0.35)' : 'rgba(61, 220, 151, 0.35)'" 
               stroke-width="0.8"
             />
             <text x="24" y="11.5" text-anchor="middle" class="donut-center-trend">
-              ↑ {{ attackPct }}%
+              {{ totalAttacks > 0 ? `↑ ${attackPct}%` : '0.0%' }}
             </text>
           </g>
         </svg>
@@ -78,7 +99,12 @@
 
       <!-- Right: Legend List -->
       <div class="legend-list">
+        <div v-if="sortedDist.length === 0" class="empty-legend">
+          <span class="empty-ok-badge">✓</span>
+          <span class="empty-legend-text">{{ store.lang === 'FR' ? 'Aucune menace active' : 'No active threats' }}</span>
+        </div>
         <div 
+          v-else
           v-for="item in sortedDist" 
           :key="item.name" 
           class="legend-item"
@@ -120,18 +146,7 @@ const COLOR_MAP = {
 }
 
 const sortedDist = computed(() => {
-  let list = store.attackDistribution || []
-  if (list.length === 0) {
-    list = [
-      { name: 'DDoS', count: 680, color: 'var(--cr)' },
-      { name: 'PortScan', count: 420, color: 'var(--md)' },
-      { name: 'DoS-Hulk', count: 310, color: 'var(--hi)' },
-      { name: 'SSH-Patator', count: 180, color: 'var(--lo)' },
-      { name: 'WebAttack', count: 160, color: 'var(--zd)' },
-      { name: 'FTP-Patator', count: 110, color: 'var(--ac)' }
-    ]
-  }
-
+  const list = store.attackDistribution || []
   const tot = list.reduce((acc, curr) => acc + (curr.count || 0), 0) || 1
 
   return list
@@ -158,7 +173,7 @@ const attackPct = computed(() => {
   if (store.kpis && store.kpis.attack_pct !== undefined) {
     return Number(store.kpis.attack_pct).toFixed(1)
   }
-  return '4.0'
+  return '0.0'
 })
 
 const donutSegments = computed(() => {
@@ -249,7 +264,28 @@ function formatNumber(num) {
   display: block;
 }
 
-/* Fluid segment resizing without pop or stutter */
+/* Skeleton Donut Shimmer Placeholder */
+.skeleton-donut-placeholder {
+  width: 175px;
+  height: 175px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skeleton-donut-hole {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: #171825;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Fluid segment resizing */
 .donut-segment {
   transition: stroke-dasharray 0.65s cubic-bezier(0.16, 1, 0.3, 1),
               stroke-dashoffset 0.65s cubic-bezier(0.16, 1, 0.3, 1),
@@ -343,12 +379,35 @@ function formatNumber(num) {
   line-height: 1.2;
 }
 
+.empty-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(61, 220, 151, 0.08);
+  border: 1px solid rgba(61, 220, 151, 0.25);
+  border-radius: 8px;
+}
+
+.empty-ok-badge {
+  color: var(--ok);
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.empty-legend-text {
+  font-size: 11px;
+  color: var(--ok);
+  font-weight: 600;
+}
+
 /* Tablet (769px to 1200px) */
 @media (max-width: 1200px) and (min-width: 769px) {
   .attack-donut-card {
     height: 330px;
   }
-  .donut-svg {
+  .donut-svg,
+  .skeleton-donut-placeholder {
     width: 220px;
     height: 220px;
   }
@@ -373,7 +432,8 @@ function formatNumber(num) {
     gap: 12px;
   }
 
-  .donut-svg {
+  .donut-svg,
+  .skeleton-donut-placeholder {
     width: 160px;
     height: 160px;
   }
@@ -406,7 +466,8 @@ function formatNumber(num) {
 
 /* Small mobile (<= 375px) */
 @media (max-width: 375px) {
-  .donut-svg {
+  .donut-svg,
+  .skeleton-donut-placeholder {
     width: 130px;
     height: 130px;
   }

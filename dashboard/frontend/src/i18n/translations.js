@@ -3,7 +3,7 @@ export const translations = {
     // Navigation
     nav: {
       dashboard: "Tableau de bord",
-      alerts: "Alertes & Incidents",
+      alerts: "Incidents",
       threatIntel: "Threat Intel",
       sensors: "Sondes & Rejeu",
       models: "Modèles d'IA",
@@ -120,6 +120,12 @@ export const translations = {
       emptyMessage: "Aucun incident réseau ne correspond aux critères de filtre.",
       resetFilters: "Réinitialiser les filtres"
     },
+    // Page Incidents
+    alertsPage: {
+      title: "Incidents & Investigation",
+      subtitle: "Recherche approfondie & Télémétrie SQLite",
+      desc: "Filtrez, analysez et inspectez les vecteurs d'attaque détectés et les déviations 0-Day sur l'ensemble des sondes réseau."
+    },
     // Drawer
     drawer: {
       title: "Inspection Approfondie du Flux",
@@ -147,25 +153,42 @@ export const translations = {
       subtitle: "Configuration du Nœud & Seuils Opérationnels IA",
       desc: "Configurez la langue d'affichage de la console HDVR, les seuils d'alerte de l'autoencodeur et les paramètres de télémétrie.",
       langTitle: "Langue de l'Interface",
-      langDesc: "La console SOC applique la langue sélectionnée en temps réel sur l'ensemble des modules d'analyse.",
+      langDesc: "La console SOC applique la langue sélectionnée après confirmation sur l'ensemble des modules d'analyse.",
       thresholdsTitle: "Seuils Opérationnels de Détection",
       aeThresholdLabel: "Seuil d'Anomalie Autoencodeur (MSE)",
       aeHelp: "Baseline par défaut issue des pertes de validation bénignes (0.6029).",
       minConfLabel: "Confiance Minimale du Classifieur (%)",
       saveBtn: "Enregistrer les modifications",
+      savePending: "Modifications prêtes à être appliquées",
+      saveSuccess: "Paramètres enregistrés et appliqués avec succès",
+      resetDbTitle: "Maintenance & Base de Données",
+      resetDbDesc: "Purger l'intégralité des flux réseau ingérés et alertes enregistrés dans SQLite.",
+      resetDbBtn: "Réinitialiser la base de données",
+      resetSuccess: "Base de données réinitialisée avec succès",
       telemetryTitle: "Télémétrie Serveur & Base SQLite",
       dbFile: "Fichier Base de Données",
       indexedCols: "Colonnes Indexées",
       storageEngine: "Moteur de Stockage",
       wsStream: "Flux WebSocket",
-      retention: "Politique de Rétention"
+      retention: "Politique de Rétention",
+      // Modals
+      confirmSettingsTitle: "Confirmer les modifications des paramètres",
+      confirmSettingsDesc: "Êtes-vous sûr de vouloir appliquer les nouveaux paramètres opérationnels ?",
+      confirmSettingsBtn: "Confirmer & Appliquer",
+      confirmResetTitle: "Confirmation de réinitialisation critique",
+      confirmResetDesc: "Attention : cette action est irréversible. Tous les flux réseau, alertes d'incidents et statistiques de télémétrie enregistrés dans SQLite seront définitivement effacés.",
+      confirmResetBtn: "Confirmer la réinitialisation",
+      cancelBtn: "Annuler",
+      langChange: "Langue :",
+      aeChange: "Seuil MSE Autoencodeur :",
+      confChange: "Confiance minimale :"
     }
   },
 
   EN: {
     nav: {
       dashboard: "Dashboard",
-      alerts: "Alerts & Incidents",
+      alerts: "Incidents",
       threatIntel: "Threat Intel",
       sensors: "Sensors & Replay",
       models: "AI Models",
@@ -274,6 +297,12 @@ export const translations = {
       emptyMessage: "No network incidents match your current filter criteria.",
       resetFilters: "Reset all filters"
     },
+    // Incidents Page
+    alertsPage: {
+      title: "Incidents & Investigation",
+      subtitle: "Deep search & SQLite telemetry",
+      desc: "Filter, investigate, and analyze detected attack vectors and zero-day deviations across all network sensors."
+    },
     drawer: {
       title: "Deep Flow Inspection",
       close: "Close",
@@ -300,18 +329,35 @@ export const translations = {
       subtitle: "Node Configuration & Operational AI Thresholds",
       desc: "Configure HDVR console display language, autoencoder anomaly thresholds, and telemetry storage parameters.",
       langTitle: "Interface Language",
-      langDesc: "The SOC console applies the selected language in real time across all monitoring modules.",
+      langDesc: "The SOC console applies the selected language upon confirmation across all monitoring modules.",
       thresholdsTitle: "Detection Operational Thresholds",
       aeThresholdLabel: "Autoencoder MSE Anomaly Threshold",
       aeHelp: "Default baseline derived from benign validation loss (0.6029).",
       minConfLabel: "Classifier Minimum Confidence (%)",
-      saveBtn: "Save Settings",
+      saveBtn: "Save Changes",
+      savePending: "Unsaved changes ready to apply",
+      saveSuccess: "Settings saved and applied successfully",
+      resetDbTitle: "Maintenance & Database Purge",
+      resetDbDesc: "Purge all ingested network flows and recorded alerts stored in SQLite.",
+      resetDbBtn: "Reset Database",
+      resetSuccess: "Database reset successfully",
       telemetryTitle: "Server & SQLite Telemetry",
       dbFile: "Database File",
       indexedCols: "Indexed Columns",
       storageEngine: "Storage Engine",
       wsStream: "WebSocket Stream",
-      retention: "Retention Policy"
+      retention: "Retention Policy",
+      // Modals
+      confirmSettingsTitle: "Confirm Settings Changes",
+      confirmSettingsDesc: "Are you sure you want to apply the new operational parameters?",
+      confirmSettingsBtn: "Confirm & Apply",
+      confirmResetTitle: "Critical Database Reset Confirmation",
+      confirmResetDesc: "Warning: this action is irreversible. All network flows, incident alerts, and telemetry logs stored in SQLite will be permanently deleted.",
+      confirmResetBtn: "Confirm Database Reset",
+      cancelBtn: "Cancel",
+      langChange: "Language:",
+      aeChange: "Autoencoder MSE Threshold:",
+      confChange: "Minimum Confidence:"
     }
   }
 }

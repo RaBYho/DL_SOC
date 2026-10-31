@@ -5,7 +5,18 @@ from typing import Any, Dict, Optional
 import numpy as np
 import pandas as pd
 from dashboard.backend.config import BASE, DB_PATH, PCAP_DIR
-from dashboard.backend.database import get_kpis, init_db
+from dashboard.backend.database import (
+    get_attack_distribution,
+    get_kpis,
+    get_threat_vectors,
+    get_timeline,
+    init_db,
+)
+from dashboard.backend.formatters import (
+    format_distribution,
+    format_kpis,
+    format_threat_vectors,
+)
 from dashboard.backend.ws_manager import ws_manager
 from nids_core import Scorer
 from nids_sensor import extract
@@ -177,12 +188,14 @@ class PCAPReplayService:
 
                     if p != "BENIGN" or a == 1:
                         self.alerts_count += 1
+                        time_str = time.strftime("%H:%M:%S", time.localtime(now))
                         alerts_to_send.append(
                             {
-                                "timestamp": time.strftime(
-                                    "%H:%M:%S", time.localtime(now)
-                                ),
+                                "id": int(now * 1000) + idx,
+                                "timestamp": time_str,
+                                "received_at": time_str,
                                 "sensor": sensor_id,
+                                "sensor_id": sensor_id,
                                 "src_ip": r.get("src_ip", "192.168.1.10"),
                                 "src_port": int(r.get("src_port", 0)),
                                 "dst_ip": r.get("dst_ip", "10.0.0.1"),
@@ -191,8 +204,11 @@ class PCAPReplayService:
                                 if r.get("protocol") == 6
                                 else "UDP",
                                 "classification": p,
+                                "pred": p,
                                 "confidence": round(c * 100.0, 1),
+                                "confiance": float(c),
                                 "mse_ae": round(m, 3) if m is not None else 0.0,
+                                "anomalie_ae": int(a) if a is not None else 0,
                                 "is_anomaly": bool(a),
                                 "severity": severity_map.get(
                                     p, "High" if bool(a) else "Medium"
@@ -211,7 +227,13 @@ class PCAPReplayService:
 
                 self.processed_flows += len(sub_df)
 
-                # Broadcast WebSocket vers le Dashboard
+                db_path_str = str(DB_PATH)
+                raw_kpis = get_kpis(db_path_str)
+                raw_dist = get_attack_distribution(db_path_str)
+                raw_tv = get_threat_vectors(limit=5, db_path=db_path_str)
+                raw_tl = get_timeline(window_seconds=900, buckets=60, db_path=db_path_str)
+
+                # Broadcast WebSocket vers le Dashboard avec métriques complètes
                 await ws_manager.broadcast(
                     {
                         "type": "new_flows",
@@ -221,7 +243,10 @@ class PCAPReplayService:
                             1 for a in alerts_to_send if a["is_anomaly"]
                         ),
                         "recent_alerts": alerts_to_send,
-                        "kpis": get_kpis(str(DB_PATH)),
+                        "kpis": format_kpis(raw_kpis),
+                        "distribution": format_distribution(raw_dist),
+                        "timeline": raw_tl,
+                        "threat_vectors": format_threat_vectors(raw_tv),
                         "replay_status": self.get_status(),
                     }
                 )
@@ -236,11 +261,15 @@ class PCAPReplayService:
         finally:
             self.is_running = False
             self.is_paused = False
+            db_path_str = str(DB_PATH)
             await ws_manager.broadcast(
                 {
                     "type": "replay_finished",
                     "file": pcap_path.name,
-                    "kpis": get_kpis(str(DB_PATH)),
+                    "kpis": format_kpis(get_kpis(db_path_str)),
+                    "distribution": format_distribution(get_attack_distribution(db_path_str)),
+                    "timeline": get_timeline(window_seconds=900, buckets=60, db_path=db_path_str),
+                    "threat_vectors": format_threat_vectors(get_threat_vectors(limit=5, db_path=db_path_str)),
                 }
             )
 
