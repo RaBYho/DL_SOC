@@ -353,6 +353,7 @@ const activeTab = ref('analysis')
 const isLoadingAi = ref(false)
 const isSubmitting = ref(false)
 const aiResult = ref(null)
+const serverPromptText = ref('')
 const promptCopied = ref(false)
 const fwCopied = ref(false)
 const toastMessage = ref('')
@@ -395,14 +396,28 @@ const correlation = computed(() => {
   }
 })
 
-// Auto-run analysis when modal opens
+// Auto-run analysis and generate complete prompt when modal opens
 watch(() => store.batchPatternModalOpen, (isOpen) => {
   if (isOpen && store.selectedCount > 0) {
+    loadCampaignPrompt()
     runBatchAiAnalysis()
   } else {
     aiResult.value = null
+    serverPromptText.value = ''
   }
 })
+
+async function loadCampaignPrompt() {
+  if (!store.selectedCount) return
+  try {
+    const res = await api.generateCampaignPrompt(store.selectedAlerts)
+    if (res && res.prompt) {
+      serverPromptText.value = res.prompt
+    }
+  } catch (err) {
+    console.error('Error generating campaign prompt:', err)
+  }
+}
 
 async function runBatchAiAnalysis() {
   if (!store.selectedCount) return
@@ -412,6 +427,9 @@ async function runBatchAiAnalysis() {
     const res = await api.analyzeBatchIncidentsAi(flows)
     if (res && res.success) {
       aiResult.value = res
+      if (res.prompt_used) {
+        serverPromptText.value = res.prompt_used
+      }
       formVerdict.value = res.determined_verdict || 'CONFIRMED_ZERODAY'
       formLabel.value = res.suggested_label || ''
       formNotes.value = res.justification || ''
@@ -427,21 +445,54 @@ const campaignPromptText = computed(() => {
   if (aiResult.value?.prompt_used) {
     return aiResult.value.prompt_used
   }
-  // Fallback client prompt generator
+  if (serverPromptText.value) {
+    return serverPromptText.value
+  }
+
+  // Exhaustive client prompt fallback
   const flows = store.selectedAlerts
   const corr = correlation.value
+  const baseline = Number(store.aeThreshold) || 0.6029
+
   let text = `# RAPPORT D'INVESTIGATION FORENSIQUE SOC TIER-3 : DÉTECTION DE PATTERN & CAMPAGNE MULTI-FLUX\n\n`
-  text += `### 📊 Synthèse Statistique du Cluster\n`
-  text += `- Nombre de flux sélectionnés : ${flows.length} (${store.selectedZeroDaysCount} Zero-Days)\n`
-  text += `- Sources distinctes : ${corr.unique_src_ips.join(', ')}\n`
-  text += `- Ports cibles : ${Object.keys(corr.targeted_ports).join(', ')}\n`
-  text += `- Erreur MSE moyenne : ${corr.avg_mse.toFixed(4)} (Seuil baseline: ${store.aeThreshold})\n\n`
-  text += `### 📋 Télémétries Détaillées\n`
-  text += `| # | Source | Destination | Proto | Prédiction DNN | MSE AE |\n|---|---|---|---|---|---|\n`
-  flows.slice(0, 15).forEach((f, idx) => {
-    text += `| ${idx + 1} | ${f.src_ip}:${f.src_port || ''} | ${f.dst_ip}:${f.dst_port || ''} | ${f.protocol || 'TCP'} | ${f.pred || f.classification || 'SUSPICIOUS'} | ${Number(f.mse_ae || 0).toFixed(4)} |\n`
+  text += `Tu es un expert senior en Threat Intelligence et analyste forensique SOC Tier-3.\n`
+  text += `Notre sonde NIDS hybride (Réseau de Neurones Profond DNN + Autoencodeur d'Anomalie) a isolé un ensemble de ${flows.length} télémétries suspectes.\n`
+  text += `L'analyste a sélectionné ce lot pour détecter un schéma de corrélation (campagne Zero-Day APT, scan distribué, DDoS ou faux positif) et qualifier ces données dans le système d'Active Learning.\n\n`
+
+  text += `### 📊 1. Synthèse Statistique du Cluster\n`
+  text += `- Nombre de flux sélectionnés : ${flows.length} (${store.selectedZeroDaysCount} Zero-Days - ${flows.length ? Math.round((store.selectedZeroDaysCount / flows.length) * 100) : 0}%)\n`
+  text += `- Sources distinctes (${corr.unique_src_ips.length}) : ${corr.unique_src_ips.join(', ')}\n`
+  text += `- Cibles (${corr.unique_dst_ips.length}) : ${corr.unique_dst_ips.join(', ')}\n`
+  text += `- Ports cibles : ${Object.entries(corr.targeted_ports).map(([p, cnt]) => `:${p} (${cnt}x)`).join(', ')}\n`
+  text += `- Erreur MSE moyenne : ${corr.avg_mse.toFixed(4)} (Seuil baseline: ${baseline})\n`
+  text += `- Topologie : ${corr.is_distributed ? 'Attaque Distribuée Multi-Sources' : 'Source Unique'}\n\n`
+
+  text += `### 📋 2. Échantillon Détaillé des Télémétries\n`
+  text += `| # | Horodatage | Source | Destination | Proto | Prédiction DNN | Score MSE | Statut Zero-Day |\n`
+  text += `|---|---|---|---|---|---|---|---|\n`
+  flows.slice(0, 20).forEach((f, idx) => {
+    const ts = f.received_at || f.timestamp || 'Live'
+    const mse = Number(f.mse_ae || 0).toFixed(4)
+    const isZd = (f.anomalie_ae === 1 || f.is_zero_day || Number(f.mse_ae || 0) > baseline) ? 'OUI (0-Day)' : 'Nominal'
+    text += `| ${idx + 1} | \`${ts}\` | \`${f.src_ip}:${f.src_port || ''}\` | \`${f.dst_ip}:${f.dst_port || ''}\` | ${f.protocol || 'TCP'} | ${f.pred || f.classification || 'SUSPICIOUS'} | ${mse} | ${isZd} |\n`
   })
-  text += `\n### 🎯 Analyse de pattern requise : identifier si ce cluster correspond à une campagne APT coordonnée ou un faux positif systémique.`
+
+  text += `\n### 🎯 3. Décision d'Étiquetage Attendue (pour l'Active Learning) :\n`
+  text += `Fournis OBLIGATOIREMENT en début de réponse les balises de décision :\n`
+  text += `[CAMPAGNE_DETECTEE]: OUI ou NON\n`
+  text += `[TYPE_CAMPAGNE]: (ex: Campagne Zero-Day APT C2, Scan de Ports Distribué, DDoS Volumétrique L7, Brute-Force SSH Distribué, Faux Positif de Sauvegarde)\n`
+  text += `[VERDICT_GLOBAL]: CONFIRMED_ZERODAY ou KNOWN_ATTACK ou FALSE_POSITIVE\n`
+  text += `[SUGGESTED_LABEL]: Étiquette normalisée pour le lot (ex: Zero-Day-C2-Campaign, PortScan-Distributed, DoS-Hulk, Faux-Positif-Sauvegarde)\n`
+  text += `[CONFIDENCE]: Pourcentage de certitude (ex: 95%)\n`
+  text += `[ANALYSTE_JUSTIFICATION]: Résumé technique concis.\n\n`
+
+  text += `### 📑 4. Rapport Forensique Détaillé :\n`
+  text += `1. Analyse de Pattern & Corrélation spatio-temporelle.\n`
+  text += `2. Diagnostic Déviationnel de l'Autoencodeur (espace latent).\n`
+  text += `3. Attribution MITRE ATT&CK (Tactiques et Techniques).\n`
+  text += `4. Script Pare-feu iptables/ipset pour neutraliser les sources.\n`
+  text += `5. Règle de détection Suricata pérenne.\n`
+
   return text
 })
 
@@ -452,15 +503,25 @@ function showToast(msg) {
   }, 3500)
 }
 
-function copyPromptToClipboard() {
-  const text = campaignPromptText.value
-  navigator.clipboard.writeText(text).then(() => {
-    promptCopied.value = true
-    showToast(store.t('batch.promptCopied'))
-    setTimeout(() => {
-      promptCopied.value = false
-    }, 2500)
-  })
+async function copyPromptToClipboard() {
+  let text = campaignPromptText.value
+  if (!text || text.length < 200) {
+    try {
+      const res = await api.generateCampaignPrompt(store.selectedAlerts)
+      if (res && res.prompt) {
+        text = res.prompt
+        serverPromptText.value = res.prompt
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+  await navigator.clipboard.writeText(text)
+  promptCopied.value = true
+  showToast(store.t('batch.promptCopied'))
+  setTimeout(() => {
+    promptCopied.value = false
+  }, 2500)
 }
 
 function copyFirewallScript() {

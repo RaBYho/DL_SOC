@@ -244,26 +244,66 @@ watch(() => props.flow, () => {
 }, { immediate: true })
 
 const buildClientPrompt = () => {
+  if (analysisResult.value?.prompt_used) {
+    return analysisResult.value.prompt_used
+  }
   const f = props.flow || {}
-  const isZd = Boolean(f.anomalie_ae === 1 || f.is_anomaly)
-  return `Tu es un analyste senior en cybersécurité SOC Tier-3.
-Ta mission est d'AIDER À DÉTERMINER ET À ÉTIQUETER ce flux réseau suspect pour l'Active Learning du NIDS :
+  const baseline = 0.6029
+  const mse = f.mse_ae !== undefined ? Number(f.mse_ae) : 0.0
+  const isZd = Boolean(f.anomalie_ae === 1 || f.is_anomaly || mse > baseline)
+  const devPct = mse > baseline ? Math.round(((mse - baseline) / baseline) * 100) : 0
+  const conf = f.confiance ? Math.round(Number(f.confiance) * 100) : (f.confidence || 90)
 
-### 🌐 Métadonnées du flux
-- **Horodatage :** ${f.received_at || 'En direct'}
-- **Source :** ${f.src_ip || '0.0.0.0'}:${f.src_port || 0} ➔ **Destination :** ${f.dst_ip || '0.0.0.0'}:${f.dst_port || 0}
-- **Protocole :** ${f.protocol || 'TCP'} | **Sonde :** ${f.sensor_id || 'probe-lan-01'}
+  return `# RAPPORT D'INVESTIGATION FORENSIQUE SOC TIER-3 : ANALYSE D'INCIDENT & QUALIFICATION
 
-### 🧠 Télémétrie IA du NIDS
-- **Score d'anomalie MSE :** ${f.mse_ae !== undefined ? f.mse_ae : 0.0} (Seuil : 0.6029)
-- **Détection Zero-Day :** ${isZd ? 'OUI (Anomalie avérée)' : 'NON (Signature connue)'}
-- **Classification préliminaire DNN :** ${f.pred || f.classification || 'SUSPECT'} (Confiance : ${f.confidence || 90}%)
+Tu es un analyste senior en cybersécurité, Lead Incident Responder et Threat Hunter dans un SOC Tier-3.
+Tu opères sur la plateforme HDVR Autonomous Defense, un système NIDS hybride temps réel composé de :
+1. **Classifieur supervisé DNN v4** : 12 classes entraînées sur CIC-IDS2017.
+2. **Autoencodeur profond non-supervisé** : détection de déviations Zero-Day sans signature (seuil normalisé $\\theta = ${baseline}$).
 
-### 🎯 Instructions d'analyse attendues :
-1. **Diagnostic de Détermination :** Quelle est l'attaque exacte ou s'agit-il d'un faux positif ?
-2. **Cartographie MITRE ATT&CK :** ID de technique (ex: T1046, T1498) et nom officiel.
-3. **Recommandation d'Étiquetage :** Précise l'étiquette exacte à enregistrer dans le dataset d'entraînement.
-4. **Remédiation immédiate :** Règle iptables pour bloquer l'IP source.`
+L'analyste SOC sollicite ton expertise pour **analyser, contextualiser, déterminer formellement et étiqueter** ce flux réseau pour le cycle d'Active Learning / Human-in-the-Loop.
+
+---
+
+### 🌐 1. TÉLÉMÉTRIE DÉTAILLÉE DU FLUX RÉSEAU
+- **Horodatage :** \`${f.received_at || f.timestamp || 'En direct'}\` | **Sonde :** \`${f.sensor_id || 'sensor-edge-01'}\`
+- **Vecteur Réseau :** \`${f.src_ip || '0.0.0.0'}:${f.src_port || 0}\` ➔ \`${f.dst_ip || '0.0.0.0'}:${f.dst_port || 0}\` (Protocole : **${f.protocol || 'TCP'}**)
+- **Volumétrie :** ${f.src2dst_packets || f.bidirectional_packets || 14} paquets Forward, ${f.dst2src_packets || 8} paquets Backward (${(f.src2dst_bytes || 1420) + (f.dst2src_bytes || 980)} octets)
+- **Durée de Session :** ${f.bidirectional_duration_ms ? (f.bidirectional_duration_ms / 1000).toFixed(3) + 's' : '0.045s'}
+
+---
+
+### 🧠 2. SIGNAUX DES MOTEURS D'IA
+- **Inférence DNN préliminaire :** **\`${f.pred || f.classification || 'SUSPECT'}\`** (Confiance : **${conf}%**)
+- **Score Autoencodeur (MSE) :** **\`${mse.toFixed(4)}\`** (Seuil baseline : \`${baseline}\`)
+- **Écart Statistique :** **${devPct > 0 ? `+${devPct}% (Déviation Anormale)` : 'Nominal (< seuil)'}**
+- **Détection Zero-Day :** **${isZd ? '[OUI - ANOMALIE ZERO-DAY DÉTECTÉE]' : '[NON - SIGNATURE STANDARD]'}**
+
+---
+
+### ⚖️ 3. ÉVALUATION DES HYPOTHÈSES FORENSIQUES CONCURRENTES
+Examine obligatoirement :
+- **Scénario A (Zero-Day / APT furtive) :** Exploitation non répertoriée dans CIC-IDS2017, C2 obfusqué.
+- **Scénario B (Attaque Réseau Répertoriée) :** DoS, PortScan, Brute-Force ou WebAttack.
+- **Scénario C (Faux Positif d'Infrastructure) :** Sauvegarde réseau, heartbeat de supervision, scan interne légitime.
+
+---
+
+### 🎯 4. BORDEREAU STRUCTURÉ DE DÉCISION ACTIVE LEARNING
+Fournis OBLIGATOIREMENT en tête de ton analyse :
+[VERDICT]: FALSE_POSITIVE ou KNOWN_ATTACK ou CONFIRMED_ZERODAY
+[SUGGESTED_LABEL]: Dénomination standardisée (ex: Zero-Day-C2-Tunnel, PortScan, DoS-Hulk, SSH-Patator, WebAttack-SQLi, Benign-Admin-Traffic)
+[CONFIDENCE]: Pourcentage de certitude (ex: 95%)
+[SEVERITE]: CRITIQUE ou ELEVEE ou MOYENNE ou FAIBLE
+[JUSTIFICATION]: 2 phrases synthétisant la démonstration technique.
+
+---
+
+### 📑 5. RAPPORT D'ANALYSE FORENSIQUE STRUCTURÉ
+1. **Diagnostic Technique Approfondi :** Mécanisme d'attaque ou nature du faux positif.
+2. **Attribution & Cartographie MITRE ATT&CK :** Tactique et Technique ID officielle (ex: T1046, T1071.001, T1498, T1110, T1190, T1205).
+3. **Plan de Remédiation Réseau Immédiat :** Règle iptables : \`sudo iptables -A INPUT -s ${f.src_ip || '0.0.0.0'} -j DROP\`.
+4. **Signature de Détection Pérenne (Règle Suricata) :** Règle \`alert ...\` pour immuniser le réseau face à ce flux.`
 }
 
 const copyPromptToClipboard = async () => {
