@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DL_SOC – AI Network Intrusion Detection System</title>
+<style>
+:root{--bg:#14151e;--side:#1b1c28;--panel:#222333;--panel2:#2c2d42;--line:#363853;--tx:#eceefa;--mu:#8e90ad;--ac:#5865f2;--ac2:#9b5cf6;--ok:#3ddc97;--lo:#6c8cff;--md:#ffb547;--hi:#ff8a4c;--cr:#ff4d7e;--zd:#b266ff;--r:18px;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#e8eaf3;--side:#fff;--panel:#fff;--panel2:#f0f1f9;--line:#dcdfee;--tx:#1d2033;--mu:#666a8a;--ac:#4553e6;--ok:#12905c;--lo:#3a62d6;--md:#b57508;--hi:#d4601e;--cr:#d12f5f;--zd:#8a3fe0;color-scheme:light}}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.app{display:grid;grid-template-columns:224px 1fr;min-height:100vh}.ct{min-width:0}
+.side{background:var(--side);padding:22px 14px;position:sticky;top:env(safe-area-inset-top,0px);align-self:start;height:100vh;display:flex;flex-direction:column;gap:4px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;padding:0 10px 22px}
+.logo span{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--ac),var(--ac2))}
+.nv{display:flex;gap:12px;align-items:center;width:100%;padding:10px 14px;border:0;border-radius:10px;background:none;color:var(--mu);text-align:left}
+.nv i{width:14px;height:14px;border-radius:4px;border:2px solid currentColor}
+.nv:hover{background:var(--panel2);color:var(--tx)}.nv[aria-current]{background:var(--ac);color:#fff;font-weight:600}
+.sf{margin-top:auto;padding:12px;border-radius:12px;background:var(--panel2);display:flex;gap:10px;align-items:center;color:var(--mu);font-size:12.5px}
+@media (max-width:900px){.app{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;overflow-x:auto;padding:10px}.logo{padding:0 10px}.sf{display:none}.nv{width:auto;white-space:nowrap}}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:16px 24px 8px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+h1{font-size:21px;margin:0;font-weight:700}h1 small{display:block;font-weight:400;color:var(--mu);font-size:12.5px}
+.sp{flex:1}
+.stat{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:12px;background:var(--panel)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:p 1.8s infinite;flex:none}
+.dot.off{background:var(--md);animation:none}
+@keyframes p{70%{box-shadow:0 0 0 7px transparent}}
+@media (prefers-reduced-motion:reduce){.dot,tbody tr.new{animation:none}}
+.tl{display:flex;flex-direction:column;gap:3px;min-width:150px;padding:6px 14px;border-radius:12px;background:var(--panel)}.tl b{font-size:13px}
+.tl .seg{display:flex;gap:3px}.tl .seg i{flex:1;height:7px;border-radius:4px;background:var(--line)}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+select,input,button{font:inherit;color:var(--tx);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:7px 12px}
+button{cursor:pointer}button.pri{background:linear-gradient(135deg,var(--ac),var(--ac2));border:0;color:#fff;font-weight:600;padding:8px 18px}
+button:focus-visible,select:focus-visible,input:focus-visible,tr:focus-visible{outline:2px solid var(--lo);outline-offset:1px}
+.rng{display:flex;background:var(--panel);border-radius:10px;padding:3px}.rng button{border:0;background:none;padding:5px 12px;border-radius:8px}
+.rng button[aria-pressed=true]{background:var(--ac);color:#fff}
+main{padding:12px 24px 28px;display:grid;gap:16px;max-width:1600px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.card{background:var(--panel);border-radius:var(--r);padding:18px}
+.kpi .l{color:var(--mu);font-size:12.5px}.kpi .v{font-size:28px;font-weight:700;margin:4px 0;font-variant-numeric:tabular-nums}.kpi .s{color:var(--mu);font-size:12.5px}
+.kpi.a .v{color:var(--cr)}.kpi.z .v{color:var(--zd)}
+.bar2{height:8px;border-radius:4px;background:var(--ok);overflow:hidden;margin-top:10px}.bar2 i{display:block;height:100%;background:var(--cr)}
+.sb{display:flex;align-items:flex-end;gap:5px;height:34px;margin-top:8px}.sb i{flex:1;background:var(--ac);border-radius:3px;opacity:.5}.sb i:last-child{opacity:1}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}.grid>*{min-width:0}
+.c3{grid-column:span 3}.c4{grid-column:span 4}.c5{grid-column:span 5}.c9{grid-column:span 9}
+@media (max-width:1100px){.c3,.c4,.c5,.c9{grid-column:span 12}}
+h2{font-size:14px;margin:0 0 12px;font-weight:650;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+h2 span{font-weight:400;color:var(--mu);font-size:12px}
+.lg{display:grid;grid-template-columns:10px 1fr 40px 64px;gap:10px;align-items:center;margin:8px 0;font-size:13px}
+.lg i{width:10px;height:10px;border-radius:3px}.lg em{font-style:normal;color:var(--mu);text-align:right}
+.lg .t{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden}.lg .t b{display:block;height:100%;border-radius:3px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}@media (max-width:600px){.two{grid-template-columns:1fr}}
+.two h3{font-size:12px;color:var(--mu);margin:0 0 4px;font-weight:600}
+.li{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)}.li:last-child{border:0}.li b{font-variant-numeric:tabular-nums}
+.banner{border-radius:var(--r);padding:20px;color:#fff;background:linear-gradient(145deg,#4b5bf0 0%,#8a4df0 60%,#d94cc4 100%);display:flex;flex-direction:column;gap:6px}
+.banner b{font-size:22px;line-height:1.15}.banner p{margin:0;opacity:.9}.banner small{opacity:.8}
+.banner button{margin-top:auto;background:#ff3d7f;border:0;color:#fff;font-weight:650;padding:11px;border-radius:10px}
+svg{display:block;width:100%;height:auto}svg text{fill:var(--mu);font-size:10.5px}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.filters label{display:flex;gap:6px;align-items:center;color:var(--mu);font-size:12.5px}
+.tw{overflow:auto;max-height:420px;border-radius:12px;background:var(--panel2)}
+table{border-collapse:collapse;width:100%;min-width:980px}
+th{position:sticky;top:0;background:var(--panel2);text-align:left;font-weight:600;font-size:12.5px;color:var(--mu);padding:10px;white-space:nowrap}
+td{padding:9px 10px;border-top:1px solid var(--line);white-space:nowrap}
+tbody tr{cursor:pointer}tbody tr:hover,tbody tr.sel{background:var(--line)}
+tbody tr.new{animation:fl 1.2s}@keyframes fl{from{background:color-mix(in srgb,var(--ac) 35%,transparent)}}
+.sev{display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:600;background:color-mix(in srgb,currentColor 16%,transparent)}
+.sev.Critical{color:var(--cr)}.sev.High{color:var(--hi)}.sev.Medium{color:var(--md)}.sev.Low{color:var(--lo)}
+.flag{font-weight:600}.flag.y{color:var(--zd)}.flag.n{color:var(--mu);font-weight:400}
+.cf{display:inline-block;width:46px;height:6px;background:var(--line);border-radius:3px;vertical-align:middle;margin-right:6px;overflow:hidden}.cf i{display:block;height:100%;background:var(--ac)}
+aside{position:fixed;top:0;right:0;bottom:0;width:min(440px,100%);background:var(--panel);border-radius:var(--r) 0 0 var(--r);z-index:20;padding:calc(18px + env(safe-area-inset-top,0px)) 20px calc(18px + env(safe-area-inset-bottom,0px));overflow-y:auto;transform:translateX(102%);transition:transform .2s;box-shadow:-8px 0 28px rgba(0,0,0,.35)}
+aside.open{transform:none}aside h3{margin:16px 0 6px;font-size:13px}
+.kv{display:grid;grid-template-columns:1fr auto;gap:3px 12px;font-size:13px}.kv span:nth-child(odd){color:var(--mu)}.kv span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums}
+.fl{display:flex;gap:6px;flex-wrap:wrap}.fl span{padding:3px 9px;border-radius:8px;background:var(--panel2);font-size:12px}.fl span.on{background:var(--ac);color:#fff;font-weight:600}
+.empty{padding:24px;text-align:center;color:var(--mu)}
+</style>
+</head>
+<body>
+<div class="app"><nav class="side" aria-label="Main"><div class="logo"><span></span>DL_SOC</div>
+<button class="nv" aria-current="page"><i></i>Dashboard</button><button class="nv"><i></i>Alerts</button><button class="nv"><i></i>Threat intel</button><button class="nv"><i></i>Sensors</button><button class="nv"><i></i>Models</button><button class="nv"><i></i>Settings</button>
+<div class="sf"><span class="dot"></span>4 sensors online</div></nav><div class="ct">
+<header>
+  <h1>DL_SOC – AI Network Intrusion Detection System<small>Supervised classifier + autoencoder anomaly detection</small></h1>
+  <div class="stat" aria-live="polite"><span class="dot" id="dot"></span><span><b id="eng">Live WebSocket</b> <span id="engs" style="color:var(--mu)">Stream active</span></span></div>
+  <div class="tl" aria-label="Global threat level"><span style="color:var(--mu);font-size:12px">Global threat level</span><b id="tlv">Normal</b><div class="seg"><i id="t0"></i><i id="t1"></i><i id="t2"></i></div></div>
+  <div class="sp"></div>
+  <div class="tools">
+    <select id="pcap" aria-label="PCAP file"><option value="">Live sensors</option><option>CICIDS2017_Wednesday.pcap</option><option>CICIDS2017_Friday_DDoS.pcap</option><option>UNSW_NB15_sample.pcap</option></select>
+    <button class="pri" id="run">Pause</button>
+    <div class="rng" role="group" aria-label="Time range"><button data-r="15m" aria-pressed="true">15m</button><button data-r="1h" aria-pressed="false">1h</button><button data-r="24h" aria-pressed="false">24h</button></div>
+  </div>
+</header>
+
+<main>
+  <section class="kpis" aria-label="Key metrics">
+    <div class="card kpi i"><div class="l">Total network flows analyzed</div><div class="v" id="k1">0</div><div class="s">Live counter</div></div>
+    <div class="card kpi a"><div class="l">Confirmed cyber attacks</div><div class="v" id="k2">0</div><div class="s">Supervised deep learning</div></div>
+    <div class="card kpi z"><div class="l">Zero-day / unknown anomalies</div><div class="v" id="k3">0</div><div class="s">Autoencoder reconstruction alerts</div></div>
+    <div class="card kpi i"><div class="l">Ingestion rate</div><div class="v"><span id="k4">0</span> <small style="font-size:14px;font-weight:400">flows/s</small></div><div class="s" id="k4b">0 Mbps</div><div class="sb" id="kb" aria-hidden="true"></div></div>
+    <div class="card kpi"><div class="l">Benign vs. malicious</div><div class="v" id="k5">–</div><div class="s" id="k5b"></div><div class="bar2" aria-hidden="true"><i id="k5bar" style="width:0"></i></div></div>
+  </section>
+
+  <section class="grid">
+    <div class="card c4"><h2>Attack distribution <span>Known families</span></h2><div id="dist"></div></div>
+    <div class="card c5"><h2>Activity timeline <span id="tlab">Flows per second, last 15 minutes</span></h2><svg id="tl" viewBox="0 0 560 230" role="img" aria-label="Flow volume over time"></svg><div class="s" style="color:var(--mu);font-size:12px;margin-top:4px">Markers show incident spikes above the rolling baseline.</div></div>
+    <div class="card c3"><h2>AI anomaly score <span>Reconstruction MSE</span></h2><svg id="gg" viewBox="0 0 240 150" role="img" aria-label="Anomaly score gauge"></svg><div class="kv" style="margin-top:6px"><span>Baseline threshold</span><span>0.60</span><span>Current MSE (1 min mean)</span><span id="mse">–</span><span>Status</span><span id="mses">–</span></div></div>
+    <div class="card c9"><h2>Threat vectors <span>Within selected time range</span></h2>
+      <div class="two"><div><h3>Top 5 attacking source IPs</h3><div id="ips"></div></div><div><h3>Top 5 targeted destination ports</h3><div id="ports"></div></div></div></div>
+    <div class="banner c3" id="bn" aria-live="polite"></div>
+  </section>
+
+  <section class="card" aria-label="Incident feed">
+    <h2>Live incident feed <span id="cnt"></span></h2>
+    <div class="filters">
+      <input id="q" type="search" placeholder="Search source or destination IP" aria-label="Search IP" style="min-width:230px">
+      <select id="fc" aria-label="Attack category"><option value="">All categories</option></select>
+      <label>Min confidence <input id="fm" type="range" min="0" max="99" value="0"> <b id="fmv" style="min-width:34px;color:var(--tx)">0%</b></label>
+      <label><input type="checkbox" id="fa" style="width:auto"> Autoencoder flagged only</label>
+      <button id="clr">Clear filters</button>
+    </div>
+    <div class="tw"><table><thead><tr><th>Timestamp</th><th>Sensor</th><th>Source IP:Port → Destination IP:Port</th><th>Proto</th><th>DL classification</th><th>Confidence</th><th>Autoencoder</th><th>Severity</th></tr></thead><tbody id="tb"></tbody></table><div class="empty" id="em" hidden>No alerts match these filters. Clear a filter to see more.</div></div>
+  </section>
+</main>
+</div></div>
+
+<aside id="dr" aria-label="Flow details" aria-hidden="true">
+  <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:15px">Flow inspection</b><button id="x">Close</button></div>
+  <div id="drb"></div>
+</aside>
+
+<script>
+const $=s=>document.getElementById(s),R=(a,b)=>Math.random()*(b-a)+a,RI=(a,b)=>Math.floor(R(a,b+1)),P=a=>a[RI(0,a.length-1)];
+const FAM=[["DDoS","Critical",.2,"var(--cr)"],["DoS","High",.14,"var(--hi)"],["PortScan","Medium",.22,"var(--md)"],["SSH Brute Force","High",.14,"var(--lo)"],["FTP Brute Force","Medium",.07,"var(--ac)"],["Web Attack","High",.13,"var(--zd)"],["Botnet","Critical",.1,"var(--ok)"]];
+const PORTS=[[22,"SSH"],[80,"HTTP"],[443,"HTTPS"],[21,"FTP"],[3389,"RDP"],[53,"DNS"]];
+const S={run:true,rng:"15m",flows:48210,att:0,zd:0,rate:0,bw:0,alerts:[],fam:{},ip:{},port:{},series:[],mse:.3,sel:null};
+FAM.forEach(f=>S.fam[f[0]]=RI(30,120));
+const ipPool=Array.from({length:14},()=>`${P([185,45,103,91,203,77])}.${RI(1,254)}.${RI(1,254)}.${RI(1,254)}`);
+ipPool.forEach((ip,i)=>S.ip[ip]=RI(5,80)*(i<5?3:1));
+PORTS.forEach(p=>S.port[p[0]]=RI(20,200));
+const SENS=["sensor-edge-01","sensor-edge-02","sensor-dmz-01","sensor-core-01"];
+const opt=$("fc");FAM.forEach(f=>opt.add(new Option(f[0],f[0])));opt.add(new Option("Unknown (anomaly)","Unknown (anomaly)"));
+function hist(){S.series=Array.from({length:60},()=>RI(600,1100)+(Math.random()<.06?RI(1200,2400):0))}hist();
+function mkAlert(){
+  const zd=Math.random()<.12,f=zd?["Unknown (anomaly)","High"]:(()=>{let r=Math.random(),a=0;for(const x of FAM){a+=x[2];if(r<a)return x}return FAM[0]})();
+  const pt=P(PORTS),ip=P(ipPool),mse=zd?R(.62,1.05):R(.1,.7),conf=zd?R(48,74):R(78,99.8),proto=Math.random()<.85?"TCP":"UDP";
+  const fp=RI(2,3000),bp=RI(0,2400),dur=RI(1,90000)/1000;
+  return{t:new Date(),sensor:P(SENS),sip:ip,sp:RI(1025,65000),dip:`10.0.${RI(0,5)}.${RI(2,250)}`,dp:pt[0],svc:pt[1],proto,cls:f[0],sev:f[1],conf,mse,ae:mse>.6,
+    fp,bp,fb:fp*RI(60,900),bb:bp*RI(60,1200),dur,pmin:RI(40,66),pmean:RI(90,600),pmax:RI(600,1514),syn:RI(0,fp>200?900:3),ack:RI(0,fp),fin:RI(0,5),rst:RI(0,fp>500?400:4),psh:RI(0,fp/2|0),urg:RI(0,2),iat:R(.01,300)}
+}
+function tick(){
+  if(!S.run)return;
+  S.rate=RI(820,1350);S.bw=S.rate*R(.35,.5);S.flows+=S.rate;
+  const n=Math.random()<.65?RI(1,2):0;
+  for(let i=0;i<n;i++){const a=mkAlert();S.alerts.unshift(a);a.isNew=true;
+    if(a.cls==="Unknown (anomaly)")S.zd++;else{S.att++;S.fam[a.cls]=(S.fam[a.cls]||0)+1}
+    S.ip[a.sip]=(S.ip[a.sip]||0)+1;S.port[a.dp]=(S.port[a.dp]||0)+1;S.mse=S.mse*.7+a.mse*.3}
+  if(!n)S.mse=S.mse*.9+.3*.1;
+  if(S.alerts.length>300)S.alerts.length=300;
+  S.series.push(S.rate+(n?RI(0,50):0)+(Math.random()<.07?RI(900,2200):0));S.series.shift();
+  render();
+}
+const fmt=n=>Math.round(n).toLocaleString("en-US");
+function bars(el,rows,max,col){el.innerHTML=rows.map(r=>`<div class="row"><span>${r[0]}</span><div class="t"><i style="width:${r[1]/max*100}%;background:${r[2]||col}"></i></div><em>${fmt(r[1])}</em></div>`).join("")}
+function donut(fr){const tot=fr.reduce((a,f)=>a+f[1],0),C=289.03;let cum=0;
+ const seg=fr.map(f=>{const l=f[1]/tot*C,x=`<circle cx="60" cy="60" r="46" fill="none" stroke-width="15" style="stroke:${f[2]}" stroke-dasharray="${Math.max(l-2,0)} ${C}" stroke-dashoffset="${-cum}" transform="rotate(-90 60 60)"/>`;cum+=l;return x}).join("");
+ $("dist").innerHTML=`<svg viewBox="0 0 120 120" style="max-width:190px;margin:4px auto 10px" role="img" aria-label="Attack family share">${seg}<text x="60" y="58" text-anchor="middle" style="font-size:17px;font-weight:700;fill:var(--tx)">${fmt(tot)}</text><text x="60" y="72" text-anchor="middle">attacks</text></svg>`+fr.map(f=>`<div class="lg"><i style="background:${f[2]}"></i><span>${f[0]}</span><em>${(f[1]/tot*100).toFixed(0)}%</em><div class="t"><b style="width:${f[1]/fr[0][1]*100}%;background:${f[2]}"></b></div></div>`).join("")}
+function spark(){const v=S.series.slice(-12),m=Math.max(...v);$("kb").innerHTML=v.map(x=>`<i style="height:${x/m*100}%"></i>`).join("")}
+function banner(){const a=S.alerts.find(x=>x.sev==="Critical");if(S.bnA===a)return;S.bnA=a;
+ $("bn").innerHTML=a?`<small>Latest critical incident</small><b>${a.cls}</b><p class="mono">${a.sip} → ${a.dip}:${a.dp}</p><p>Confidence ${a.conf.toFixed(1)}%, seen by ${a.sensor}.</p><button id="bb">Inspect flow</button>`:`<small>Latest critical incident</small><b>None yet</b><p>Critical alerts will appear here.</p>`}
+$("bn").addEventListener("click",e=>{if(e.target.id==="bb"&&S.bnA)open(S.bnA)});
+function render(){
+  $("k1").textContent=fmt(S.flows);$("k2").textContent=fmt(S.att);$("k3").textContent=fmt(S.zd);$("k4").textContent=fmt(S.rate);$("k4b").textContent=S.bw.toFixed(1)+" Mbps";
+  const mal=S.att+S.zd,pct=mal/S.flows*100;$("k5").textContent=(100-pct).toFixed(2)+"% / "+pct.toFixed(2)+"%";$("k5b").textContent="Benign / malicious";$("k5bar").style.width=Math.max(pct*8,2)+"%";
+  const fr=FAM.map(f=>[f[0],S.fam[f[0]],f[3]]).sort((a,b)=>b[1]-a[1]);donut(fr);spark();banner();
+  const ips=Object.entries(S.ip).sort((a,b)=>b[1]-a[1]).slice(0,5),ports=Object.entries(S.port).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  $("ips").innerHTML=ips.map(([k,v])=>`<div class="li"><span class="mono">${k}</span><b>${fmt(v)}</b></div>`).join("");
+  $("ports").innerHTML=ports.map(([k,v])=>`<div class="li"><span>${k} <span style="color:var(--mu)">${(PORTS.find(p=>p[0]==k)||[,""])[1]}</span></span><b>${fmt(v)}</b></div>`).join("");
+  timeline();gauge();threat();table();
+}
+function timeline(){
+  const W=560,H=230,L=40,B=24,T=8,max=Math.max(...S.series,1500)*1.1,xs=i=>L+i*(W-L-6)/59,ys=v=>H-B-v/max*(H-B-T);
+  const base=S.series.slice().sort((a,b)=>a-b)[30]*1.8;
+  let d=S.series.map((v,i)=>(i?"L":"M")+xs(i).toFixed(1)+" "+ys(v).toFixed(1)).join("");
+  const spikes=S.series.map((v,i)=>v>base?i:-1).filter(i=>i>=0);
+  const tk={ "15m":["-15m","-10m","-5m","now"],"1h":["-60m","-40m","-20m","now"],"24h":["-24h","-16h","-8h","now"]}[S.rng];
+  let g="";[0,.5,1].forEach(f=>{const y=ys(max/1.1*f);g+=`<line x1="${L}" x2="${W-6}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${L-6}" y="${y+3}" text-anchor="end">${fmt(max/1.1*f)}</text>`});
+  tk.forEach((t,i)=>g+=`<text x="${L+i*(W-L-6)/3}" y="${H-6}" text-anchor="${i?i==3?"end":"middle":"start"}">${t}</text>`);
+  $("tl").innerHTML=g+`<line x1="${L}" x2="${W-6}" y1="${ys(base)}" y2="${ys(base)}" stroke="var(--md)" stroke-dasharray="4 3"/><path d="${d}L${xs(59)} ${H-B}L${L} ${H-B}Z" fill="var(--ac)" opacity=".15"/><path d="${d}" fill="none" stroke="var(--ac)" stroke-width="1.8"/>`+
+   spikes.map(i=>`<circle cx="${xs(i)}" cy="${ys(S.series[i])}" r="4" fill="var(--cr)" stroke="var(--panel)" stroke-width="1.5"><title>Incident spike: ${fmt(S.series[i])} flows/s</title></circle>`).join("");
+}
+function gauge(){
+  const cx=120,cy=125,r=95,mx=1.2,pt=(v,rr=r)=>{const a=Math.PI*(1-v/mx);return[cx+rr*Math.cos(a),cy-rr*Math.sin(a)]};
+  const arc=(a,b,c)=>{const p=pt(a),q=pt(b);return`<path d="M${p[0]} ${p[1]}A${r} ${r} 0 0 1 ${q[0]} ${q[1]}" stroke="${c}" stroke-width="14" fill="none"/>`};
+  const m=Math.min(S.mse,mx),n=pt(m,r-20),th=pt(.6,r+12),th2=pt(.6,r-12);
+  $("gg").innerHTML=arc(0,.6,"var(--ok)")+arc(.6,.8,"var(--md)")+arc(.8,mx,"var(--cr)")+`<line x1="${th[0]}" y1="${th[1]}" x2="${th2[0]}" y2="${th2[1]}" stroke="var(--tx)" stroke-width="2.5"/><text x="${th[0]+4}" y="${th[1]-4}">0.60</text><line x1="${cx}" y1="${cy}" x2="${n[0]}" y2="${n[1]}" stroke="var(--tx)" stroke-width="3" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="6" fill="var(--tx)"/><text x="${cx-r}" y="${cy+16}" text-anchor="middle">0</text><text x="${cx+r}" y="${cy+16}" text-anchor="middle">1.2</text><text x="${cx}" y="${cy-35}" text-anchor="middle" style="font-size:22px;font-weight:650;fill:var(--tx)">${S.mse.toFixed(2)}</text>`;
+  $("mse").textContent=S.mse.toFixed(3);$("mses").textContent=S.mse>.6?"Above baseline – possible zero-day":S.mse>.45?"Approaching threshold":"Within baseline";
+}
+function threat(){
+  const rec=S.alerts.slice(0,20),crit=rec.filter(a=>a.sev==="Critical").length,lv=(crit>=6||S.mse>.6)?2:(crit>=3||S.mse>.45)?1:0;
+  $("tlv").textContent=["Normal","Elevated","Critical"][lv];$("tlv").style.color=["var(--ok)","var(--md)","var(--cr)"][lv];
+  [0,1,2].forEach(i=>$("t"+i).style.background=i<=lv?["var(--ok)","var(--md)","var(--cr)"][lv]:"var(--line)");
+}
+function filtered(){
+  const q=$("q").value.trim(),c=$("fc").value,m=+$("fm").value,ae=$("fa").checked;
+  return S.alerts.filter(a=>(!q||a.sip.includes(q)||a.dip.includes(q))&&(!c||a.cls===c)&&a.conf>=m&&(!ae||a.ae));
+}
+function table(){
+  const l=filtered();$("cnt").textContent=`${l.length} of ${S.alerts.length} alerts`;$("em").hidden=l.length>0;
+  $("tb").innerHTML=l.slice(0,60).map(a=>{const i=S.alerts.indexOf(a);const r=`<tr tabindex="0" data-i="${i}" class="${a.isNew?"new":""}${S.sel===a?" sel":""}"><td class="mono">${a.t.toTimeString().slice(0,8)}</td><td>${a.sensor}</td><td class="mono">${a.sip}:${a.sp} → ${a.dip}:${a.dp}</td><td>${a.proto}</td><td>${a.cls}</td><td><span class="cf"><i style="width:${a.conf}%"></i></span>${a.conf.toFixed(1)}%</td><td><span class="flag ${a.ae?"y":"n"}">${a.ae?"Anomaly":"Normal"}</span> <span class="mono" style="color:var(--mu)">${a.mse.toFixed(2)}</span></td><td><span class="sev ${a.sev}">${a.sev}</span></td></tr>`;a.isNew=false;return r}).join("");
+}
+function open(a){
+  S.sel=a;const kv=o=>`<div class="kv">${o.map(x=>`<span>${x[0]}</span><span>${x[1]}</span>`).join("")}</div>`;
+  $("drb").innerHTML=`<p><span class="sev ${a.sev}">${a.sev}</span> <b>${a.cls}</b><br><span class="mono">${a.sip}:${a.sp} → ${a.dip}:${a.dp}</span> (${a.svc}, ${a.proto})</p>
+  <h3>Detection</h3>${kv([["Classifier confidence",a.conf.toFixed(1)+"%"],["Reconstruction MSE",a.mse.toFixed(3)+" (threshold 0.60)"],["Autoencoder flag",a.ae?"Anomaly":"Normal"],["Sensor",a.sensor],["Seen at",a.t.toLocaleTimeString()]])}
+  <h3>Flow telemetry</h3>${kv([["Duration",a.dur.toFixed(2)+" s"],["Mean inter-arrival time",a.iat.toFixed(2)+" ms"],["Packet size min / mean / max",`${a.pmin} / ${a.pmean} / ${a.pmax} B`]])}
+  <h3>Bidirectional statistics</h3>${kv([["Forward packets",fmt(a.fp)],["Backward packets",fmt(a.bp)],["Forward bytes",fmt(a.fb)],["Backward bytes",fmt(a.bb)],["Forward : backward ratio",(a.fp/Math.max(a.bp,1)).toFixed(1)]])}
+  <h3>TCP flags</h3><div class="fl">${[["SYN",a.syn],["ACK",a.ack],["FIN",a.fin],["RST",a.rst],["PSH",a.psh],["URG",a.urg]].map(f=>`<span class="${f[1]>0&&a.proto==="TCP"?"on":""}">${f[0]} ${a.proto==="TCP"?fmt(f[1]):"–"}</span>`).join("")}</div>`;
+  $("dr").classList.add("open");$("dr").setAttribute("aria-hidden","false");table();
+}
+function close(){$("dr").classList.remove("open");$("dr").setAttribute("aria-hidden","true");S.sel=null;table()}
+$("tb").addEventListener("click",e=>{const r=e.target.closest("tr");if(r)open(S.alerts[+r.dataset.i])});
+$("tb").addEventListener("keydown",e=>{if(e.key==="Enter"){const r=e.target.closest("tr");if(r)open(S.alerts[+r.dataset.i])}});
+$("x").onclick=close;document.addEventListener("keydown",e=>{if(e.key==="Escape")close()});
+["q","fc","fm","fa"].forEach(id=>$(id).addEventListener("input",()=>{$("fmv").textContent=$("fm").value+"%";table()}));
+$("clr").onclick=()=>{$("q").value="";$("fc").value="";$("fm").value=0;$("fa").checked=false;$("fmv").textContent="0%";table()};
+function status(){
+  const f=$("pcap").value;$("run").textContent=S.run?"Pause":(f?"Run replay":"Resume");
+  $("dot").className="dot"+(S.run?"":" off");
+  $("eng").textContent=f?"PCAP replay":"Live WebSocket";$("engs").textContent=S.run?(f?f:"Stream active"):"Paused";
+}
+$("run").onclick=()=>{S.run=!S.run;status()};
+$("pcap").onchange=()=>{S.run=true;status()};
+document.querySelectorAll(".rng button").forEach(b=>b.onclick=()=>{S.rng=b.dataset.r;document.querySelectorAll(".rng button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  $("tlab").textContent="Flows per second, last "+({"15m":"15 minutes","1h":"hour","24h":"24 hours"})[S.rng];hist();timeline()});
+for(let i=0;i<14;i++){const a=mkAlert();a.t=new Date(Date.now()-i*4000);S.alerts.push(a);if(a.cls==="Unknown (anomaly)")S.zd++;else S.att++}
+S.att+=1800;S.zd+=96;
+status();render();setInterval(tick,1000);
+</script>
+</body>
+</html>

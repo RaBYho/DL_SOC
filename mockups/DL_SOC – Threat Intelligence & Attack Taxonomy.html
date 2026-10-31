@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DL_SOC – Threat Intelligence & Attack Taxonomy</title>
+<style>
+:root{--bg:#14151e;--side:#1b1c28;--panel:#222333;--panel2:#2c2d42;--line:#363853;--tx:#eceefa;--mu:#8e90ad;--ac:#4a57e0;--ac2:#9b5cf6;--ok:#3ddc97;--lo:#6c8cff;--md:#ffb547;--hi:#ff8a4c;--cr:#ff4d7e;--zd:#b266ff;--r:18px;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+a{color:#8fa0ff;text-decoration:none}a:hover{color:#c4ccff}
+.app{display:grid;grid-template-columns:224px 1fr;min-height:100vh}
+.side{background:var(--side);padding:24px 14px;position:sticky;top:0;align-self:start;height:100vh;display:flex;flex-direction:column;gap:4px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;padding:0 10px 22px}
+.logo span{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--ac),var(--ac2))}
+.nv{display:flex;gap:12px;align-items:center;width:100%;min-height:44px;padding:0 14px;border:0;border-radius:10px;background:none;color:#a9abc6;text-align:left;font:inherit;text-decoration:none;cursor:pointer}
+.nv i{width:14px;height:14px;border-radius:4px;border:2px solid currentColor}
+.nv:hover{background:var(--panel2);color:var(--tx)}
+.nv[aria-current]{background:var(--ac);color:#fff;font-weight:600}
+.sf{margin-top:auto;padding:12px;border-radius:12px;background:var(--panel2);display:flex;gap:10px;align-items:center;color:var(--mu);font-size:12.5px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:p 1.8s infinite;flex:none}
+@keyframes p{70%{box-shadow:0 0 0 7px transparent}}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:20px 28px 12px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;border-bottom:1px solid rgba(54,56,83,0.5)}
+h1{font-size:22px;margin:0;font-weight:700}h1 small{display:block;font-weight:400;color:var(--mu);font-size:13px;margin-top:2px}
+.sp{flex:1}
+.stat-pill{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:12px;background:var(--panel);font-size:13px}
+main{padding:24px 28px 40px;display:flex;flex-direction:column;gap:20px;max-width:1600px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.card{background:var(--panel);border-radius:var(--r);padding:20px}
+.kpi .l{color:var(--mu);font-size:12.5px}
+.kpi .v{font-size:28px;font-weight:700;margin:4px 0;font-variant-numeric:tabular-nums}
+.kpi .s{color:var(--mu);font-size:12.5px}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.filters button{background:var(--panel2);color:#a9abc6;border:1px solid var(--line);border-radius:10px;padding:8px 16px;cursor:pointer;font:inherit;font-size:13px;font-weight:500;transition:all .15s}
+.filters button:hover{color:#fff;background:var(--line)}
+.filters button.active{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}
+.content-grid{display:grid;grid-template-columns:420px 1fr;gap:20px;align-items:start}
+@media (max-width:1100px){.content-grid{grid-template-columns:1fr}}
+.catalog{display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 280px);overflow-y:auto;padding-right:6px}
+.catalog::-webkit-scrollbar{width:6px}.catalog::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.atk-item{background:var(--panel2);border:1px solid transparent;border-radius:14px;padding:14px 16px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:6px}
+.atk-item:hover{border-color:var(--line);background:color-mix(in srgb,var(--panel2) 80%,var(--ac))}
+.atk-item.active{border-color:var(--ac);background:color-mix(in srgb,var(--panel2) 65%,var(--ac))}
+.atk-hdr{display:flex;justify-content:space-between;align-items:center}
+.atk-hdr b{font-size:15px}
+.sev{display:inline-block;padding:2px 9px;border-radius:8px;font-size:11.5px;font-weight:600;background:color-mix(in srgb,currentColor 16%,transparent)}
+.sev.Critical{color:var(--cr)}.sev.High{color:var(--hi)}.sev.Medium{color:var(--md)}.sev.Low{color:var(--lo)}
+.sev.Anomaly{color:var(--zd)}
+.atk-desc{font-size:12.5px;color:var(--mu);line-height:1.4}
+.atk-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;background:rgba(255,255,255,.07);color:#c9cbe0}
+.detail-view{background:var(--panel);border-radius:var(--r);padding:26px;display:flex;flex-direction:column;gap:22px}
+.dh-title{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.dh-title h2{font-size:24px;margin:0;font-weight:700}
+.dh-title p{margin:4px 0 0;color:var(--mu);font-size:14px}
+.sec-title{font-size:14px;font-weight:700;color:#c9cbe0;margin:0 0 10px;text-transform:uppercase;letter-spacing:0.05em;display:flex;align-items:center;gap:8px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--line)}
+.box{background:var(--panel2);border-radius:12px;padding:16px}
+.ft-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.ft-card{background:rgba(20,21,30,.6);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.ft-card span{font-size:11.5px;color:var(--mu)}
+.ft-card b{font-size:13.5px;color:#c4ccff}
+.code-block{background:#0d0e14;border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12.5px;color:#3ddc97;position:relative;overflow-x:auto}
+.copy-btn{position:absolute;top:10px;right:10px;background:var(--panel2);color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer}
+.copy-btn:hover{background:var(--ac);color:#fff}
+.mitre-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;background:rgba(155,92,246,.15);color:#c4ccff;font-weight:600;font-size:12px}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="side" aria-label="Main">
+    <div class="logo"><span></span>DL_SOC</div>
+    <a href="DL_SOC – AI Network Intrusion Detection System.html" class="nv"><i></i>Dashboard</a>
+    <a href="DL_SOC – Incident Investigation & Historical Alerts.html" class="nv"><i></i>Alerts</a>
+    <a href="DL_SOC – Threat Intelligence & Attack Taxonomy.html" class="nv" aria-current="page"><i></i>Threat intel</a>
+    <a href="DL_SOC – Sensor Fleet & Traffic Capture Management.html" class="nv"><i></i>Sensors</a>
+    <a href="DL_SOC – Detection Models & AI Explainability.html" class="nv"><i></i>Models</a>
+    <a href="DL_SOC – System Settings & Security Administration.html" class="nv"><i></i>Settings</a>
+    <div class="sf"><span class="dot"></span>4 capteurs actifs</div>
+  </nav>
+
+  <div style="min-width:0;display:flex;flex-direction:column">
+    <header>
+      <div>
+        <h1>Threat Intelligence & Attack Taxonomy<small>Base de signatures, classification MITRE ATT&CK et remédiations SOC</small></h1>
+      </div>
+      <div class="sp"></div>
+      <div class="stat-pill"><span class="dot"></span><span>Catalogue actif · <b>12 classes d'attaques</b></span></div>
+      <div class="stat-pill"><span>Couverture MITRE : <b>87%</b></span></div>
+    </header>
+
+    <main>
+      <section class="kpis">
+        <div class="card kpi"><div class="l">Familles supervisées (DNN)</div><div class="v">11</div><div class="s">CIC-IDS2017 labellisées</div></div>
+        <div class="card kpi"><div class="l">Détection 0-Day (Autoencodeur)</div><div class="v" style="color:var(--zd)">Active</div><div class="s">Seuil MSE calibré à 0.6029</div></div>
+        <div class="card kpi"><div class="l">Signatures de flux NFStream</div><div class="v">58</div><div class="s">Features bidirectionnelles</div></div>
+        <div class="card kpi"><div class="l">Taux de détection moyen</div><div class="v" style="color:var(--ok)">98.2%</div><div class="s">Précision macro sur test</div></div>
+      </section>
+
+      <div class="filters" role="group" aria-label="Filtrer par catégorie">
+        <button class="active" data-cat="all">Toutes (12)</button>
+        <button data-cat="dos">Déni de service / DDoS (5)</button>
+        <button data-cat="brute">Brute Force (2)</button>
+        <button data-cat="scan">Reconnaissance & Scan (2)</button>
+        <button data-cat="web">Attaques Web (1)</button>
+        <button data-cat="bot">Malware / Botnet (1)</button>
+        <button data-cat="zero">Anomalie 0-Day (1)</button>
+      </div>
+
+      <div class="content-grid">
+        <!-- Liste des attaques -->
+        <div class="catalog" id="catList">
+          <div class="atk-item active" data-id="ddos" data-cat="dos">
+            <div class="atk-hdr"><b>DDoS</b><span class="sev Critical">Critical</span></div>
+            <div class="atk-desc">Attaque volumétrique distribuée saturant la bande passante et les ressources réseau.</div>
+            <div class="atk-tags"><span class="tag">MITRE T1498.001</span><span class="tag">Port 80/443</span><span class="tag">Haut débit</span></div>
+          </div>
+
+          <div class="atk-item" data-id="hulk" data-cat="dos">
+            <div class="atk-hdr"><b>DoS-Hulk</b><span class="sev High">High</span></div>
+            <div class="atk-desc">Génération massive de requêtes HTTP aléatoires pour épuiser la mémoire du serveur web.</div>
+            <div class="atk-tags"><span class="tag">MITRE T1499.002</span><span class="tag">HTTP/TCP</span><span class="tag">User-Agents variables</span></div>
+          </div>
+
+          <div class="atk-item" data-id="goldeneye" data-cat="dos">
+            <div class="atk-hdr"><b>DoS-GoldenEye</b><span class="sev High">High</span></div>
+            <div class="atk-desc">Épuisement des connexions via des headers HTTP Keep-Alive et No-Cache multiples.</div>
+            <div class="atk-tags"><span class="tag">MITRE T1499.002</span><span class="tag">Port 80</span><span class="tag">Goulet de sockets</span></div>
+          </div>
+
+          <div class="atk-item" data-id="slowloris" data-cat="dos">
+            <div class="atk-hdr"><b>DoS-slowloris</b><span class="sev High">High</span></div>
+            <div class="atk-desc">Maintien prolongé de connexions partielles en envoyant des en-têtes HTTP incomplets.</div>
+            <div class="atk-tags"><span class="tag">MITRE T1499.003</span><span class="tag">Faible débit</span><span class="tag">Asymétrie paquets</span></div>
+          </div>
+
+          <div class="atk-item" data-id="slowhttp" data-cat="dos">
+            <div class="atk-hdr"><b>DoS-Slowhttptest</b><span class="sev Medium">Medium</span></div>
+            <div class="atk-desc">Transmission ralentie des corps de requêtes HTTP POST pour saturer le serveur.</div>
+            <div class="atk-tags"><span class="tag">MITRE T1499.003</span><span class="tag">HTTP POST</span><span class="tag">IAT élevé</span></div>
+          </div>
+
+          <div class="atk-item" data-id="ssh-patator" data-cat="brute">
+            <div class="atk-hdr"><b>SSH-Patator</b><span class="sev High">High</span></div>
+            <div class="atk-desc">Attaque par dictionnaire automatisée ciblant le service d'administration sécurisé.</div>
+            <div class="atk-tags"><span class="tag">MITRE T1110.001</span><span class="tag">Port 22</span><span class="tag">Répétition auth</span></div>
+          </div>
+
+          <div class="atk-item" data-id="ftp-patator" data-cat="brute">
+            <div class="atk-hdr"><b>FTP-Patator</b><span class="sev Medium">Medium</span></div>
+            <div class="atk-desc">Brute-force systématique sur service de transfert de fichiers non sécurisé.</div>
+            <div class="atk-tags"><span class="tag">MITRE T1110.001</span><span class="tag">Port 21</span><span class="tag">Commandes USER/PASS</span></div>
+          </div>
+
+          <div class="atk-item" data-id="portscan" data-cat="scan">
+            <div class="atk-hdr"><b>PortScan</b><span class="sev Medium">Medium</span></div>
+            <div class="atk-desc">Balayage vertical et horizontal des ports ouverts pour cartographier la cible.</div>
+            <div class="atk-tags"><span class="tag">MITRE T1046</span><span class="tag">SYN Flood / RST</span><span class="tag">Flux brefs</span></div>
+          </div>
+
+          <div class="atk-item" data-id="scan-vista" data-cat="scan">
+            <div class="atk-hdr"><b>Scan-Vista</b><span class="sev Low">Low</span></div>
+            <div class="atk-desc">Sondage ciblé des services NetBIOS/SMB et détection d'OS Windows.</div>
+            <div class="atk-tags"><span class="tag">MITRE T1046</span><span class="tag">Port 445/139</span><span class="tag">Reconnaissance</span></div>
+          </div>
+
+          <div class="atk-item" data-id="webattack" data-cat="web">
+            <div class="atk-hdr"><b>WebAttack</b><span class="sev High">High</span></div>
+            <div class="atk-desc">Regroupement des attaques applicatives : Brute-force web, XSS et injections SQL.</div>
+            <div class="atk-tags"><span class="tag">MITRE T1190</span><span class="tag">SQLi / XSS</span><span class="tag">Port 80/443</span></div>
+          </div>
+
+          <div class="atk-item" data-id="bot" data-cat="bot">
+            <div class="atk-hdr"><b>Bot (ARES Botnet)</b><span class="sev Critical">Critical</span></div>
+            <div class="atk-desc">Machine infectée exécutant des balises C2 périodiques (beacons) et exfiltration.</div>
+            <div class="atk-tags"><span class="tag">MITRE T1071.001</span><span class="tag">C2 Beacons</span><span class="tag">Intervalles fixes</span></div>
+          </div>
+
+          <div class="atk-item" data-id="zeroday" data-cat="zero">
+            <div class="atk-hdr"><b>Anomalie 0-Day (Autoencodeur)</b><span class="sev Anomaly">Anomaly</span></div>
+            <div class="atk-desc">Comportement réseau déviant d'origine inconnue détecté par reconstruction MSE.</div>
+            <div class="atk-tags"><span class="tag">Inconnu / 0-Day</span><span class="tag">MSE > 0.6029</span><span class="tag">Non-supervisé</span></div>
+          </div>
+        </div>
+
+        <!-- Détail de la menace sélectionnée -->
+        <div class="detail-view" id="detailPanel">
+          <div class="dh-title">
+            <div>
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                <span class="sev Critical" id="dSev">Critical</span>
+                <span class="mitre-badge" id="dMitre">MITRE ATT&CK T1498.001</span>
+              </div>
+              <h2 id="dName">DDoS (Distributed Denial of Service)</h2>
+              <p id="dSub">Inondation distribuée de requêtes réseau visant à saturer la victime.</p>
+            </div>
+            <div style="text-align:right">
+              <span style="font-size:12px;color:var(--mu)">Sensibilité modèle</span>
+              <div style="font-size:20px;font-weight:700;color:var(--ok)" id="dAcc">99.4% Recall</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="sec-title">Mécanisme d'attaque & Vecteur de propagation</div>
+            <p style="margin:0;color:#c9cbe0;line-height:1.6" id="dMech">
+              L'attaque DDoS mobilise une multiplicité d'hôtes compromis pour générer des volumes massifs de paquets vers un serveur cible. L'objectif est d'épuiser la bande passante réseau ou les ressources processeur de la victime, empêchant le traitement du trafic légitime.
+            </p>
+          </div>
+
+          <div>
+            <div class="sec-title">Empreinte caractéristique NFStream (58 features)</div>
+            <div class="ft-grid" id="dFeatures">
+              <div class="ft-card"><span>bidirectional_packets</span><b>Très élevé (> 2 500)</b></div>
+              <div class="ft-card"><span>bidirectional_duration_ms</span><b>Concentré (&lt; 2 000 ms)</b></div>
+              <div class="ft-card"><span>src2dst_syn_packets</span><b>Anormalement élevé</b></div>
+              <div class="ft-card"><span>dst2src_ack_packets</span><b>Faible (asymétrie)</b></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="sec-title">Remédiation immédiate & Playbook SOC</div>
+            <div class="box" style="display:flex;flex-direction:column;gap:12px">
+              <span style="font-size:13px;color:var(--mu)">1. Règle pare-feu d'atténuation d'urgence (Linux Mint / UFW / iptables) :</span>
+              <div class="code-block" id="dRule">
+                iptables -A INPUT -p tcp --dport 80 -m limit --limit 50/minute --limit-burst 100 -j ACCEPT
+                <button class="copy-btn" onclick="copyRule()">Copier</button>
+              </div>
+              <span style="font-size:13px;color:var(--mu)">2. Signature de détection équivalente Snort / Suricata :</span>
+              <div class="code-block" style="color:#c4ccff" id="dSnort">
+                alert tcp any any -> $HOME_NET 80 (msg:"DL_SOC - High Volume DDoS detected"; flags:S; threshold:type threshold, track by_src, count 100, seconds 5; sid:1000001; rev:1;)
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+const DB = {
+  ddos: {
+    name: "DDoS (Distributed Denial of Service)",
+    sev: "Critical",
+    sevClass: "Critical",
+    mitre: "MITRE ATT&CK T1498.001",
+    sub: "Inondation distribuée de requêtes réseau visant à saturer la victime.",
+    acc: "99.4% Recall",
+    mech: "L'attaque DDoS mobilise une multiplicité d'hôtes compromis pour générer des volumes massifs de paquets vers un serveur cible. L'objectif est d'épuiser la bande passante réseau ou les ressources processeur de la victime, empêchant le traitement du trafic légitime.",
+    feats: [["bidirectional_packets","Très élevé (> 2 500)"],["bidirectional_duration_ms","Concentré (< 2 000 ms)"],["src2dst_syn_packets","Anormalement élevé"],["dst2src_ack_packets","Faible (asymétrie)"]],
+    rule: "iptables -A INPUT -p tcp --dport 80 -m limit --limit 50/minute --limit-burst 100 -j ACCEPT\niptables -A INPUT -p tcp --dport 80 -j DROP",
+    snort: 'alert tcp any any -> $HOME_NET 80 (msg:"DL_SOC - High Volume DDoS detected"; flags:S; threshold:type both, track by_dst, count 500, seconds 2; sid:1000001; rev:1;)'
+  },
+  hulk: {
+    name: "DoS-Hulk (HTTP Unbearable Load King)",
+    sev: "High",
+    sevClass: "High",
+    mitre: "MITRE ATT&CK T1499.002",
+    sub: "Génération massive de requêtes HTTP aléatoires pour épuiser la mémoire du serveur.",
+    acc: "98.9% Recall",
+    mech: "Hulk contourne les caches en modifiant dynamiquement les URLs et les User-Agents lors de chaque requête GET. Cela force le serveur web à exécuter chaque traitement en profondeur sans pouvoir servir de page en cache.",
+    feats: [["src2dst_bytes","Élevé (headers dynamiques)"],["bidirectional_mean_ps","Moyen (~450 B)"],["bidirectional_psh_packets","Fréquent"],["protocol","6 (TCP - HTTP 80)"]],
+    rule: "iptables -A INPUT -p tcp --dport 80 -m connlimit --connlimit-above 30 -j REJECT",
+    snort: 'alert tcp any any -> $HTTP_SERVERS 80 (msg:"DL_SOC - DoS Hulk pattern"; content:"GET"; pcre:"/\\?[a-zA-Z0-9]{6}=/i"; threshold:type both, track by_src, count 40, seconds 3; sid:1000002; rev:1;)'
+  },
+  goldeneye: {
+    name: "DoS-GoldenEye",
+    sev: "High",
+    sevClass: "High",
+    mitre: "MITRE ATT&CK T1499.002",
+    sub: "Épuisement des connexions via des headers HTTP Keep-Alive et No-Cache multiples.",
+    acc: "97.8% Recall",
+    mech: "GoldenEye combine des attaques Keep-Alive persistantes et l'envoi de headers Cache-Control: no-cache afin de maintenir ouvertes un maximum de sessions applicatives jusqu'à l'effondrement du serveur.",
+    feats: [["bidirectional_duration_ms","Élevé (sessions maintenues)"],["dst2src_duration_ms","Allongé"],["src2dst_bytes","Répété"],["dst_port","80 / 443"]],
+    rule: "iptables -A INPUT -p tcp --dport 80 -m state --state NEW -m recent --set\niptables -A INPUT -p tcp --dport 80 -m state --state NEW -m recent --update --seconds 1 --hitcount 20 -j DROP",
+    snort: 'alert tcp any any -> $HTTP_SERVERS 80 (msg:"DL_SOC - GoldenEye keepalive flood"; content:"Keep-Alive"; content:"no-cache"; sid:1000003; rev:1;)'
+  },
+  slowloris: {
+    name: "DoS-slowloris",
+    sev: "High",
+    sevClass: "High",
+    mitre: "MITRE ATT&CK T1499.003",
+    sub: "Maintien prolongé de connexions partielles avec des en-têtes HTTP incomplets.",
+    acc: "98.1% Recall",
+    mech: "Slowloris envoie des requêtes HTTP partielles à intervalle régulier sans jamais terminer l'en-tête (envoi d'un header toutes les 15 secondes). Cela accapare les threads de serveurs comme Apache avec un débit réseau presque nul.",
+    feats: [["bidirectional_mean_piat_ms","Très élevé (> 10 000 ms)"],["bidirectional_packets","Très faible (< 20)"],["bidirectional_duration_ms","Extrême (> 60 000 ms)"],["bidirectional_bytes","Infime (< 500 B)"]],
+    rule: "iptables -A INPUT -p tcp --dport 80 -m connlimit --connlimit-above 15 --connlimit-mask 32 -j DROP",
+    snort: 'alert tcp any any -> $HTTP_SERVERS 80 (msg:"DL_SOC - Slowloris slow headers"; flow:to_server,established; threshold:type threshold, track by_src, count 10, seconds 60; sid:1000004; rev:1;)'
+  },
+  slowhttp: {
+    name: "DoS-Slowhttptest",
+    sev: "Medium",
+    sevClass: "Medium",
+    mitre: "MITRE ATT&CK T1499.003",
+    sub: "Transmission ralentie des corps de requêtes HTTP POST.",
+    acc: "96.5% Recall",
+    mech: "Similaire à Slowloris mais opère sur le body de requêtes POST. Le Content-Length est déclaré très grand, et le client transmet 1 octet toutes les quelques secondes, bloquant le buffer de lecture.",
+    feats: [["src2dst_mean_piat_ms","Très élevé"],["src2dst_min_ps","Minimal (1-10 B)"],["bidirectional_duration_ms","Élevé"],["protocol","6 (TCP)"]],
+    rule: "iptables -A INPUT -p tcp --dport 80 -m connlimit --connlimit-above 20 -j DROP",
+    snort: 'alert tcp any any -> $HTTP_SERVERS 80 (msg:"DL_SOC - Slow HTTP POST"; flow:to_server; content:"POST"; sid:1000005; rev:1;)'
+  },
+  "ssh-patator": {
+    name: "SSH-Patator (Brute Force SSH)",
+    sev: "High",
+    sevClass: "High",
+    mitre: "MITRE ATT&CK T1110.001",
+    sub: "Attaque par dictionnaire automatisée ciblant le service d'administration sécurisé.",
+    acc: "99.2% Recall",
+    mech: "Le bot tente des milliers de combinaisons identifiant/mot de passe sur le port SSH. Chaque tentative implique l'échange de clés, la négociation cryptographique puis l'échec d'authentification.",
+    feats: [["dst_port","22 (SSH)"],["bidirectional_packets","Répété (40-70 paquets/flux)"],["bidirectional_bytes","~4 KB par tentative"],["src2dst_fin_packets","Fréquent en fin de tentative"]],
+    rule: "iptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --set\niptables -A INPUT -p tcp --dport 22 -m state --state NEW -m recent --update --seconds 60 --hitcount 4 -j DROP",
+    snort: 'alert tcp any any -> $HOME_NET 22 (msg:"DL_SOC - SSH Brute Force attempt"; flags:S; threshold:type threshold, track by_src, count 5, seconds 30; sid:1000006; rev:1;)'
+  },
+  "ftp-patator": {
+    name: "FTP-Patator (Brute Force FTP)",
+    sev: "Medium",
+    sevClass: "Medium",
+    mitre: "MITRE ATT&CK T1110.001",
+    sub: "Brute-force systématique sur service de transfert de fichiers non sécurisé.",
+    acc: "98.7% Recall",
+    mech: "Envoi continu de commandes USER et PASS sur la connexion de contrôle FTP jusqu'à obtention d'un code de retour 230 User logged in.",
+    feats: [["dst_port","21 (FTP)"],["bidirectional_packets","Très régulier"],["src2dst_mean_ps","Faible (< 60 B)"],["protocol","6 (TCP)"]],
+    rule: "iptables -A INPUT -p tcp --dport 21 -m state --state NEW -m recent --set --name FTP\niptables -A INPUT -p tcp --dport 21 -m state --state NEW -m recent --update --seconds 60 --hitcount 5 --name FTP -j DROP",
+    snort: 'alert tcp any any -> $HOME_NET 21 (msg:"DL_SOC - FTP Patator Brute Force"; content:"USER"; threshold:type threshold, track by_src, count 6, seconds 20; sid:1000007; rev:1;)'
+  },
+  portscan: {
+    name: "PortScan (Scan de ports SYN / TCP)",
+    sev: "Medium",
+    sevClass: "Medium",
+    mitre: "MITRE ATT&CK T1046",
+    sub: "Balayage vertical et horizontal pour cartographier les services exposés.",
+    acc: "99.6% Recall",
+    mech: "L'attaquant émet des paquets SYN sur une large plage de ports d'une machine. Les ports ouverts répondent par SYN-ACK, les fermés par RST. La signature est caractérisée par une multitude de flux très courts.",
+    feats: [["bidirectional_duration_ms","Ultra-court (< 5 ms)"],["bidirectional_packets","1 à 3 paquets"],["bidirectional_rst_packets","Élevé"],["src2dst_syn_packets","1 par flux"]],
+    rule: "iptables -A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,PSH,ACK,URG NONE -j DROP\niptables -A INPUT -m recent --name PORTSCAN --set -j DROP",
+    snort: 'alert tcp any any -> $HOME_NET any (msg:"DL_SOC - Portscan detected"; flags:S; threshold:type both, track by_src, count 20, seconds 3; sid:1000008; rev:1;)'
+  },
+  "scan-vista": {
+    name: "Scan-Vista (Sondage SMB / NetBIOS)",
+    sev: "Low",
+    sevClass: "Low",
+    mitre: "MITRE ATT&CK T1046",
+    sub: "Sondage ciblé des services NetBIOS/SMB et détection d'OS Windows.",
+    acc: "97.1% Recall",
+    mech: "Reconnaissance passive et active ciblant les ports Microsoft 135, 139, 445 pour identifier les partages ouverts et la version du système d'exploitation.",
+    feats: [["dst_port","445, 139 ou 135"],["bidirectional_packets","Faible (4-12)"],["protocol","6 (TCP)"],["bidirectional_mean_ps","Spécifique NetBIOS"]],
+    rule: "iptables -A INPUT -p tcp -m multiport --dports 135,139,445 -s 10.0.0.0/8 -j ACCEPT\niptables -A INPUT -p tcp -m multiport --dports 135,139,445 -j DROP",
+    snort: 'alert tcp any any -> $HOME_NET [135,139,445] (msg:"DL_SOC - Windows SMB Scan"; flags:S; sid:1000009; rev:1;)'
+  },
+  webattack: {
+    name: "WebAttack (SQL Injection, XSS, BruteForce)",
+    sev: "High",
+    sevClass: "High",
+    mitre: "MITRE ATT&CK T1190",
+    sub: "Attaques applicatives web cherchant à exploiter des vulnérabilités logicielles.",
+    acc: "96.8% Recall",
+    mech: "Tentatives d'injection de code SQL dans les paramètres de formulaires, scripts malveillants XSS ou requêtes POST répétées sur des interfaces d'administration web.",
+    feats: [["dst_port","80 ou 443"],["src2dst_bytes","Variables avec payloads longs"],["bidirectional_psh_packets","Fréquent"],["protocol","6 (TCP)"]],
+    rule: "iptables -A INPUT -p tcp --dport 80 -m string --string \"UNION SELECT\" --algo bm -j DROP\niptables -A INPUT -p tcp --dport 80 -m string --string \"<script>\" --algo bm -j DROP",
+    snort: 'alert tcp any any -> $HTTP_SERVERS 80 (msg:"DL_SOC - Web Attack SQLi/XSS"; content:"SELECT"; nocase; sid:1000010; rev:1;)'
+  },
+  bot: {
+    name: "Bot (ARES Botnet & C2 Beacons)",
+    sev: "Critical",
+    sevClass: "Critical",
+    mitre: "MITRE ATT&CK T1071.001",
+    sub: "Machine infectée communiquant avec son serveur de Command & Control.",
+    acc: "95.4% Recall",
+    mech: "Le malware émet des impulsions de présence (beacons) à intervalle temporel métré vers son contrôleur distant, attendant des ordres de vol de données ou d'attaque coordonnée.",
+    feats: [["src2dst_mean_piat_ms","Régularité mathématique"],["bidirectional_bytes","Taille de payload calibrée"],["bidirectional_packets","Flux périodiques légers"],["protocol","6 (TCP) ou 17 (UDP)"]],
+    rule: "iptables -A OUTPUT -d <IP_C2_DISTANTE> -j REJECT",
+    snort: 'alert tcp $HOME_NET any -> $EXTERNAL_NET any (msg:"DL_SOC - C2 Beaconing Activity"; flow:to_server,established; threshold:type threshold, track by_src, count 8, seconds 120; sid:1000011; rev:1;)'
+  },
+  zeroday: {
+    name: "Anomalie 0-Day (Autoencodeur non-supervisé)",
+    sev: "Anomaly",
+    sevClass: "Anomaly",
+    mitre: "Menace Inconnue / Zero-Day",
+    sub: "Comportement déviant repéré par reconstruction MSE sans signature préalable.",
+    acc: "Détection Anormale",
+    mech: "L'autoencodeur a été entraîné exclusivement sur 300 000 flux de trafic sain BENIGN. Lorsqu'un flux présente des caractéristiques multidimensionnelles inédites, l'erreur de reconstruction dépasse le seuil critique (MSE > 0.6029).",
+    feats: [["Reconstruction MSE","> 0.6029 (seuil q99.9)"],["Deviation","Multi-features anormale"],["Supervised Tag","Possiblement BENIGN (leurre)"],["Détection","Non-supervisée"]],
+    rule: "# Isoler la machine source suspecte sur le sous-réseau local :\niptables -A INPUT -s <IP_SUSPECTE> -j DROP\n# Notifier l'analyste SOC pour inspection PCAP en profondeur",
+    snort: '# Aucune règle statique possible : la détection repose sur le scoring du modèle DL_SOC.'
+  }
+};
+
+const items = document.querySelectorAll(".atk-item");
+items.forEach(el => {
+  el.addEventListener("click", () => {
+    items.forEach(x => x.classList.remove("active"));
+    el.classList.add("active");
+    const d = DB[el.dataset.id];
+    if (!d) return;
+    document.getElementById("dName").textContent = d.name;
+    document.getElementById("dSev").textContent = d.sev;
+    document.getElementById("dSev").className = "sev " + d.sevClass;
+    document.getElementById("dMitre").textContent = d.mitre;
+    document.getElementById("dSub").textContent = d.sub;
+    document.getElementById("dAcc").textContent = d.acc;
+    document.getElementById("dMech").textContent = d.mech;
+    document.getElementById("dRule").innerHTML = d.rule + '\n<button class="copy-btn" onclick="copyRule()">Copier</button>';
+    document.getElementById("dSnort").textContent = d.snort;
+    document.getElementById("dFeatures").innerHTML = d.feats.map(f => `<div class="ft-card"><span>${f[0]}</span><b>${f[1]}</b></div>`).join("");
+  });
+});
+
+// Filtres de catégories
+const filterBtns = document.querySelectorAll(".filters button");
+filterBtns.forEach(btn => {
+  btn.addEventListener("click", () => {
+    filterBtns.forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const cat = btn.dataset.cat;
+    items.forEach(item => {
+      if (cat === "all" || item.dataset.cat === cat) {
+        item.style.display = "flex";
+      } else {
+        item.style.display = "none";
+      }
+    });
+  });
+});
+
+function copyRule() {
+  const text = document.getElementById("dRule").innerText.replace("Copier", "").trim();
+  navigator.clipboard.writeText(text);
+  alert("Règle pare-feu copiée dans le presse-papier !");
+}
+</script>
+</body>
+</html>

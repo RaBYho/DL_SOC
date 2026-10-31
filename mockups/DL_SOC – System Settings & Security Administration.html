@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DL_SOC – System Settings & Security Administration</title>
+<style>
+:root{--bg:#14151e;--side:#1b1c28;--panel:#222333;--panel2:#2c2d42;--line:#363853;--tx:#eceefa;--mu:#8e90ad;--ac:#4a57e0;--ac2:#9b5cf6;--ok:#3ddc97;--lo:#6c8cff;--md:#ffb547;--hi:#ff8a4c;--cr:#ff4d7e;--zd:#b266ff;--r:18px;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+a{color:#8fa0ff;text-decoration:none}a:hover{color:#c4ccff}
+.app{display:grid;grid-template-columns:224px 1fr;min-height:100vh}
+.side{background:var(--side);padding:24px 14px;position:sticky;top:0;align-self:start;height:100vh;display:flex;flex-direction:column;gap:4px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;padding:0 10px 22px}
+.logo span{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--ac),var(--ac2))}
+.nv{display:flex;gap:12px;align-items:center;width:100%;min-height:44px;padding:0 14px;border:0;border-radius:10px;background:none;color:#a9abc6;text-align:left;font:inherit;text-decoration:none;cursor:pointer}
+.nv i{width:14px;height:14px;border-radius:4px;border:2px solid currentColor}
+.nv:hover{background:var(--panel2);color:var(--tx)}
+.nv[aria-current]{background:var(--ac);color:#fff;font-weight:600}
+.sf{margin-top:auto;padding:12px;border-radius:12px;background:var(--panel2);display:flex;gap:10px;align-items:center;color:var(--mu);font-size:12.5px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:p 1.8s infinite;flex:none}
+@keyframes p{70%{box-shadow:0 0 0 7px transparent}}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:20px 28px 12px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;border-bottom:1px solid rgba(54,56,83,0.5)}
+h1{font-size:22px;margin:0;font-weight:700}h1 small{display:block;font-weight:400;color:var(--mu);font-size:13px;margin-top:2px}
+.sp{flex:1}
+.stat-pill{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:12px;background:var(--panel);font-size:13px}
+main{padding:24px 28px 40px;display:flex;flex-direction:column;gap:24px;max-width:1400px}
+.card{background:var(--panel);border-radius:var(--r);padding:24px;display:flex;flex-direction:column;gap:18px}
+.card-hdr{display:flex;justify-content:space-between;align-items:flex-start}
+.card-hdr h2{margin:0;font-size:17px;font-weight:700}
+.card-hdr p{margin:4px 0 0;font-size:13px;color:var(--mu)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media (max-width:960px){.grid2{grid-template-columns:1fr}}
+.form-group{display:flex;flex-direction:column;gap:6px}
+label{font-size:13px;font-weight:600;color:#c9cbe0}
+input,select{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;color:var(--tx);font:inherit;font-size:13.5px}
+input:focus,select:focus{outline:2px solid var(--ac);outline-offset:1px}
+.check-label{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--tx);cursor:pointer}
+.check-label input{width:18px;height:18px;accent-color:var(--ac);cursor:pointer}
+.btn{background:var(--panel2);border:1px solid var(--line);color:var(--tx);padding:9px 16px;border-radius:10px;font:inherit;font-weight:600;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:8px;transition:all .15s}
+.btn:hover{background:var(--line)}
+.btn.pri{background:linear-gradient(135deg,var(--ac),var(--ac2));border:0;color:#fff}
+.btn.pri:hover{opacity:.92}
+.btn.danger{background:rgba(255,77,126,.15);border:1px solid rgba(255,77,126,.3);color:var(--cr)}
+.btn.danger:hover{background:var(--cr);color:#fff}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-weight:600;color:var(--mu);padding:10px;border-bottom:1px solid var(--line)}
+td{padding:12px 10px;border-bottom:1px solid rgba(54,56,83,0.5);white-space:nowrap}
+.badge{padding:3px 9px;border-radius:8px;font-size:11.5px;font-weight:600}
+.badge.ok{background:rgba(61,220,151,.15);color:var(--ok)}
+.badge.warn{background:rgba(255,181,71,.15);color:var(--md)}
+.info-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(54,56,83,.4);font-size:13.5px}
+.info-row:last-child{border:0}
+.info-row span{color:var(--mu)}
+.info-row b{font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="side" aria-label="Main">
+    <div class="logo"><span></span>DL_SOC</div>
+    <a href="DL_SOC – AI Network Intrusion Detection System.html" class="nv"><i></i>Dashboard</a>
+    <a href="DL_SOC – Incident Investigation & Historical Alerts.html" class="nv"><i></i>Alerts</a>
+    <a href="DL_SOC – Threat Intelligence & Attack Taxonomy.html" class="nv"><i></i>Threat intel</a>
+    <a href="DL_SOC – Sensor Fleet & Traffic Capture Management.html" class="nv"><i></i>Sensors</a>
+    <a href="DL_SOC – Detection Models & AI Explainability.html" class="nv"><i></i>Models</a>
+    <a href="DL_SOC – System Settings & Security Administration.html" class="nv" aria-current="page"><i></i>Settings</a>
+    <div class="sf"><span class="dot"></span>4 capteurs actifs</div>
+  </nav>
+
+  <div style="min-width:0;display:flex;flex-direction:column">
+    <header>
+      <div>
+        <h1>System Settings & Security Administration<small>Environnement serveur, maintenance SQLite, clés API et préférences</small></h1>
+      </div>
+      <div class="sp"></div>
+      <div class="stat-pill"><span class="dot"></span><span>Serveur Linux Mint 22 (Uptime: <b>4h 28m</b>)</span></div>
+      <div class="stat-pill"><span>Base SQLite : <b>18.4 MB</b></span></div>
+    </header>
+
+    <main>
+      <!-- Section 1 : Environnement serveur & Daemon systemd -->
+      <section class="card">
+        <div class="card-hdr">
+          <div>
+            <h2>Environnement d'Exécution & Daemon Linux Mint</h2>
+            <p>État du processus de détection en arrière-plan géré par systemd.</p>
+          </div>
+          <span class="badge ok" style="font-size:13px;padding:5px 12px">● Service Actif (Running)</span>
+        </div>
+
+        <div class="grid2">
+          <div style="background:var(--panel2);padding:16px;border-radius:12px;display:flex;flex-direction:column;gap:4px">
+            <div class="info-row"><span>Système d'exploitation</span><b>Linux Mint 22 (base Ubuntu 24.04 LTS)</b></div>
+            <div class="info-row"><span>Interpréteur Python</span><b>Python 3.13.18</b></div>
+            <div class="info-row"><span>Moteur Deep Learning</span><b>PyTorch 2.11.0 (CPU / Fallback)</b></div>
+            <div class="info-row"><span>Interface d'écoute API</span><b class="mono">0.0.0.0:8000</b></div>
+          </div>
+          <div style="background:var(--panel2);padding:16px;border-radius:12px;display:flex;flex-direction:column;gap:4px">
+            <div class="info-row"><span>Nom de l'unité systemd</span><b class="mono">dl-soc.service</b></div>
+            <div class="info-row"><span>Processus principal</span><b>PID 7548 (uvicorn / FastAPI)</b></div>
+            <div class="info-row"><span>Emplacement du projet</span><b class="mono" style="font-size:12px">/home/hoby/.../DL_SOC</b></div>
+            <div class="info-row"><span>Mémoire consommée</span><b>248 MB RAM (stable)</b></div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button class="btn" onclick="alert('Redémarrage du service lancé...')">Redémarrer le serveur DL_SOC</button>
+          <button class="btn" onclick="alert('Affichage des logs : journalctl -u dl-soc -f')">Consulter les logs systemd</button>
+          <button class="btn pri" onclick="alert('Paramètres d\'environnement rechargés.')">Recharger la configuration</button>
+        </div>
+      </section>
+
+      <!-- Section 2 : Base de données SQLite & Rétention -->
+      <section class="card">
+        <div class="card-hdr">
+          <div>
+            <h2>Base de Données SQLite & Rétention des Flux</h2>
+            <p>Gestion du stockage local des paquets et nettoyage automatique de l'historique.</p>
+          </div>
+          <button class="btn" onclick="alert('Optimisation VACUUM terminée !')">Compacter la base (VACUUM)</button>
+        </div>
+
+        <div class="grid2">
+          <div style="background:var(--panel2);padding:16px;border-radius:12px;display:flex;flex-direction:column;gap:4px">
+            <div class="info-row"><span>Fichier de base</span><b class="mono">./nids.db</b></div>
+            <div class="info-row"><span>Taille sur disque</span><b>18.4 MB</b></div>
+            <div class="info-row"><span>Total des flux enregistrés</span><b>148 230 flux</b></div>
+            <div class="info-row"><span>Total des alertes d'attaques</span><b style="color:var(--cr)">3 420 alertes</b></div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+            <div class="form-group">
+              <label for="retention">Politique de purge automatique des flux</label>
+              <select id="retention">
+                <option value="15">Purger les flux de plus de 15 jours</option>
+                <option value="30" selected>Purger les flux de plus de 30 jours (Recommandé)</option>
+                <option value="60">Purger les flux de plus de 60 jours</option>
+                <option value="0">Conserver indéfiniment (Attention à l'espace disque)</option>
+              </select>
+            </div>
+            <label class="check-label">
+              <input type="checkbox" checked> Conserver indéfiniment les flux d'attaques confirmées (ne jamais purger)
+            </label>
+            <label class="check-label">
+              <input type="checkbox" checked> Enregistrer les anomalies autoencodeur (MSE &gt; 0.60)
+            </label>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:12px">
+          <button class="btn" onclick="alert('Sauvegarde téléchargée : nids_backup_20261031.sqlite')">Télécharger une sauvegarde (.sqlite)</button>
+          <button class="btn danger" onclick="if(confirm('Supprimer l\'historique des flux bénins ?')) alert('Flux purgés.')">Purger les flux bénins anciens</button>
+        </div>
+      </section>
+
+      <!-- Section 3 : Clés API des Capteurs Réseau -->
+      <section class="card">
+        <div class="card-hdr">
+          <div>
+            <h2>Clés API des Sondes Réseau (Ingestion)</h2>
+            <p>Clés d'authentification requises pour l'endpoint sécurisé <code>/ingest</code>.</p>
+          </div>
+          <button class="btn pri" onclick="prompt('Nouvelle clé générée pour le capteur :', 'soc-key-' + Math.random().toString(36).substring(2, 10))">+ Générer une clé de capteur</button>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Identifiant Sonde</th>
+              <th>Préfixe Clé</th>
+              <th>Permissions</th>
+              <th>Dernière Ingestion</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b>sensor-edge-01</b></td>
+              <td><span class="mono">sec-soc-9f8a••••••••</span></td>
+              <td>Ingestion flux (POST /ingest)</td>
+              <td>Il y a 3 secondes</td>
+              <td><span class="badge ok">Active</span></td>
+              <td><button class="btn danger" style="padding:4px 10px;font-size:12px" onclick="alert('Clé révoquée')">Révoquer</button></td>
+            </tr>
+            <tr>
+              <td><b>sensor-edge-02</b></td>
+              <td><span class="mono">sec-soc-3b1c••••••••</span></td>
+              <td>Ingestion flux (POST /ingest)</td>
+              <td>Il y a 4 secondes</td>
+              <td><span class="badge ok">Active</span></td>
+              <td><button class="btn danger" style="padding:4px 10px;font-size:12px" onclick="alert('Clé révoquée')">Révoquer</button></td>
+            </tr>
+            <tr>
+              <td><b>sensor-dmz-01</b></td>
+              <td><span class="mono">sec-soc-7a2e••••••••</span></td>
+              <td>Ingestion flux (POST /ingest)</td>
+              <td>Il y a 2 secondes</td>
+              <td><span class="badge ok">Active</span></td>
+              <td><button class="btn danger" style="padding:4px 10px;font-size:12px" onclick="alert('Clé révoquée')">Révoquer</button></td>
+            </tr>
+            <tr>
+              <td><b>lab-replay</b></td>
+              <td><span class="mono">dev-secret-key••••••••</span></td>
+              <td>Rejeu local PCAP</td>
+              <td>Il y a 12 minutes</td>
+              <td><span class="badge warn">Local Only</span></td>
+              <td><button class="btn" style="padding:4px 10px;font-size:12px">Modifier</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Section 4 : Webhooks d'Alerting & Intégrations Externes -->
+      <section class="card">
+        <div class="card-hdr">
+          <div>
+            <h2>Notifications & Webhooks Externes</h2>
+            <p>Transmettre automatiquement les alertes critiques vers Discord, Slack ou un SIEM externe.</p>
+          </div>
+          <button class="btn" onclick="alert('Notification test envoyée avec succès au webhook configuré !')">Tester le Webhook</button>
+        </div>
+
+        <div class="grid2">
+          <div class="form-group">
+            <label for="webhookUrl">URL du Webhook d'alerte (HTTP POST)</label>
+            <input id="webhookUrl" type="url" placeholder="https://discord.com/api/webhooks/... ou https://hooks.slack.com/..." value="https://discord.com/api/webhooks/1298492048/soc-alerts">
+          </div>
+          <div class="form-group">
+            <label for="minSevAlert">Seuil de déclenchement du webhook</label>
+            <select id="minSevAlert">
+              <option value="critical">Alertes CRITICAL uniquement (DDoS, Botnet)</option>
+              <option value="high" selected>Alertes HIGH et CRITICAL (Recommandé)</option>
+              <option value="all">Toutes les alertes d'attaques</option>
+              <option value="anomaly">Inclure également les anomalies 0-Day (Autoencodeur)</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 5 : Paramètres de Détection IA -->
+      <section class="card">
+        <div class="card-hdr">
+          <div>
+            <h2>Paramètres des Moteurs de Détection</h2>
+            <p>Ajustement fin des seuils du classifieur supervisé et de l'auto-encodeur.</p>
+          </div>
+          <button class="btn pri" onclick="alert('Préférences sauvegardées !')">Enregistrer les préférences</button>
+        </div>
+
+        <div class="grid2">
+          <div class="form-group">
+            <label for="confThreshold">Indice de confiance minimal DNN (Supervisé) : <b id="confVal">70%</b></label>
+            <input id="confThreshold" type="range" min="50" max="95" value="70" oninput="document.getElementById('confVal').textContent = this.value + '%'">
+            <span style="font-size:12px;color:var(--mu)">Les détections sous ce seuil sont signalées pour vérification manuelle.</span>
+          </div>
+
+          <div class="form-group">
+            <label for="aeThreshold">Seuil d'anomalie Auto-encodeur (MSE) : <b id="aeVal" style="color:var(--zd)">0.6029</b></label>
+            <input id="aeThreshold" type="range" min="0.3" max="1.0" step="0.01" value="0.60" oninput="document.getElementById('aeVal').textContent = parseFloat(this.value).toFixed(4)">
+            <span style="font-size:12px;color:var(--mu)">Calibré sur le quantile q99.9 du trafic sain d'entraînement.</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+</body>
+</html>
