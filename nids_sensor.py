@@ -8,9 +8,10 @@ def extract(pcap):
     return s.to_pandas()
 
 def to_records(df, feature_cols):
-    cols = list(dict.fromkeys(feature_cols + ["bidirectional_first_seen_ms", "src_ip",
-                                              "src_mac", "src_port", "dst_ip", "dst_port"]))
-    d = df[cols].replace([np.inf, -np.inf], np.nan)       # inf -> NaN, le serveur met NaN -> 0
+    metadata_cols = ["bidirectional_first_seen_ms", "src_ip", "src_mac", "src_port", "dst_ip", "dst_port"]
+    all_desired = list(dict.fromkeys(feature_cols + metadata_cols))
+    available_cols = [c for c in all_desired if c in df.columns]
+    d = df[available_cols].replace([np.inf, -np.inf], np.nan)       # inf -> NaN, le serveur met NaN -> 0
     return d.astype(object).where(d.notna(), None).to_dict("records")
 
 def send(df, feature_cols, url, key, sensor_id="lab-replay", batch=500):

@@ -4,9 +4,12 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 from nids_core import Scorer
 
-BASE = os.environ["NIDS_BASE"]
-DB = os.environ.get("NIDS_DB", "/content/nids.db")
-API_KEY = os.environ["NIDS_API_KEY"]
+from pathlib import Path
+
+DEFAULT_BASE = str(Path(__file__).resolve().parent)
+BASE = os.environ.get("NIDS_BASE", DEFAULT_BASE)
+DB = os.environ.get("NIDS_DB", str(Path(BASE) / "nids.db"))
+API_KEY = os.environ.get("NIDS_API_KEY", "dev-secret-key")
 
 scorer = Scorer(BASE)
 app = FastAPI()

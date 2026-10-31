@@ -4,10 +4,11 @@ class Scorer:
     """Rejoue exactement la chaîne d'entraînement : colonnes -> nettoyage -> log1p -> scaler -> DNN."""
     def __init__(self, base, version="v4", device=None):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self.feature_cols = json.load(open(f"{base}/models/feature_cols.json"))
-        self.classes = json.load(open(f"{base}/models/classes.json") if not isinstance(json.load(open(f"{base}/models/classes.json")), dict) else list(json.load(open(f"{base}/models/classes.json")).keys()))
-        if isinstance(self.classes, dict):
-            self.classes = list(self.classes.keys())
+        with open(f"{base}/models/feature_cols.json", "r", encoding="utf-8") as f:
+            self.feature_cols = json.load(f)
+        with open(f"{base}/models/classes.json", "r", encoding="utf-8") as f:
+            classes_data = json.load(f)
+        self.classes = list(classes_data.keys()) if isinstance(classes_data, dict) else classes_data
         self.scaler = joblib.load(f"{base}/models/scaler_{version}.joblib")
         ck = torch.load(f"{base}/models/dnn_{version}.pt", map_location=self.device)
         a = ck["architecture"]
@@ -19,6 +20,8 @@ class Scorer:
         self.model.eval()
 
     def predict_df(self, flows: pd.DataFrame) -> pd.DataFrame:
+        if len(flows) == 0:
+            return pd.DataFrame(columns=["pred_id", "pred", "confiance"], index=flows.index)
         manquantes = [c for c in self.feature_cols if c not in flows.columns]
         if manquantes:
             raise ValueError(f"Colonnes manquantes : {manquantes}")

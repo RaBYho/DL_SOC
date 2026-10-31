@@ -7,6 +7,14 @@ node_modules
 *.spec
 
 
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+*.db
+
 # local env files
 .env.local
 .env.*.local
