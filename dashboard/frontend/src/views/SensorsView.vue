@@ -12,9 +12,20 @@
 
     <!-- Onglet 1 : Simulateur & Rejeu PCAP (Laboratoire) -->
     <div v-if="activeTab === 'replay'" class="tab-pane">
-      <div class="grid">
+      <div class="grid replay-grid">
+        <!-- 1. Catalogue des Scénarios d'Attaques (Sélection à gauche) -->
+        <ReplayScenarioCatalog
+          class="c5"
+          :pcapFiles="store.pcapFiles"
+          :selectedPcap="selectedPcap"
+          :isRunning="store.replayStatus.active"
+          :activePcapName="store.replayStatus.pcap_name"
+          @select="selectScenario"
+        />
+
+        <!-- 2. Panneau de Contrôle & Injection Directe (Action & Supervision à droite) -->
         <ReplayControlPanel
-          class="c6"
+          class="c7"
           v-model:selectedPcap="selectedPcap"
           v-model:replaySpeed="replaySpeed"
           :selectedPcapMeta="selectedPcapMeta"
@@ -26,20 +37,12 @@
           @resume="resumeReplay"
           @stop="stopReplay"
         />
-
-        <ReplayScenarioCatalog
-          class="c6"
-          :pcapFiles="store.pcapFiles"
-          :selectedPcap="selectedPcap"
-          :isRunning="store.replayStatus.active"
-          :activePcapName="store.replayStatus.pcap_name"
-          @select="selectScenario"
-        />
       </div>
     </div>
 
     <!-- Onglet 2 : Parc de Sondes Réseau (Supervision Edge & Agents Réels) -->
     <div v-else class="tab-pane fleet-tab-pane">
+      <!-- Bandeau des 4 KPIs opérationnels de la flotte -->
       <FleetKpiStrip
         :sensorsCount="store.sensorsList.length"
         :sensorsOnline="store.sensorsOnline"
@@ -47,17 +50,24 @@
         :totalAttacks="totalFleetAttacks"
       />
 
-      <div class="grid">
-        <FleetSensorsList
-          class="c7"
-          :sensors="store.sensorsList"
-          :onlineCount="store.sensorsOnline"
-          @filterAlerts="filterAlertsBySensor"
-          @switchTab="activeTab = $event"
+      <!-- Guide de Déploiement Déroulant (Collapsible Onboarding Hub) -->
+      <transition name="slide-fade">
+        <FleetDeployHub 
+          v-if="showDeployHub" 
+          class="deploy-hub-panel"
+          @close="showDeployHub = false" 
         />
+      </transition>
 
-        <FleetDeployHub class="c5" />
-      </div>
+      <!-- Liste Principale des Sondes Réseau (Pleine Largeur avec Grille Multi-Colonnes) -->
+      <FleetSensorsList
+        :sensors="store.sensorsList"
+        :onlineCount="store.sensorsOnline"
+        :is-deploy-open="showDeployHub"
+        @toggleDeploy="showDeployHub = !showDeployHub"
+        @filterAlerts="filterAlertsBySensor"
+        @switchTab="activeTab = $event"
+      />
     </div>
   </main>
 </template>
@@ -81,6 +91,7 @@ const activeTab = ref('replay')
 const selectedPcap = ref('')
 const replaySpeed = ref(1.0)
 const isRefreshing = ref(false)
+const showDeployHub = ref(false)
 
 const selectedPcapMeta = computed(() => {
   if (!selectedPcap.value) return null
@@ -137,8 +148,38 @@ const filterAlertsBySensor = (sensorId) => {
 onMounted(async () => {
   await store.fetchSensors()
   await store.fetchPcapFiles()
+
+  // Si aucune sonde n'est encore enregistrée, on ouvre le guide de déploiement par défaut
+  if (store.sensorsList && store.sensorsList.length === 0) {
+    showDeployHub.value = true
+  }
+
   if (!selectedPcap.value && store.pcapFiles && store.pcapFiles.length > 0) {
     selectedPcap.value = store.pcapFiles[0].filename
   }
 })
 </script>
+
+<style scoped>
+.tab-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.deploy-hub-panel {
+  margin-bottom: 4px;
+}
+
+/* Animation fluide d'ouverture/fermeture du guide */
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateY(-8px);
+  opacity: 0;
+}
+</style>

@@ -7,18 +7,24 @@
       <div class="radar-sweeper"></div>
       <div class="radar-center-dot"></div>
     </div>
-    <h4 class="empty-state-title">Aucune sonde détectée pour ce filtre</h4>
+    <h4 class="empty-state-title">Aucune sonde active pour ce filtre</h4>
     <p class="empty-state-text">
-      Déployez un agent sur une machine distante avec la commande ci-contre ou lancez une simulation de rejeu PCAP pour générer des flux en direct.
+      Déployez un agent edge sur votre réseau ou lancez une simulation de rejeu PCAP pour générer et superviser des flux en direct.
     </p>
     <div class="empty-actions">
+      <button type="button" class="btn-deploy-action" @click="$emit('deploy')">
+        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 19 21 12 17 5 21 12 2"/>
+        </svg>
+        <span>Déployer un Agent</span>
+      </button>
       <button type="button" class="btn-glass" @click="$emit('switchTab', 'replay')">
         <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
         </svg>
         <span>Lancer un Rejeu PCAP</span>
       </button>
-      <button type="button" class="btn-glass" @click="$emit('resetFilter')">
+      <button type="button" class="btn-glass btn-reset" @click="$emit('resetFilter')">
         Réinitialiser le filtre
       </button>
     </div>
@@ -26,7 +32,7 @@
 </template>
 
 <script setup>
-defineEmits(['switchTab', 'resetFilter'])
+defineEmits(['switchTab', 'resetFilter', 'deploy'])
 </script>
 
 <style scoped>
@@ -108,6 +114,30 @@ defineEmits(['switchTab', 'resetFilter'])
   display: flex;
   gap: 10px;
   justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn-deploy-action {
+  height: 36px;
+  padding: 0 16px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #ffffff;
+  background: #5865f2;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(88, 101, 242, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-deploy-action:hover {
+  background: #4752c4;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(88, 101, 242, 0.45);
 }
 
 .btn-glass {

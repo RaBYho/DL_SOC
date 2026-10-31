@@ -23,6 +23,12 @@
       </div>
     </div>
   </div>
+  <div v-else class="scenario-empty-placeholder">
+    <svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+    </svg>
+    <span>Sélectionnez un scénario dans le catalogue pour afficher les détails et configurer le rejeu.</span>
+  </div>
 </template>
 
 <script setup>
@@ -109,4 +115,24 @@ defineProps({
 .text-high     { color: #ff7a45 !important; }
 .text-medium   { color: #ffb547 !important; }
 .text-info     { color: #3ddc97 !important; }
+
+.scenario-empty-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #11121d;
+  border: 1px dashed #282a40;
+  border-radius: 10px;
+  padding: 16px;
+  font-size: 12px;
+  color: #8b8ea8;
+  line-height: 1.4;
+}
+
+.placeholder-icon {
+  width: 22px;
+  height: 22px;
+  color: #5865f2;
+  flex-shrink: 0;
+}
 </style>

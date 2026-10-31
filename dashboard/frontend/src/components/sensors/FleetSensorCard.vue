@@ -3,140 +3,147 @@
     class="sensor-fleet-card"
     :class="{ 'is-online': sensor.status === 'Online', 'is-replay': sensor.type === 'replay' }"
   >
-    <!-- En-tête de la sonde -->
-    <div class="sensor-card-top">
-      <div class="sensor-badge-icon" :class="{ 'icon-replay': sensor.type === 'replay' }">
-        <svg v-if="sensor.type === 'replay'" class="sensor-svg-type" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M10 2v7.31L4.69 19.3A2 2 0 0 0 6.36 22h11.28a2 2 0 0 0 1.67-2.7L14 9.31V2"/>
-          <line x1="8.5" y1="2" x2="15.5" y2="2"/>
-          <line x1="14" y1="9" x2="10" y2="9"/>
-        </svg>
-        <svg v-else class="sensor-svg-type" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
-          <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
-          <line x1="6" y1="6" x2="6.01" y2="6"/>
-          <line x1="6" y1="18" x2="6.01" y2="18"/>
-        </svg>
+    <!-- 1. En-tête Principal de la Sonde -->
+    <div class="sensor-header-row">
+      <div class="sensor-identity">
+        <div class="sensor-icon-box" :class="{ 'icon-replay': sensor.type === 'replay' }">
+          <svg v-if="sensor.type === 'replay'" class="sensor-type-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 2v7.31L4.69 19.3A2 2 0 0 0 6.36 22h11.28a2 2 0 0 0 1.67-2.7L14 9.31V2"/>
+            <line x1="8.5" y1="2" x2="15.5" y2="2"/>
+            <line x1="14" y1="9" x2="10" y2="9"/>
+          </svg>
+          <svg v-else class="sensor-type-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+            <line x1="6" y1="6" x2="6.01" y2="6"/>
+            <line x1="6" y1="18" x2="6.01" y2="18"/>
+          </svg>
+        </div>
+
+        <div class="sensor-title-group">
+          <div class="title-line">
+            <b class="sensor-name">{{ sensor.name }}</b>
+            <span class="type-pill" :class="sensor.type">
+              {{ sensor.type === 'replay' ? 'Simulateur PCAP Interne' : 'Agent Réseau Edge' }}
+            </span>
+          </div>
+
+          <div class="id-line">
+            <span class="sensor-id-pill" @click="copySensorId(sensor.id)" title="Cliquer pour copier l'ID">
+              <code>ID: {{ sensor.id }}</code>
+              <svg class="copy-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+            </span>
+            <span v-if="copied" class="copied-feedback">Copié ✓</span>
+          </div>
+        </div>
       </div>
 
-      <div class="sensor-headline">
-        <div class="sensor-title-row">
-          <b class="sensor-title">{{ sensor.name }}</b>
-          <span class="sensor-status-tag" :class="'tag-' + sensor.status.toLowerCase()">
-            <span class="status-indicator-dot"></span>
-            {{ sensor.status_label || sensor.status }}
-          </span>
-        </div>
+      <div class="sensor-actions-top">
+        <span class="sensor-status-badge" :class="'status-' + sensor.status.toLowerCase()">
+          <span class="status-pulse-dot"></span>
+          {{ sensor.status_label || sensor.status }}
+        </span>
 
-        <div class="sensor-ids-row">
-          <span class="sensor-id-pill" @click="copySensorId(sensor.id)" title="Cliquez pour copier l'identifiant">
-            ID: <code>{{ sensor.id }}</code>
-            <svg class="copy-small-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>
-          </span>
-          <span class="type-pill">
-            {{ sensor.type === 'replay' ? 'Simulateur PCAP Interne' : 'Agent Edge Distant' }}
-          </span>
-        </div>
+        <button 
+          type="button" 
+          class="btn-view-alerts"
+          @click="$emit('filterAlerts', sensor.id)"
+          title="Consulter les alertes associées à cette sonde"
+        >
+          <svg class="action-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span>Voir les alertes</span>
+        </button>
       </div>
     </div>
 
-    <!-- Télémétrie Réseau -->
-    <div class="sensor-telemetry-box">
-      <div class="telemetry-item">
-        <div class="telemetry-lbl-row">
-          <svg class="telemetry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 2. Grille de Télémétrie Opérationnelle -->
+    <div class="telemetry-grid">
+      <div class="telemetry-tile">
+        <div class="tile-header">
+          <svg class="tile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
             <line x1="6" y1="6" x2="6.01" y2="6"/>
           </svg>
-          <span class="telemetry-lbl">Interface d'écoute</span>
+          <span class="tile-label">Interface</span>
         </div>
-        <b class="telemetry-val">
-          <span class="eth-bullet"></span>
+        <b class="tile-val text-accent" :title="sensor.interface || (sensor.type === 'replay' ? 'Moteur PCAP' : 'eth0')">
           {{ sensor.interface || (sensor.type === 'replay' ? 'Moteur PCAP' : 'eth0') }}
         </b>
       </div>
 
-      <div class="telemetry-item">
-        <div class="telemetry-lbl-row">
-          <svg class="telemetry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <div class="telemetry-tile">
+        <div class="tile-header">
+          <svg class="tile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="20" x2="18" y2="10"/>
             <line x1="12" y1="20" x2="12" y2="4"/>
             <line x1="6" y1="20" x2="6" y2="14"/>
           </svg>
-          <span class="telemetry-lbl">Flux analysés</span>
+          <span class="tile-label">Flux Traités</span>
         </div>
-        <b class="telemetry-val">{{ (sensor.total_flows || 0).toLocaleString() }}</b>
+        <b class="tile-val">
+          {{ (sensor.total_flows || 0).toLocaleString() }}
+        </b>
       </div>
 
-      <div class="telemetry-item">
-        <div class="telemetry-lbl-row">
-          <svg class="telemetry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <div class="telemetry-tile">
+        <div class="tile-header">
+          <svg class="tile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
           </svg>
-          <span class="telemetry-lbl">Attaques bloquées</span>
+          <span class="tile-label">Menaces Détectées</span>
         </div>
-        <b class="telemetry-val" :class="{ 'text-danger': (sensor.total_attacks || 0) > 0 }">
+        <b class="tile-val" :class="(sensor.total_attacks || 0) > 0 ? 'text-danger' : 'text-success'">
           {{ (sensor.total_attacks || 0).toLocaleString() }}
         </b>
       </div>
 
-      <div class="telemetry-item">
-        <div class="telemetry-lbl-row">
-          <svg class="telemetry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <div class="telemetry-tile">
+        <div class="tile-header">
+          <svg class="tile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 16 14"/>
           </svg>
-          <span class="telemetry-lbl">Dernier Heartbeat</span>
+          <span class="tile-label">Dernier Heartbeat</span>
         </div>
-        <span class="telemetry-val text-muted">
-          {{ sensor.last_seen || 'En attente' }}
-          <span v-if="sensor.elapsed_sec" class="elapsed-badge">({{ formatElapsed(sensor.elapsed_sec) }})</span>
-        </span>
+        <div class="tile-val-stack">
+          <span class="tile-val-main">{{ sensor.last_seen || 'En attente' }}</span>
+          <span v-if="sensor.elapsed_sec" class="tile-val-sub">
+            ({{ formatElapsed(sensor.elapsed_sec) }})
+          </span>
+        </div>
       </div>
     </div>
 
-    <!-- Jauge de Ratio -->
-    <div class="sensor-threat-ratio">
-      <div class="ratio-labels">
-        <span>Répartition du trafic</span>
-        <b>{{ attackPct }}% malveillant</b>
-      </div>
-      <div class="threat-ratio-bar">
-        <div class="ratio-fill-danger" :style="{ width: `${attackPct}%` }"></div>
-        <div class="ratio-fill-benign" :style="{ width: `${100 - attackPct}%` }"></div>
-      </div>
-    </div>
-
-    <!-- Pied de carte -->
-    <div class="sensor-card-footer">
-      <div class="sensor-protocol-tag">
-        <svg class="proto-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-        </svg>
-        <span>Moteur : Scorer IA v4 + AE</span>
+    <!-- 3. Barre de Répartition et Santé du Trafic -->
+    <div class="traffic-health-row">
+      <div class="health-meta">
+        <div class="health-labels">
+          <span class="health-title">Répartition du trafic réseau</span>
+          <span class="health-breakdown">
+            <span class="benign-dot"></span> {{ (100 - attackPct).toFixed(1) }}% bénin
+            <span class="sep">&middot;</span>
+            <span class="attack-dot"></span> {{ attackPct.toFixed(1) }}% malveillant
+          </span>
+        </div>
+        <span class="engine-tag">Moteur DNN-v4 + AE</span>
       </div>
 
-      <button 
-        type="button" 
-        class="btn-sensor-action"
-        @click="$emit('filterAlerts', sensor.id)"
-        title="Voir toutes les alertes de cette sonde dans la table d'incidents"
-      >
-        <svg class="action-btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"/>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-        </svg>
-        <span>Voir les alertes</span>
-      </button>
+      <div class="health-bar-track">
+        <div class="bar-fill-attack" :style="{ width: `${attackPct}%` }" :title="`Attaques : ${attackPct}%`"></div>
+        <div class="bar-fill-benign" :style="{ width: `${100 - attackPct}%` }" :title="`Trafic sain : ${100 - attackPct}%`"></div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 
 const props = defineProps({
   sensor: {
@@ -147,6 +154,8 @@ const props = defineProps({
 
 defineEmits(['filterAlerts'])
 
+const copied = ref(false)
+
 const attackPct = computed(() => {
   if (!props.sensor.total_flows) return 0
   const pct = ((props.sensor.total_attacks || 0) / props.sensor.total_flows) * 100
@@ -155,14 +164,16 @@ const attackPct = computed(() => {
 
 const formatElapsed = (sec) => {
   if (!sec && sec !== 0) return ''
-  if (sec < 60) return `${Math.round(sec)}s`
-  if (sec < 3600) return `${Math.round(sec / 60)} min`
-  return `${(sec / 3600).toFixed(1)} h`
+  if (sec < 60) return `il y a ${Math.round(sec)}s`
+  if (sec < 3600) return `il y a ${Math.round(sec / 60)} min`
+  return `il y a ${(sec / 3600).toFixed(1)} h`
 }
 
 const copySensorId = async (id) => {
   try {
     await navigator.clipboard.writeText(id)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
   } catch (e) {
     console.error('Clipboard copy error:', e)
   }
@@ -171,68 +182,127 @@ const copySensorId = async (id) => {
 
 <style scoped>
 .sensor-fleet-card {
-  background: linear-gradient(180deg, rgba(22, 24, 38, 0.95) 0%, rgba(16, 17, 28, 0.95) 100%);
+  background: linear-gradient(180deg, rgba(24, 26, 40, 0.95) 0%, rgba(18, 19, 30, 0.95) 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 16px 18px;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 14px;
+  padding: 16px 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .sensor-fleet-card:hover {
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   transform: translateY(-1px);
 }
 
 .sensor-fleet-card.is-online { border-left: 3px solid #3ddc97; }
 .sensor-fleet-card.is-replay { border-left: 3px solid #5865f2; }
 
-.sensor-card-top {
+/* 1. Header */
+.sensor-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.sensor-identity {
   display: flex;
   align-items: center;
   gap: 14px;
 }
 
-.sensor-badge-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
-  background: #1b1d2e;
-  border: 1px solid #2e314a;
+.sensor-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  background: rgba(88, 101, 242, 0.12);
+  border: 1px solid rgba(88, 101, 242, 0.25);
+  color: #8fa0ff;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #8fa0ff;
   flex-shrink: 0;
 }
 
-.sensor-badge-icon.icon-replay {
-  color: #c4b5fd;
+.sensor-icon-box.icon-replay {
+  background: rgba(155, 92, 246, 0.12);
   border-color: rgba(155, 92, 246, 0.3);
-  background: rgba(155, 92, 246, 0.1);
+  color: #c4b5fd;
 }
 
-.sensor-svg-type { width: 22px; height: 22px; }
+.sensor-type-svg { width: 22px; height: 22px; }
 
-.sensor-headline {
-  flex: 1;
+.sensor-title-group {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.sensor-title-row {
+.title-line {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.sensor-title { font-size: 15px; color: #ffffff; }
+.sensor-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.2px;
+}
 
-.sensor-status-tag {
+.type-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8b8ea8;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.id-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sensor-id-pill {
+  font-size: 11.5px;
+  color: #c4ccff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1px 7px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.2s;
+}
+
+.sensor-id-pill:hover {
+  background: rgba(88, 101, 242, 0.15);
+  border-color: #5865f2;
+}
+
+.copy-svg { width: 11px; height: 11px; color: #8fa0ff; }
+.copied-feedback { font-size: 10.5px; color: #3ddc97; font-weight: 700; }
+
+.sensor-actions-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sensor-status-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -242,32 +312,32 @@ const copySensorId = async (id) => {
   border-radius: 6px;
 }
 
-.sensor-status-tag.tag-online {
+.sensor-status-badge.status-online {
   background: rgba(61, 220, 151, 0.15);
   color: #3ddc97;
   border: 1px solid rgba(61, 220, 151, 0.35);
 }
 
-.sensor-status-tag.tag-idle {
+.sensor-status-badge.status-idle {
   background: rgba(255, 181, 71, 0.15);
   color: #ffb547;
   border: 1px solid rgba(255, 181, 71, 0.35);
 }
 
-.sensor-status-tag.tag-offline {
+.sensor-status-badge.status-offline {
   background: rgba(99, 107, 142, 0.2);
   color: #8b8ea8;
   border: 1px solid rgba(99, 107, 142, 0.3);
 }
 
-.status-indicator-dot {
+.status-pulse-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: currentColor;
 }
 
-.tag-online .status-indicator-dot {
+.status-online .status-pulse-dot {
   box-shadow: 0 0 6px #3ddc97;
   animation: pulse-dot 1.2s infinite;
 }
@@ -278,110 +348,12 @@ const copySensorId = async (id) => {
   100% { transform: scale(0.9); opacity: 0.7; }
 }
 
-.sensor-ids-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 11.5px;
-}
-
-.sensor-id-pill {
-  color: #c4ccff;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  padding: 2px 8px;
-  border-radius: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 0.2s;
-}
-
-.sensor-id-pill:hover {
-  background: rgba(88, 101, 242, 0.2);
-  border-color: #5865f2;
-}
-
-.copy-small-svg { width: 12px; height: 12px; color: #8fa0ff; }
-.type-pill { font-size: 11px; color: #7982a9; }
-
-.sensor-telemetry-box {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  background: #11121d;
-  border: 1px solid #232538;
-  border-radius: 9px;
-  padding: 10px 14px;
-}
-
-@media (max-width: 900px) {
-  .sensor-telemetry-box { grid-template-columns: repeat(2, 1fr); }
-}
-
-.telemetry-item { display: flex; flex-direction: column; gap: 3px; }
-.telemetry-lbl-row { display: flex; align-items: center; gap: 5px; }
-.telemetry-icon { width: 12px; height: 12px; color: #7982a9; }
-.telemetry-lbl { font-size: 10.5px; color: #7982a9; text-transform: uppercase; }
-
-.telemetry-val {
-  font-size: 13px;
-  font-weight: 700;
-  color: #ffffff;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.eth-bullet {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #5865f2;
-}
-
-.elapsed-badge { font-size: 10.5px; color: #8b8ea8; font-weight: normal; }
-
-.sensor-threat-ratio { display: flex; flex-direction: column; gap: 4px; }
-.ratio-labels { display: flex; justify-content: space-between; font-size: 11px; color: #7982a9; }
-.ratio-labels b { color: #ff4d7e; }
-
-.threat-ratio-bar {
-  height: 5px;
-  background: #1c1d2c;
-  border-radius: 999px;
-  overflow: hidden;
-  display: flex;
-}
-
-.ratio-fill-danger { height: 100%; background: #ff4d7e; transition: width 0.3s; }
-.ratio-fill-benign { height: 100%; background: #3ddc97; transition: width 0.3s; }
-
-.sensor-card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.sensor-protocol-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: #7982a9;
-}
-
-.proto-svg { width: 13px; height: 13px; color: #3ddc97; }
-
-.btn-sensor-action {
+.btn-view-alerts {
   height: 30px;
   padding: 0 12px;
   font-size: 11.5px;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: 7px;
   background: rgba(88, 101, 242, 0.12);
   border: 1px solid rgba(88, 101, 242, 0.3);
   color: #8fa0ff;
@@ -392,9 +364,127 @@ const copySensorId = async (id) => {
   transition: all 0.2s;
 }
 
-.btn-sensor-action:hover { background: #5865f2; color: #ffffff; }
-.action-btn-svg { width: 12px; height: 12px; }
+.btn-view-alerts:hover {
+  background: #5865f2;
+  color: #ffffff;
+  border-color: #5865f2;
+}
 
-.text-danger { color: #ff4d7e !important; }
-.text-muted  { color: #7982a9 !important; }
+.action-icon-svg { width: 12px; height: 12px; }
+
+/* 2. Telemetry Grid */
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  background: #11121d;
+  border: 1px solid #232538;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+@media (max-width: 900px) {
+  .telemetry-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.telemetry-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tile-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tile-icon { width: 12px; height: 12px; color: #7982a9; }
+.tile-label { font-size: 10.5px; color: #7982a9; text-transform: uppercase; font-weight: 600; }
+
+.tile-val {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tile-val-stack {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.tile-val-main { 
+  font-size: 13.5px; 
+  font-weight: 700; 
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tile-val-sub { font-size: 10.5px; color: #7982a9; }
+
+.text-accent  { color: #8fa0ff !important; }
+.text-danger  { color: #ff4d7e !important; }
+.text-success { color: #3ddc97 !important; }
+
+/* 3. Traffic Health */
+.traffic-health-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.health-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+
+.health-labels {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.health-title { color: #8b8ea8; font-weight: 600; }
+.health-breakdown { color: #c4ccff; }
+.benign-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #3ddc97; margin-right: 3px; }
+.attack-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #ff4d7e; margin-right: 3px; }
+.sep { color: #4e5270; margin: 0 4px; }
+
+.engine-tag {
+  font-size: 10px;
+  color: #7982a9;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.health-bar-track {
+  height: 6px;
+  background: #1a1c2a;
+  border-radius: 999px;
+  overflow: hidden;
+  display: flex;
+}
+
+.bar-fill-attack {
+  height: 100%;
+  background: #ff4d7e;
+  transition: width 0.3s;
+}
+
+.bar-fill-benign {
+  height: 100%;
+  background: #3ddc97;
+  transition: width 0.3s;
+}
 </style>

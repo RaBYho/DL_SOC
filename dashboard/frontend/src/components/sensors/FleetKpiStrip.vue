@@ -101,6 +101,10 @@ const cards = computed(() => [
   .fleet-kpis-strip { grid-template-columns: repeat(2, 1fr); }
 }
 
+@media (max-width: 580px) {
+  .fleet-kpis-strip { grid-template-columns: 1fr; }
+}
+
 .fleet-kpi-card {
   background: linear-gradient(180deg, rgba(26, 28, 44, 0.95) 0%, rgba(18, 19, 30, 0.95) 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);

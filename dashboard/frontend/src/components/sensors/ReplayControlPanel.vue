@@ -2,9 +2,9 @@
   <div class="card control-panel-card">
     <div class="card-header-row">
       <div>
-        <h3 class="section-title">Injection de Scénarios d'Attaques</h3>
+        <h3 class="section-title">Configuration &amp; Contrôle du Rejeu</h3>
         <p class="section-subtitle">
-          Simulez des captures réelles pour tester la robustesse et la réactivité du modèle Deep Learning.
+          Sélectionnez et injectez des flux PCAP labellisés pour tester la robustesse et la réactivité de l'IA.
         </p>
       </div>
       <span v-if="replayStatus.active" class="badge-running" :class="{ 'is-paused': replayStatus.is_paused }">

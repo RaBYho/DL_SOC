@@ -117,11 +117,14 @@ main {
 .c4 { grid-column: span 4; }
 .c5 { grid-column: span 5; }
 .c6 { grid-column: span 6; }
+.c7 { grid-column: span 7; }
+.c8 { grid-column: span 8; }
 .c9 { grid-column: span 9; }
+.c10 { grid-column: span 10; }
 .c12 { grid-column: span 12; }
 
 @media (max-width: 1200px) {
-  .c3, .c4, .c5, .c6, .c9 {
+  .c3, .c4, .c5, .c6, .c7, .c8, .c9, .c10 {
     grid-column: span 12;
   }
 }

@@ -1,17 +1,35 @@
 <template>
   <div class="card deployment-hub-card">
     <div class="deploy-header">
-      <div class="deploy-icon-badge">
-        <svg class="deploy-header-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="12 2 19 21 12 17 5 21 12 2"/>
+      <div class="deploy-header-left">
+        <div class="deploy-icon-badge">
+          <svg class="deploy-header-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 19 21 12 17 5 21 12 2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="title-with-tag">
+            <h3 class="section-title">Guide de Déploiement d'une Sonde</h3>
+            <span class="deploy-badge-tag">Intégration &amp; Onboarding</span>
+          </div>
+          <p class="section-subtitle">
+            Connectez une machine physique, virtuelle ou conteneur edge au moteur d'analyse temps réel.
+          </p>
+        </div>
+      </div>
+
+      <button 
+        type="button" 
+        class="btn-close-deploy" 
+        @click="$emit('close')"
+        title="Fermer le guide de déploiement"
+      >
+        <svg class="close-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
-      </div>
-      <div>
-        <h3 class="section-title">Déployer une Nouvelle Sonde</h3>
-        <p class="section-subtitle">
-          Ajoutez un serveur ou équipement distant au cluster de détection temps réel.
-        </p>
-      </div>
+        <span>Fermer</span>
+      </button>
     </div>
 
     <!-- Onglets de Méthode -->
@@ -154,6 +172,8 @@
 import { ref, computed } from 'vue'
 import FleetDeployFlow from './FleetDeployFlow.vue'
 
+defineEmits(['close'])
+
 const deployMethod = ref('linux')
 const copiedText = ref('')
 
@@ -192,9 +212,62 @@ const copyText = async (text) => {
 <style scoped>
 .deploy-header {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.deploy-header-left {
+  display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+}
+
+.title-with-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.deploy-badge-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: rgba(88, 101, 242, 0.18);
+  color: #9baaff;
+  border: 1px solid rgba(88, 101, 242, 0.35);
+}
+
+.btn-close-deploy {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #8b8ea8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.btn-close-deploy:hover {
+  background: rgba(255, 77, 126, 0.15);
+  border-color: rgba(255, 77, 126, 0.4);
+  color: #ff4d7e;
+}
+
+.close-svg {
+  width: 14px;
+  height: 14px;
 }
 
 .deploy-icon-badge {
