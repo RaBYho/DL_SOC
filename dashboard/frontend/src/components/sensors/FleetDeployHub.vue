@@ -14,7 +14,7 @@
       </div>
     </div>
 
-    <!-- Onglets de Méthode de Déploiement -->
+    <!-- Onglets de Méthode -->
     <div class="deploy-method-nav">
       <button 
         type="button" 
@@ -55,43 +55,10 @@
       </button>
     </div>
 
-    <!-- Schéma d'Architecture Miniature -->
-    <div class="arch-flow-box">
-      <div class="flow-step">
-        <svg class="flow-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
-          <line x1="8" y1="21" x2="16" y2="21"/>
-        </svg>
-        <span class="flow-label">Sonde Edge</span>
-      </div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="flow-step">
-        <svg class="flow-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-        </svg>
-        <span class="flow-label">POST /ingest</span>
-      </div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="flow-step">
-        <svg class="flow-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="4" y="4" width="16" height="16" rx="2" ry="2"/>
-          <rect x="9" y="9" width="6" height="6"/>
-          <line x1="9" y1="1" x2="9" y2="4"/>
-          <line x1="15" y1="1" x2="15" y2="4"/>
-        </svg>
-        <span class="flow-label">Moteur IA</span>
-      </div>
-      <div class="flow-arrow">&rarr;</div>
-      <div class="flow-step">
-        <svg class="flow-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-        </svg>
-        <span class="flow-label">Alertes SOC</span>
-      </div>
-    </div>
+    <!-- Mini-Schéma d'Architecture -->
+    <FleetDeployFlow />
 
-    <!-- Instructions Méthode 1 : Agent Linux Python -->
+    <!-- Instructions Linux -->
     <div v-if="deployMethod === 'linux'" class="deploy-steps-container">
       <div class="deploy-step">
         <div class="step-badge">1</div>
@@ -111,7 +78,7 @@
         <div class="step-badge">2</div>
         <div class="step-content">
           <b class="step-title">Lancer l'agent d'écoute en direct</b>
-          <p class="step-desc">Remplacez <code>eth0</code> par votre carte réseau (nécessite les privilèges root) :</p>
+          <p class="step-desc">Remplacez <code>eth0</code> par votre carte réseau (privilèges root requis) :</p>
           <div class="code-box-wrapper">
             <pre class="code-block">{{ linuxDeployCommand }}</pre>
             <button type="button" class="btn-copy-code" @click="copyText(linuxDeployCommand)">
@@ -120,25 +87,15 @@
           </div>
         </div>
       </div>
-
-      <div class="deploy-step">
-        <div class="step-badge">3</div>
-        <div class="step-content">
-          <b class="step-title">Accréditation &amp; Sécurité</b>
-          <p class="step-desc">
-            Clé d'API configurée : <code>dev-secret-key</code> (modifiable dans les paramètres du SOC).
-          </p>
-        </div>
-      </div>
     </div>
 
-    <!-- Instructions Méthode 2 : Conteneur Docker -->
+    <!-- Instructions Docker -->
     <div v-else-if="deployMethod === 'docker'" class="deploy-steps-container">
       <div class="deploy-step">
         <div class="step-badge">1</div>
         <div class="step-content">
           <b class="step-title">Exécution dans le réseau de l'hôte</b>
-          <p class="step-desc">Pour capturer le trafic réel, le conteneur doit utiliser le mode <code>--net=host</code> :</p>
+          <p class="step-desc">Pour capturer le trafic réel, le conteneur utilise le mode <code>--net=host</code> :</p>
           <div class="code-box-wrapper">
             <pre class="code-block">{{ dockerDeployCommand }}</pre>
             <button type="button" class="btn-copy-code" @click="copyText(dockerDeployCommand)">
@@ -147,23 +104,14 @@
           </div>
         </div>
       </div>
-
-      <div class="deploy-step">
-        <div class="step-badge">2</div>
-        <div class="step-content">
-          <b class="step-title">Tolérance aux pannes</b>
-          <p class="step-desc">L'agent Docker redémarre automatiquement et met en mémoire tampon les flux en cas de micro-coupure réseau.</p>
-        </div>
-      </div>
     </div>
 
-    <!-- Instructions Méthode 3 : Test API cURL -->
+    <!-- Instructions cURL API -->
     <div v-else class="deploy-steps-container">
       <div class="deploy-step">
         <div class="step-badge">1</div>
         <div class="step-content">
           <b class="step-title">Tester la connectivité du serveur</b>
-          <p class="step-desc">Vérifiez que le serveur SOC répond bien sur le port 8000 :</p>
           <div class="code-box-wrapper">
             <pre class="code-block">curl -i {{ serverBaseUrl }}/health</pre>
             <button type="button" class="btn-copy-code" @click="copyText(`curl -i ${serverBaseUrl}/health`)">
@@ -177,7 +125,6 @@
         <div class="step-badge">2</div>
         <div class="step-content">
           <b class="step-title">Transmettre un flux de test</b>
-          <p class="step-desc">Envoyez une charge utile JSON standard avec l'en-tête d'authentification :</p>
           <div class="code-box-wrapper">
             <pre class="code-block">{{ curlTestCommand }}</pre>
             <button type="button" class="btn-copy-code" @click="copyText(curlTestCommand)">
@@ -188,7 +135,7 @@
       </div>
     </div>
 
-    <!-- Fiche de Bonnes Pratiques -->
+    <!-- Conseil de Durcissement -->
     <div class="deploy-tip-box">
       <svg class="tip-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"/>
@@ -196,8 +143,8 @@
         <line x1="12" y1="8" x2="12.01" y2="8"/>
       </svg>
       <div class="tip-body">
-        <b>Conseil de durcissement en production :</b>
-        Activez le mode promiscuité sur le switch (port mirroring / SPAN) afin que la sonde capture tout le trafic du segment réseau.
+        <b>Conseil en production :</b>
+        Activez le mode promiscuité sur le switch (port mirroring / SPAN) afin de capturer tout le trafic du segment.
       </div>
     </div>
   </div>
@@ -205,6 +152,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import FleetDeployFlow from './FleetDeployFlow.vue'
 
 const deployMethod = ref('linux')
 const copiedText = ref('')
@@ -261,10 +209,7 @@ const copyText = async (text) => {
   color: #8fa0ff;
 }
 
-.deploy-header-svg {
-  width: 20px;
-  height: 20px;
-}
+.deploy-header-svg { width: 20px; height: 20px; }
 
 .section-title {
   margin: 0;
@@ -308,61 +253,19 @@ const copyText = async (text) => {
   transition: all 0.2s;
 }
 
-.deploy-tab-btn:hover {
-  color: #ffffff;
-}
-
+.deploy-tab-btn:hover { color: #ffffff; }
 .deploy-tab-btn.active {
   background: #5865f2;
   color: #ffffff;
   box-shadow: 0 2px 10px rgba(88, 101, 242, 0.35);
 }
 
-.method-svg {
-  width: 14px;
-  height: 14px;
-}
-
-.arch-flow-box {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: #11121d;
-  border: 1px solid #232538;
-  border-radius: 10px;
-  padding: 10px 14px;
-  margin-bottom: 16px;
-}
-
-.flow-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.flow-svg {
-  width: 16px;
-  height: 16px;
-  color: #8fa0ff;
-}
-
-.flow-label {
-  font-size: 10px;
-  color: #7982a9;
-  font-weight: 600;
-}
-
-.flow-arrow {
-  color: #4a57e0;
-  font-size: 14px;
-  font-weight: 800;
-}
+.method-svg { width: 14px; height: 14px; }
 
 .deploy-steps-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .deploy-step {
@@ -386,22 +289,9 @@ const copyText = async (text) => {
   margin-top: 1px;
 }
 
-.step-content {
-  flex: 1;
-}
-
-.step-title {
-  display: block;
-  font-size: 13px;
-  color: #ffffff;
-}
-
-.step-desc {
-  margin: 3px 0 6px;
-  font-size: 11.5px;
-  color: #8b8ea8;
-  line-height: 1.4;
-}
+.step-content { flex: 1; }
+.step-title { display: block; font-size: 13px; color: #ffffff; }
+.step-desc { margin: 3px 0 6px; font-size: 11.5px; color: #8b8ea8; line-height: 1.4; }
 
 .code-box-wrapper {
   position: relative;
@@ -439,10 +329,7 @@ const copyText = async (text) => {
   transition: all 0.2s;
 }
 
-.btn-copy-code:hover {
-  background: #5865f2;
-  color: #ffffff;
-}
+.btn-copy-code:hover { background: #5865f2; color: #ffffff; }
 
 .deploy-tip-box {
   display: flex;
@@ -455,23 +342,7 @@ const copyText = async (text) => {
   margin-top: 18px;
 }
 
-.tip-svg {
-  width: 18px;
-  height: 18px;
-  color: #ffb547;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.tip-body {
-  font-size: 11.5px;
-  color: #ffb547;
-  line-height: 1.4;
-}
-
-.tip-body b {
-  color: #ffd08a;
-  display: block;
-  margin-bottom: 2px;
-}
+.tip-svg { width: 18px; height: 18px; color: #ffb547; flex-shrink: 0; margin-top: 2px; }
+.tip-body { font-size: 11.5px; color: #ffb547; line-height: 1.4; }
+.tip-body b { color: #ffd08a; display: block; margin-bottom: 2px; }
 </style>

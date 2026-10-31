@@ -32,86 +32,22 @@
         </div>
       </div>
 
-      <!-- Fiche détaillée du scénario sélectionné -->
-      <div v-if="selectedPcapMeta" class="scenario-meta-card">
-        <div class="scenario-meta-header">
-          <div class="scenario-meta-title">
-            <span class="scenario-bullet"></span>
-            <b>{{ selectedPcapMeta.title }}</b>
-          </div>
-          <span class="sev-tag" :class="selectedPcapMeta.severity">{{ selectedPcapMeta.category }}</span>
-        </div>
-        <p class="scenario-desc">{{ selectedPcapMeta.description }}</p>
-        <div class="scenario-chips">
-          <div class="chip">
-            <span class="chip-label">Fichier :</span>
-            <code class="chip-val">{{ selectedPcapMeta.filename }}</code>
-          </div>
-          <div class="chip">
-            <span class="chip-label">Taille :</span>
-            <b class="chip-val">{{ selectedPcapMeta.size_mb }} Mo</b>
-          </div>
-          <div class="chip">
-            <span class="chip-label">Niveau d'impact :</span>
-            <b class="chip-val" :class="'text-' + (selectedPcapMeta.severity || 'Medium').toLowerCase()">{{ selectedPcapMeta.severity }}</b>
-          </div>
-        </div>
-      </div>
+      <!-- Fiche détaillée du scénario -->
+      <ReplayScenarioDetails :scenario="selectedPcapMeta" />
 
-      <!-- Sélecteur de Vitesse avec Segmented Control -->
-      <div class="field-group">
-        <div class="field-header">
-          <label class="field-label">Vitesse d'Injection Réseau</label>
-          <span class="rate-indicator">{{ (replaySpeed * 25).toFixed(0) }} flux/seconde estimés</span>
-        </div>
-        <div class="speed-segmented-control">
-          <button 
-            v-for="s in [0.5, 1.0, 2.0, 5.0, 10.0]" 
-            :key="s"
-            type="button"
-            class="speed-btn"
-            :class="{ active: replaySpeed === s }"
-            @click="$emit('update:replaySpeed', s)"
-            :disabled="replayStatus.active"
-          >
-            {{ s }}x
-            <span v-if="s === 1.0" class="speed-badge-norm">Normal</span>
-            <span v-else-if="s === 10.0" class="speed-badge-turbo">Turbo</span>
-          </button>
-        </div>
-      </div>
+      <!-- Sélecteur de Vitesse -->
+      <ReplaySpeedControl 
+        :speed="replaySpeed"
+        :disabled="replayStatus.active"
+        @update:speed="$emit('update:replaySpeed', $event)"
+      />
 
       <!-- Carte de Progression Live -->
-      <div v-if="replayStatus.active" class="replay-progress-card">
-        <div class="progress-top">
-          <span class="progress-file-info">
-            <span class="progress-glow-dot"></span>
-            Rejeu en cours : <b>{{ replayStatus.pcap_name }}</b>
-          </span>
-          <span class="progress-pct">{{ (replayStatus.progress_pct || 0).toFixed(1) }}%</span>
-        </div>
-
-        <div class="progress-track">
-          <div class="progress-bar-fill" :style="{ width: `${replayStatus.progress_pct || 0}%` }">
-            <span class="progress-laser"></span>
-          </div>
-        </div>
-
-        <div class="progress-kpi-grid">
-          <div class="progress-kpi">
-            <span class="kpi-label">Flux Traités</span>
-            <b class="kpi-val">{{ replayStatus.processed_flows }} / {{ replayStatus.total_flows }}</b>
-          </div>
-          <div class="progress-kpi">
-            <span class="kpi-label">Vitesse Active</span>
-            <b class="kpi-val text-accent">{{ replayStatus.speed }}x</b>
-          </div>
-          <div class="progress-kpi">
-            <span class="kpi-label">Menaces Interceptées</span>
-            <b class="kpi-val text-danger">{{ replayStatus.total_alerts || totalAttacks }}</b>
-          </div>
-        </div>
-      </div>
+      <ReplayProgressBar 
+        v-if="replayStatus.active"
+        :replay-status="replayStatus"
+        :total-attacks="totalAttacks"
+      />
 
       <!-- Commandes du Rejeu -->
       <div class="controls-row">
@@ -185,6 +121,10 @@
 </template>
 
 <script setup>
+import ReplayScenarioDetails from './ReplayScenarioDetails.vue'
+import ReplaySpeedControl from './ReplaySpeedControl.vue'
+import ReplayProgressBar from './ReplayProgressBar.vue'
+
 defineProps({
   selectedPcap: {
     type: String,
@@ -266,22 +206,10 @@ defineEmits(['update:selectedPcap', 'update:replaySpeed', 'start', 'pause', 'res
   gap: 6px;
 }
 
-.field-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
 .field-label {
   font-size: 12px;
   font-weight: 600;
   color: #c4ccff;
-}
-
-.rate-indicator {
-  font-size: 11.5px;
-  color: #8fa0ff;
-  font-weight: 600;
 }
 
 .select-wrapper {
@@ -317,211 +245,6 @@ defineEmits(['update:selectedPcap', 'update:replaySpeed', 'start', 'pause', 'res
   font-size: 10px;
   color: #8b8ea8;
   pointer-events: none;
-}
-
-.scenario-meta-card {
-  background: #131422;
-  border: 1px solid #282a40;
-  border-left: 3px solid #5865f2;
-  border-radius: 10px;
-  padding: 14px;
-}
-
-.scenario-meta-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.scenario-meta-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13.5px;
-  color: #ffffff;
-}
-
-.scenario-bullet {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #5865f2;
-}
-
-.scenario-desc {
-  font-size: 12.5px;
-  color: #9aa5ce;
-  margin: 0 0 12px;
-  line-height: 1.45;
-}
-
-.scenario-chips {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-  background: rgba(255, 255, 255, 0.04);
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.chip-label {
-  color: #7982a9;
-}
-
-.chip-val {
-  color: #ffffff;
-}
-
-.speed-segmented-control {
-  display: flex;
-  background: #121320;
-  padding: 4px;
-  border-radius: 10px;
-  border: 1px solid #26283d;
-  gap: 4px;
-}
-
-.speed-btn {
-  flex: 1;
-  height: 36px;
-  background: transparent;
-  border: none;
-  border-radius: 7px;
-  color: #8b8ea8;
-  font-size: 12.5px;
-  font-weight: 700;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  transition: all 0.2s;
-}
-
-.speed-btn:hover:not(:disabled) {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.speed-btn.active {
-  background: #5865f2;
-  color: #ffffff;
-  box-shadow: 0 2px 10px rgba(88, 101, 242, 0.4);
-}
-
-.speed-badge-norm, .speed-badge-turbo {
-  font-size: 9px;
-  padding: 1px 4px;
-  border-radius: 4px;
-}
-
-.speed-badge-norm { background: rgba(255, 255, 255, 0.2); }
-.speed-badge-turbo { background: rgba(255, 77, 126, 0.3); color: #ff85a5; }
-
-.replay-progress-card {
-  background: #121320;
-  border: 1px solid #2d3049;
-  border-radius: 12px;
-  padding: 14px 16px;
-}
-
-.progress-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12.5px;
-  margin-bottom: 8px;
-}
-
-.progress-file-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #c4ccff;
-}
-
-.progress-glow-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #3ddc97;
-  box-shadow: 0 0 8px #3ddc97;
-  animation: pulse-dot 1s infinite;
-}
-
-@keyframes pulse-dot {
-  0% { transform: scale(0.9); opacity: 0.7; }
-  50% { transform: scale(1.4); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.7; }
-}
-
-.progress-pct {
-  font-size: 14px;
-  font-weight: 800;
-  color: #3ddc97;
-}
-
-.progress-track {
-  height: 8px;
-  background: #1c1d2e;
-  border-radius: 999px;
-  overflow: hidden;
-  position: relative;
-}
-
-.progress-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #5865f2 0%, #3ddc97 100%);
-  border-radius: 999px;
-  transition: width 0.3s ease;
-  position: relative;
-}
-
-.progress-laser {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 12px;
-  background: #ffffff;
-  box-shadow: 0 0 10px #ffffff;
-  opacity: 0.8;
-}
-
-.progress-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.progress-kpi {
-  display: flex;
-  flex-direction: column;
-}
-
-.kpi-label {
-  font-size: 10.5px;
-  color: #7982a9;
-  text-transform: uppercase;
-}
-
-.kpi-val {
-  font-size: 13px;
-  font-weight: 700;
-  color: #ffffff;
-  margin-top: 2px;
 }
 
 .controls-row {
@@ -617,10 +340,7 @@ defineEmits(['update:selectedPcap', 'update:replaySpeed', 'start', 'pause', 'res
   justify-content: center;
 }
 
-.terminal-card-icon svg {
-  width: 22px;
-  height: 22px;
-}
+.terminal-card-icon svg { width: 22px; height: 22px; }
 
 .terminal-card-text {
   display: flex;
@@ -628,40 +348,8 @@ defineEmits(['update:selectedPcap', 'update:replaySpeed', 'start', 'pause', 'res
   flex: 1;
 }
 
-.terminal-card-text b {
-  font-size: 13px;
-  color: #ffffff;
-}
-
-.terminal-card-text span {
-  font-size: 11.5px;
-  color: #8b8ea8;
-  margin-top: 2px;
-}
-
-.terminal-card-arrow {
-  font-size: 18px;
-  color: #8fa0ff;
-}
-
-.svg-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.text-accent  { color: #5865f2 !important; }
-.text-danger  { color: #ff4d7e !important; }
-
-.sev-tag {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 5px;
-  text-transform: uppercase;
-}
-
-.sev-tag.Critical { background: rgba(255, 77, 126, 0.2); color: #ff4d7e; border: 1px solid rgba(255, 77, 126, 0.4); }
-.sev-tag.High     { background: rgba(255, 122, 69, 0.2); color: #ff7a45; border: 1px solid rgba(255, 122, 69, 0.4); }
-.sev-tag.Medium   { background: rgba(255, 181, 71, 0.2); color: #ffb547; border: 1px solid rgba(255, 181, 71, 0.4); }
-.sev-tag.Info     { background: rgba(61, 220, 151, 0.2); color: #3ddc97; border: 1px solid rgba(61, 220, 151, 0.4); }
+.terminal-card-text b { font-size: 13px; color: #ffffff; }
+.terminal-card-text span { font-size: 11.5px; color: #8b8ea8; margin-top: 2px; }
+.terminal-card-arrow { font-size: 18px; color: #8fa0ff; }
+.svg-icon { width: 16px; height: 16px; }
 </style>
