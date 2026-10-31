@@ -157,7 +157,9 @@ Réponse attendue :
 ```json
 {
   "ok": true,
-  "classes": ["BENIGN", "Bot", "DDoS", "DoS-GoldenEye", "DoS-Hulk", "DoS-Slowhttptest", "DoS-slowloris", "FTP-Patator", "PortScan", "SSH-Patator", "Scan-Vista", "WebAttack"]
+  "classes": ["BENIGN", "Bot", "DDoS", "DoS-GoldenEye", "DoS-Hulk", "DoS-Slowhttptest", "DoS-slowloris", "FTP-Patator", "PortScan", "SSH-Patator", "Scan-Vista", "WebAttack"],
+  "ae_enabled": true,
+  "ae_threshold": 0.6029
 }
 ```
 
@@ -200,6 +202,18 @@ Exemple de réponse :
   "BENIGN": 1420,
   "PortScan": 312,
   "DDoS": 45
+}
+```
+
+Consulter les anomalies non-supervisées (Auto-encodeur) :
+```bash
+curl -H "x-api-key: secret-soc-key-123" http://localhost:8000/stats/anomalies
+```
+Exemple de réponse :
+```json
+{
+  "total_flows": 1777,
+  "anomalies": 84
 }
 ```
 

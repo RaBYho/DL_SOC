@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 @pytest.fixture(scope="module")
 def scorer():
-    return Scorer(base=str(BASE_DIR), version="v4", device="cpu")
+    return Scorer(base=str(BASE_DIR), version="v4", ae_version="v1", device="cpu")
 
 
 @pytest.fixture(scope="module")
@@ -25,6 +25,10 @@ def test_scorer_initialization(scorer):
     assert len(scorer.feature_cols) == 58
     assert scorer.scaler is not None
     assert scorer.model is not None
+    # Auto-encodeur
+    assert scorer.has_ae is True
+    assert scorer.ae_seuil is not None
+    assert scorer.ae_model is not None
 
 
 def test_predict_df_valid(scorer, feature_cols):
@@ -37,10 +41,17 @@ def test_predict_df_valid(scorer, feature_cols):
     res = scorer.predict_df(df)
 
     assert len(res) == n_samples
-    assert list(res.columns) == ["pred_id", "pred", "confiance"]
+    assert "pred_id" in res.columns
+    assert "pred" in res.columns
+    assert "confiance" in res.columns
+    assert "mse_ae" in res.columns
+    assert "anomalie_ae" in res.columns
+
     assert res["pred_id"].dtype in [np.int32, np.int64, int]
     assert all(pred in scorer.classes for pred in res["pred"])
     assert (res["confiance"] >= 0.0).all() and (res["confiance"] <= 1.0).all()
+    assert (res["mse_ae"] >= 0.0).all()
+    assert res["anomalie_ae"].dtype == bool
 
 
 def test_predict_df_with_inf_and_nan(scorer, feature_cols):
@@ -53,6 +64,7 @@ def test_predict_df_with_inf_and_nan(scorer, feature_cols):
 
     assert len(res) == n_samples
     assert not res["confiance"].isna().any()
+    assert not res["mse_ae"].isna().any()
     assert all(pred in scorer.classes for pred in res["pred"])
 
 
@@ -70,4 +82,8 @@ def test_predict_df_empty(scorer, feature_cols):
     res = scorer.predict_df(df_empty)
 
     assert len(res) == 0
-    assert list(res.columns) == ["pred_id", "pred", "confiance"]
+    assert "pred_id" in res.columns
+    assert "pred" in res.columns
+    assert "confiance" in res.columns
+    assert "mse_ae" in res.columns
+    assert "anomalie_ae" in res.columns

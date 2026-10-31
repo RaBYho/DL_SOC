@@ -21,6 +21,7 @@ def client(tmp_path_factory):
     nids_server.BASE = str(BASE_DIR)
     nids_server.DB = str(test_db)
     nids_server.API_KEY = "test-secret-key"
+    nids_server.scorer = nids_server.Scorer(str(BASE_DIR))
 
     return TestClient(nids_server.app)
 
@@ -38,6 +39,8 @@ def test_health_endpoint(client):
     assert data["ok"] is True
     assert isinstance(data["classes"], list)
     assert len(data["classes"]) == 12
+    assert data["ae_enabled"] is True
+    assert data["ae_threshold"] is not None
 
 
 def test_ingest_unauthorized(client):
@@ -57,7 +60,11 @@ def test_ingest_empty_batch(client):
         "/ingest", json=payload, headers={"x-api-key": "test-secret-key"}
     )
     assert response.status_code == 200
-    assert response.json() == {"received": 0, "alerts": 0, "preds": []}
+    data = response.json()
+    assert data["received"] == 0
+    assert data["alerts"] == 0
+    assert data["anomalies"] == 0
+    assert data["preds"] == []
 
 
 def test_ingest_valid_flows_and_stats(client, feature_cols):
@@ -93,6 +100,7 @@ def test_ingest_valid_flows_and_stats(client, feature_cols):
     data = response.json()
     assert data["received"] == 2
     assert "alerts" in data
+    assert "anomalies" in data
     assert len(data["preds"]) == 2
 
     # Vérification du endpoint /stats
@@ -101,3 +109,11 @@ def test_ingest_valid_flows_and_stats(client, feature_cols):
     stats = stats_resp.json()
     assert isinstance(stats, dict)
     assert sum(stats.values()) == 2
+
+    # Vérification du endpoint /stats/anomalies
+    anom_resp = client.get("/stats/anomalies", headers={"x-api-key": "test-secret-key"})
+    assert anom_resp.status_code == 200
+    anom_data = anom_resp.json()
+    assert "total_flows" in anom_data
+    assert "anomalies" in anom_data
+    assert anom_data["total_flows"] == 2
