@@ -1,0 +1,40 @@
+{
+  "version": "v4",
+  "reglage": {
+    "poids_classes": "aucun",
+    "graine": 0
+  },
+  "scaler": "scaler_v4.joblib",
+  "nfstream": {
+    "statistical_analysis": true,
+    "n_dissections": 0,
+    "idle_timeout": 120,
+    "active_timeout": 1800
+  },
+  "pretraitement": "inf/-inf -> NaN -> 0 ; clip(min=0) ; log1p ; StandardScaler",
+  "split": "attaques : coupe chronologique par nombre de flux 60/20/20 (marge 1 %) ; normal : blocs de 10 min tires au hasard",
+  "plafond_train_par_classe": 40000,
+  "resultats_test_3_graines_sans_poids": {
+    "F1_macro": [
+      0.9464,
+      0.9407,
+      0.9437
+    ],
+    "attaques_ratees": [
+      364,
+      376,
+      264
+    ],
+    "fausses_alertes": [
+      387,
+      420,
+      622
+    ]
+  },
+  "limites": [
+    "Bot : test limite aux beacons",
+    "Heartbleed et Infiltration exclus",
+    "un seul labo, scores optimistes",
+    "Scan-Vista : etiquette par regle, en partie circulaire"
+  ]
+}

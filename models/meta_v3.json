@@ -1,0 +1,21 @@
+{
+  "version": "v3",
+  "reglage": {
+    "poids_classes": "aucun",
+    "graine": 0
+  },
+  "nfstream": {
+    "statistical_analysis": true,
+    "n_dissections": 0,
+    "idle_timeout": 120,
+    "active_timeout": 1800
+  },
+  "pretraitement": "inf/-inf -> NaN -> 0 ; clip(min=0) ; log1p ; StandardScaler(scaler_v3.joblib)",
+  "plafond_train_par_classe": 40000,
+  "donnees": "CIC-IDS2017 lundi-vendredi, PCAP extraits avec NFStream",
+  "limites": [
+    "Bot : test limité aux beacons",
+    "Heartbleed, Infiltration exclus (trop peu de flux)",
+    "scores obtenus sur le même labo que l'entraînement"
+  ]
+}
