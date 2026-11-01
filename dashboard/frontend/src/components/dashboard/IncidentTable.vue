@@ -33,8 +33,9 @@
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
           </svg>
           <span>Incidents Corrélés</span>
-          <span v-if="store.openIncidentsCount > 0" class="tab-badge-pulse">
-            {{ store.openIncidentsCount }}
+          <span class="tab-badge-neutral">{{ store.filteredIncidents.length }}</span>
+          <span v-if="store.openIncidentsCount > 0" class="tab-badge-pulse" title="Incidents en cours">
+            {{ store.openIncidentsCount }} en cours
           </span>
         </button>
 

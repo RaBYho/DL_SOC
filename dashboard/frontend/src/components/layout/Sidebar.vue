@@ -69,7 +69,9 @@
           <circle cx="10" cy="14.5" r="0.75" fill="currentColor" />
         </svg>
         <span>{{ store.t('nav.alerts') }}</span>
-        <span v-if="store.kpis.attacks > 0" class="nav-counter">{{ store.kpis.attacks }}</span>
+        <span v-if="incidentCount > 0" class="nav-counter" :title="incidentCount + ' incident(s) corrélé(s)'">
+          {{ incidentCount }}
+        </span>
       </router-link>
 
       <router-link to="/threat-intel" class="nv" :class="{ active: $route.path === '/threat-intel' }" @click="store.closeMobileNav">
@@ -136,8 +138,14 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useSocStore } from '@/stores/socStore'
+
 const store = useSocStore()
+
+const incidentCount = computed(() => {
+  return store.totalDbIncidents || store.incidents.length || store.openIncidentsCount || 0
+})
 </script>
 
 <style scoped>

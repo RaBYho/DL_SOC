@@ -16,7 +16,7 @@
           <path d="M10 2L3 17h14L10 2z" />
           <path d="M10 8v4" />
         </svg>
-        <span v-if="store.kpis.attacks > 0" class="mob-badge">{{ store.kpis.attacks > 99 ? '99+' : store.kpis.attacks }}</span>
+        <span v-if="incidentCount > 0" class="mob-badge">{{ incidentCount > 99 ? '99+' : incidentCount }}</span>
       </div>
       <span>{{ store.t('nav.alerts') }}</span>
     </router-link>
@@ -41,8 +41,14 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useSocStore } from '@/stores/socStore'
+
 const store = useSocStore()
+
+const incidentCount = computed(() => {
+  return store.totalDbIncidents || store.incidents.length || store.openIncidentsCount || 0
+})
 </script>
 
 <style scoped>
