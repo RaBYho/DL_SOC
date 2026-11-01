@@ -53,6 +53,30 @@ async def periodic_health_worker():
 async def on_startup():
     notification_dispatcher.start_digest_worker()
     asyncio.create_task(periodic_health_worker())
+    asyncio.create_task(periodic_incident_worker())
+
+
+async def periodic_incident_worker():
+    """Vérifie et clôture périodiquement les incidents inactifs (> 45s de silence)."""
+    while True:
+        try:
+            await asyncio.sleep(10.0)
+            closed = db_mod.close_inactive_incidents(inactivity_seconds=45.0, db_path=DB)
+            if closed:
+                for inc in closed:
+                    if not inc.get("notified_close"):
+                        asyncio.create_task(notification_dispatcher.notify_incident_closed(inc))
+                        db_mod.mark_incident_notified(inc["id"], close_notified=True, db_path=DB)
+                if ws_manager.active_connections:
+                    await ws_manager.broadcast({
+                        "type": "incidents_closed",
+                        "closed_incidents": closed,
+                        "incidents_summary": db_mod.get_incidents_summary(DB),
+                    })
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Erreur dans le worker périodique d'incidents: {e}")
 
 
 class Batch(BaseModel):
@@ -105,89 +129,35 @@ async def ingest(batch: Batch, x_api_key: str = Header(None)):
     mse_vals = res["mse_ae"] if has_ae else [None] * len(res)
     anom_vals = res["anomalie_ae"] if has_ae else [0] * len(res)
 
-    rows = [
-        (
-            now,
-            batch.sensor_id,
-            r.get("bidirectional_first_seen_ms"),
-            r.get("src_ip"),
-            r.get("src_mac"),
-            r.get("src_port"),
-            r.get("dst_ip"),
-            r.get("dst_port"),
-            r.get("protocol"),
-            p,
-            float(c),
-            float(m) if m is not None else None,
-            int(a) if a is not None else 0,
-        )
-        for r, p, c, m, a in zip(
-            batch.flows, res["pred"], res["confiance"], mse_vals, anom_vals
-        )
-    ]
+    corr_res = db_mod.insert_and_correlate_flows(
+        flow_records=batch.flows,
+        predictions=res["pred"].tolist(),
+        confidences=res["confiance"].tolist(),
+        mse_values=mse_vals.tolist() if hasattr(mse_vals, "tolist") else list(mse_vals),
+        anomaly_values=anom_vals.tolist() if hasattr(anom_vals, "tolist") else list(anom_vals),
+        sensor_id=batch.sensor_id,
+        received_at=now,
+        inactivity_window=45.0,
+        db_path=DB,
+    )
 
-    con = db()
-    with con:
-        con.executemany(
-            """INSERT INTO flows (received_at, sensor_id, flow_start_ms, src_ip, src_mac,
-            src_port, dst_ip, dst_port, protocol, pred, confiance, mse_ae, anomalie_ae)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-            rows,
-        )
-    con.close()
+    alert_rows = corr_res["alert_rows"]
+    alerts_count = corr_res["alerts_count"]
+    anomalies_count = corr_res["anomalies_count"]
 
-    anomalies_count = int(res["anomalie_ae"].sum()) if has_ae else 0
-    alerts_count = int((res["pred"] != "BENIGN").sum())
+    # Notification immédiate pour chaque nouvel incident ouvert (Anti-Fatigue)
+    for new_inc in corr_res.get("new_incidents", []):
+        asyncio.create_task(notification_dispatcher.notify_incident_opened(new_inc))
+        db_mod.mark_incident_notified(new_inc["id"], open_notified=True, db_path=DB)
 
     # Notification en temps réel sur le canal WebSocket du Dashboard
     if ws_manager.active_connections:
-        severity_map = {
-            "DDoS": "Critical",
-            "Bot": "Critical",
-            "DoS-Hulk": "High",
-            "DoS-GoldenEye": "High",
-            "DoS-slowloris": "High",
-            "SSH-Patator": "High",
-            "WebAttack": "High",
-            "DoS-Slowhttptest": "Medium",
-            "PortScan": "Medium",
-            "FTP-Patator": "Medium",
-            "Scan-Vista": "Low",
-        }
-        time_str = time.strftime("%H:%M:%S", time.localtime(now))
-        alert_rows = [
-            {
-                "id": int(now * 1000) + idx,
-                "timestamp": time_str,
-                "received_at": time_str,
-                "sensor": batch.sensor_id,
-                "sensor_id": batch.sensor_id,
-                "src_ip": r.get("src_ip", "0.0.0.0"),
-                "src_port": r.get("src_port", 0),
-                "dst_ip": r.get("dst_ip", "0.0.0.0"),
-                "dst_port": r.get("dst_port", 0),
-                "protocol": "TCP" if r.get("protocol") == 6 else "UDP",
-                "classification": p,
-                "pred": p,
-                "confidence": round(float(c) * 100.0, 1),
-                "confiance": float(c),
-                "mse_ae": round(float(m), 3) if m is not None else 0.0,
-                "anomalie_ae": int(a) if a is not None else 0,
-                "is_anomaly": bool(a),
-                "severity": severity_map.get(
-                    p, "High" if bool(a) else "Medium"
-                ),
-            }
-            for idx, (r, p, c, m, a) in enumerate(
-                zip(batch.flows, res["pred"], res["confiance"], mse_vals, anom_vals)
-            )
-            if p != "BENIGN" or (a and a == 1)
-        ]
-
         raw_kpis = db_mod.get_kpis(DB)
         raw_dist = db_mod.get_attack_distribution(DB)
         raw_tv = db_mod.get_threat_vectors(limit=5, db_path=DB)
         raw_tl = db_mod.get_timeline(window_seconds=900, buckets=60, db_path=DB)
+        recent_incidents = db_mod.get_incidents(limit=25, db_path=DB)
+        incidents_summary = db_mod.get_incidents_summary(DB)
 
         asyncio.create_task(
             ws_manager.broadcast(
@@ -197,6 +167,8 @@ async def ingest(batch: Batch, x_api_key: str = Header(None)):
                     "alerts_count": alerts_count,
                     "anomalies_count": anomalies_count,
                     "recent_alerts": alert_rows,
+                    "recent_incidents": recent_incidents,
+                    "incidents_summary": incidents_summary,
                     "kpis": format_kpis(raw_kpis),
                     "distribution": format_distribution(raw_dist),
                     "timeline": raw_tl,
@@ -204,11 +176,6 @@ async def ingest(batch: Batch, x_api_key: str = Header(None)):
                 }
             )
         )
-
-        # Distribution multi-canal asynchrone (Telegram & Email) avec anti-spam
-        if alert_rows:
-            for alert in alert_rows:
-                asyncio.create_task(notification_dispatcher.notify_incident(alert))
 
     return {
         "received": len(df),

@@ -113,6 +113,65 @@ class TelegramNotifier:
         return msg
 
     @classmethod
+    def format_incident_opened(cls, incident: Dict[str, Any]) -> str:
+        """Formate une alerte instantanée d'ouverture d'incident groupé pour Telegram."""
+        code = incident.get("incident_code") or f"INC-{incident.get('id', 0):04d}"
+        attack = incident.get("attack_type", "SUSPECT")
+        src_ip = incident.get("src_ip", "0.0.0.0")
+        dst_ip = incident.get("dst_ip", "10.0.0.1")
+        ports = incident.get("ports_summary") or "Ports multiples"
+        sev = incident.get("severity", "High")
+        is_zd = bool(incident.get("is_zero_day"))
+
+        conf_val = float(incident.get("max_confidence", 0.0) or 0.0)
+        conf = round(conf_val * 100.0, 1) if conf_val <= 1.0 else round(conf_val, 1)
+
+        icon = "⚡" if is_zd else "🚨"
+        title = f"{icon} <b>[INCIDENT OUVERT #{code}] - {attack}</b>"
+
+        lines = [
+            title,
+            "",
+            f"• <b>Sévérité :</b> {sev}",
+            f"• <b>Attaquant :</b> <code>{src_ip}</code>",
+            f"• <b>Cible :</b> <code>{dst_ip}</code>",
+            f"• <b>Premiers ports ciblés :</b> <code>{ports}</code>",
+            f"• <b>Confiance IA :</b> {conf}%",
+            f"• <b>Statut :</b> 🟢 <b>En cours</b> (corrélation active)",
+            "",
+            "<i>Une synthèse sera expédiée automatiquement à la fin de l'attaque.</i>",
+        ]
+        return "\n".join(lines)
+
+    @classmethod
+    def format_incident_closed(cls, incident: Dict[str, Any]) -> str:
+        """Formate un rapport de synthèse à la clôture de l'incident pour Telegram."""
+        code = incident.get("incident_code") or f"INC-{incident.get('id', 0):04d}"
+        attack = incident.get("attack_type", "SUSPECT")
+        src_ip = incident.get("src_ip", "0.0.0.0")
+        dst_ip = incident.get("dst_ip", "10.0.0.1")
+        ports = incident.get("ports_summary") or "Ports multiples"
+        flow_count = incident.get("flow_count", 1)
+        dur = incident.get("duration_sec", 1)
+
+        title = f"🛡️ <b>[INCIDENT CLOS #{code}] - Synthèse d'Attaque</b>"
+
+        lines = [
+            title,
+            "",
+            f"• <b>Attaque :</b> {attack}",
+            f"• <b>Attaquant :</b> <code>{src_ip}</code>",
+            f"• <b>Cible :</b> <code>{dst_ip}</code>",
+            f"• <b>Durée active :</b> {dur}s (clos après inactivité)",
+            f"• <b>Volume total :</b> <b>{flow_count:,} flux / paquets corrélés</b>",
+            f"• <b>Ports visés :</b> <code>{ports}</code>",
+            f"• <b>Statut :</b> ⚪ <b>Terminé / Clos</b>",
+            "",
+            "<i>Les flux détaillés restent consultables sur le SOC Dashboard.</i>",
+        ]
+        return "\n".join(lines)
+
+    @classmethod
     async def send_test(cls, bot_token: str, chat_id: str) -> Tuple[bool, str]:
         """Envoie un message de test pour valider les tokens Telegram."""
         test_msg = (

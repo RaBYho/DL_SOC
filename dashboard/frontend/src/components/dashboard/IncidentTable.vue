@@ -3,14 +3,61 @@
     <!-- Header: Title and Subtitle strictly stacked beneath -->
     <div class="card-header-row">
       <div class="header-titles">
-        <h2 class="card-title">{{ store.t('table.title') }}</h2>
+        <h2 class="card-title">{{ store.viewMode === 'incidents' ? 'Incidents de Sécurité Corrélés' : store.t('table.title') }}</h2>
         <span class="card-subtitle">
-          {{ store.t('table.subtitle') }} &middot; {{ store.filteredAlerts.length }} / {{ store.alerts.length }} alertes
-          <template v-if="store.totalDbAlerts > store.alerts.length">
-            ({{ store.totalDbAlerts }} en base)
+          <template v-if="store.viewMode === 'incidents'">
+            Regroupement anti-fatigue d'alerte &middot; {{ store.filteredIncidents.length }} incident(s) affiché(s)
+            <template v-if="store.openIncidentsCount > 0">
+              &middot; <b class="open-highlight">{{ store.openIncidentsCount }} en cours</b>
+            </template>
+          </template>
+          <template v-else>
+            {{ store.t('table.subtitle') }} &middot; {{ store.filteredAlerts.length }} / {{ store.alerts.length }} alertes
+            <template v-if="store.totalDbAlerts > store.alerts.length">
+              ({{ store.totalDbAlerts }} en base)
+            </template>
           </template>
         </span>
       </div>
+
+      <!-- Segmented View Switch: Incidents vs Flux Bruts -->
+      <div class="view-mode-switch" role="tablist">
+        <button 
+          type="button" 
+          class="switch-tab-btn" 
+          :class="{ active: store.viewMode === 'incidents' }" 
+          @click="store.setViewMode('incidents')"
+          title="Affichage regroupé par attaque et cible (anti-fatigue d'alerte)"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span>Incidents Corrélés</span>
+          <span v-if="store.openIncidentsCount > 0" class="tab-badge-pulse">
+            {{ store.openIncidentsCount }}
+          </span>
+        </button>
+
+        <button 
+          type="button" 
+          class="switch-tab-btn" 
+          :class="{ active: store.viewMode === 'flows' }" 
+          @click="store.setViewMode('flows')"
+          title="Affichage chronologique de chaque flux individuel"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+          <span>Flux Bruts</span>
+          <span class="tab-badge-neutral">{{ store.filteredAlerts.length }}</span>
+        </button>
+      </div>
+
       <div class="live-counter-pill">
         <span class="live-dot"></span>
         <span>{{ store.t('table.autoUpdating') }}</span>
@@ -43,6 +90,18 @@
         >
           {{ cat }}
         </option>
+      </select>
+
+      <!-- Incident Status Filter (Mode Incidents) -->
+      <select 
+        v-if="store.viewMode === 'incidents'" 
+        v-model="store.filterIncidentStatus" 
+        aria-label="Incident status"
+        class="status-select"
+      >
+        <option value="ALL">Tous les statuts</option>
+        <option value="OPEN">🟢 En cours</option>
+        <option value="CLOSED">⚪ Clos</option>
       </select>
 
       <!-- Min Confidence Slider -->
@@ -176,7 +235,201 @@
 
     <!-- Live Incident Table (Separate Source & Destination Columns, No Arrows) -->
     <div class="table-container">
-      <table v-if="store.isLoading || store.filteredAlerts.length > 0">
+      <!-- TABLE MODE 1: Incidents Corrélés (Par Défaut, Propre & Anti-Fatigue) -->
+      <table v-if="store.viewMode === 'incidents' && (store.isLoading || store.filteredIncidents.length > 0)" class="incidents-table">
+        <thead>
+          <tr>
+            <th class="th-expand"></th>
+            <th>Statut</th>
+            <th>Code Incident</th>
+            <th>Horodatage &amp; Durée</th>
+            <th>Attaquant (Source)</th>
+            <th>Cible (Destination)</th>
+            <th>Attaque Détectée</th>
+            <th>Volume Corrélé</th>
+            <th>Ports Visés</th>
+            <th>Confiance / 0-Day</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody v-if="store.isLoading">
+          <tr v-for="i in 5" :key="'inc-skel-' + i" class="skeleton-table-row">
+            <td><div class="skeleton-shimmer skel-cell skel-expand"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-status"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-code"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-time"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-ip"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-ip"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-pred"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-vol"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-ports"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-conf"></div></td>
+            <td><div class="skeleton-shimmer skel-cell skel-btn"></div></td>
+          </tr>
+        </tbody>
+        <tbody v-else>
+          <template v-for="inc in displayedIncidents" :key="inc.id">
+            <tr 
+              class="incident-master-row" 
+              :class="{ 
+                'incident-open': inc.status === 'OPEN', 
+                'incident-expanded': store.isIncidentExpanded(inc.id) 
+              }"
+              @click="store.toggleExpandIncident(inc)"
+            >
+              <td class="td-expand" @click.stop="store.toggleExpandIncident(inc)">
+                <button type="button" class="expand-btn" :class="{ rotated: store.isIncidentExpanded(inc.id) }">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
+              </td>
+
+              <td>
+                <span v-if="inc.status === 'OPEN'" class="status-pill status-open">
+                  <span class="pulse-dot"></span>
+                  EN COURS
+                </span>
+                <span v-else class="status-pill status-closed">
+                  CLOS
+                </span>
+              </td>
+
+              <td>
+                <span class="incident-code-tag">{{ inc.incident_code }}</span>
+              </td>
+
+              <td class="mono time-col">
+                <div class="time-dur-cell">
+                  <span class="t-start">{{ inc.timestamp }}</span>
+                  <span class="dur-badge" :title="'Actif pendant ' + inc.duration_sec + 's'">{{ inc.duration_sec }}s</span>
+                </div>
+              </td>
+
+              <td class="mono ip-cell src-cell">
+                <span class="ip-addr" :title="inc.src_ip">{{ inc.src_ip }}</span>
+              </td>
+
+              <td class="mono ip-cell dst-cell">
+                <span class="ip-addr" :title="inc.dst_ip">{{ inc.dst_ip }}</span>
+              </td>
+
+              <td>
+                <div class="attack-with-sev">
+                  <b class="pred-label">{{ inc.attack_type }}</b>
+                  <span class="sev-tag" :class="inc.severity">{{ inc.severity }}</span>
+                </div>
+              </td>
+
+              <td>
+                <span class="volume-badge" :class="{ 'vol-massive': inc.flow_count >= 100 }">
+                  <b>{{ inc.flow_count.toLocaleString() }}</b> flux
+                </span>
+              </td>
+
+              <td>
+                <span class="ports-summary-tag mono" :title="inc.ports_summary">
+                  {{ inc.ports_summary }}
+                </span>
+              </td>
+
+              <td>
+                <div class="conf-cell">
+                  <div class="conf-bar-bg">
+                    <i :style="{ width: `${(inc.confidence || 95).toFixed(0)}%` }"></i>
+                  </div>
+                  <span class="mono">{{ (inc.confidence || 95).toFixed(1) }}%</span>
+                  <span v-if="inc.is_zero_day" class="flag-pill flag-anomaly ml-1">0-Day</span>
+                </div>
+              </td>
+
+              <td class="td-action" @click.stop>
+                <button 
+                  type="button" 
+                  class="inspect-inc-btn" 
+                  @click="store.toggleExpandIncident(inc)"
+                  :title="store.isIncidentExpanded(inc.id) ? 'Replier les flux' : 'Déplier les flux associés'"
+                >
+                  <span>{{ store.isIncidentExpanded(inc.id) ? 'Fermer' : 'Détails' }}</span>
+                </button>
+              </td>
+            </tr>
+
+            <!-- Expanded Accordion Row for Sub-Flows -->
+            <tr v-if="store.isIncidentExpanded(inc.id)" class="incident-subtable-row">
+              <td colspan="11" class="subtable-cell">
+                <div class="subtable-container">
+                  <div class="subtable-header">
+                    <div class="subtable-title">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="8" y1="6" x2="21" y2="6"></line>
+                        <line x1="8" y1="12" x2="21" y2="12"></line>
+                        <line x1="8" y1="18" x2="21" y2="18"></line>
+                        <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                        <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                        <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                      </svg>
+                      <span>Flux élémentaires corrélés ({{ (store.incidentFlowsCache[inc.id] || []).length }} / {{ inc.flow_count }})</span>
+                    </div>
+                    <span class="subtable-hint">
+                      Cliquez sur un flux individuel pour ouvrir l'investigation détaillée
+                    </span>
+                  </div>
+
+                  <div v-if="store.loadingIncidentFlows[inc.id]" class="subtable-loading">
+                    <svg class="spin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                    <span>Chargement des flux élémentaires...</span>
+                  </div>
+
+                  <table v-else-if="(store.incidentFlowsCache[inc.id] || []).length > 0" class="sub-flows-table">
+                    <thead>
+                      <tr>
+                        <th>Heure</th>
+                        <th>Port Source</th>
+                        <th>Port Cible</th>
+                        <th>Protocole</th>
+                        <th>Classification</th>
+                        <th>Confiance</th>
+                        <th>Auto-Encodeur (MSE)</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr 
+                        v-for="subf in store.incidentFlowsCache[inc.id]" 
+                        :key="subf.id"
+                        class="sub-flow-row"
+                        @click="store.openFlowDrawer(subf)"
+                      >
+                        <td class="mono">{{ subf.timestamp }}</td>
+                        <td class="mono">:{{ subf.src_port }}</td>
+                        <td class="mono">:{{ subf.dst_port }}</td>
+                        <td><span class="proto-badge">{{ subf.protocol }}</span></td>
+                        <td><b>{{ subf.classification }}</b></td>
+                        <td class="mono">{{ subf.confidence }}%</td>
+                        <td class="mono">{{ subf.mse_ae }}</td>
+                        <td>
+                          <button type="button" class="subf-drawer-btn" @click.stop="store.openFlowDrawer(subf)">
+                            Inspecter &rarr;
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div v-else class="subtable-empty">
+                    <span>Aucun flux spécifique chargé.</span>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+
+      <!-- TABLE MODE 2: Flux Bruts (Chronologique élémentaire) -->
+      <table v-else-if="store.viewMode === 'flows' && (store.isLoading || store.filteredAlerts.length > 0)">
         <thead>
           <tr>
             <th class="th-checkbox">
@@ -298,28 +551,34 @@
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
-        <p>{{ store.t('table.emptyMessage') }}</p>
+        <p>{{ store.viewMode === 'incidents' ? 'Aucun incident de sécurité corrélé' : store.t('table.emptyMessage') }}</p>
         <button class="clear-btn" @click="store.clearFilters">{{ store.t('table.resetFilters') }}</button>
       </div>
     </div>
 
     <!-- Table Pagination & History Bar -->
-    <div v-if="store.filteredAlerts.length > 0" class="table-pagination-bar">
+    <div v-if="(store.viewMode === 'incidents' ? store.filteredIncidents.length > 0 : store.filteredAlerts.length > 0)" class="table-pagination-bar">
       <!-- Left: Items info -->
       <div class="pagination-info">
-        <span>
+        <span v-if="store.viewMode === 'incidents'">
+          Affichage de <b>{{ startIndex + 1 }}</b>-<b>{{ endIndex }}</b> sur <b>{{ totalFiltered }}</b> incident(s)
+          <template v-if="store.openIncidentsCount > 0">
+            &middot; <b class="open-highlight">{{ store.openIncidentsCount }} en cours</b>
+          </template>
+        </span>
+        <span v-else>
           {{ store.t('table.showing') }} 
           <b>{{ startIndex + 1 }}</b>-<b>{{ endIndex }}</b> 
           {{ store.t('table.of') }} 
           <b>{{ totalFiltered }}</b> {{ store.t('table.items') }}
         </span>
-        <span v-if="store.alerts.length < store.totalDbAlerts" class="db-total-badge" :title="'Total en base: ' + store.totalDbAlerts">
+        <span v-if="store.viewMode === 'flows' && store.alerts.length < store.totalDbAlerts" class="db-total-badge" :title="'Total en base: ' + store.totalDbAlerts">
           ({{ store.totalDbAlerts }} en base)
         </span>
       </div>
 
       <!-- Center: Load Older from SQLite button if more exist in DB -->
-      <div v-if="store.hasMoreDbAlerts || store.alerts.length < store.totalDbAlerts" class="pagination-db-load">
+      <div v-if="store.viewMode === 'flows' && (store.hasMoreDbAlerts || store.alerts.length < store.totalDbAlerts)" class="pagination-db-load">
         <button 
           type="button" 
           class="load-more-btn" 
@@ -430,13 +689,22 @@ const pageSize = ref(50)
 
 // Reset to page 1 whenever filters change
 watch(
-  [() => store.filterSearch, () => store.filterCategory, () => store.filterMinConfidence, () => store.filterAutoencoderOnly],
+  [
+    () => store.viewMode,
+    () => store.filterIncidentStatus,
+    () => store.filterSearch,
+    () => store.filterCategory,
+    () => store.filterMinConfidence,
+    () => store.filterAutoencoderOnly
+  ],
   () => {
     currentPage.value = 1
   }
 )
 
-const totalFiltered = computed(() => store.filteredAlerts.length)
+const totalFiltered = computed(() => {
+  return store.viewMode === 'incidents' ? store.filteredIncidents.length : store.filteredAlerts.length
+})
 
 const totalPages = computed(() => {
   if (pageSize.value === 'all') return 1
@@ -467,6 +735,13 @@ const displayedAlerts = computed(() => {
     return store.filteredAlerts
   }
   return store.filteredAlerts.slice(startIndex.value, endIndex.value)
+})
+
+const displayedIncidents = computed(() => {
+  if (pageSize.value === 'all') {
+    return store.filteredIncidents
+  }
+  return store.filteredIncidents.slice(startIndex.value, endIndex.value)
 })
 
 function goToPage(p) {
@@ -579,6 +854,376 @@ function getFeedbackLabel(alert) {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 14px;
+  gap: 16px;
+}
+
+.view-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.switch-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--mu);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.switch-tab-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.switch-tab-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.switch-tab-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+
+.tab-badge-pulse {
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  animation: pulse-ring 1.5s infinite;
+}
+
+.tab-badge-neutral {
+  background: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.open-highlight {
+  color: #34d399;
+}
+
+.status-select {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Incidents Table Styles */
+.incidents-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.incident-master-row {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.incident-master-row:hover {
+  background: rgba(30, 41, 59, 0.6) !important;
+}
+
+.incident-master-row.incident-open {
+  border-left: 3px solid #10b981;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.04em;
+}
+
+.status-pill.status-open {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+.status-pill.status-closed {
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.7);
+  animation: pulse-ring 1.5s infinite;
+}
+
+.incident-code-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.time-dur-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dur-badge {
+  font-size: 10px;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.attack-with-sev {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sev-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.sev-tag.Critical {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.sev-tag.High {
+  background: rgba(249, 115, 22, 0.15);
+  color: #fb923c;
+  border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.sev-tag.Medium {
+  background: rgba(234, 179, 8, 0.15);
+  color: #fde047;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.sev-tag.Low {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.volume-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.volume-badge.vol-massive {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.ports-summary-tag {
+  font-size: 11px;
+  color: #cbd5e1;
+  background: rgba(15, 23, 42, 0.8);
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.th-expand {
+  width: 32px;
+  padding: 0 4px !important;
+}
+
+.td-expand {
+  width: 32px;
+  text-align: center;
+  padding: 0 4px !important;
+}
+
+.expand-btn {
+  background: transparent;
+  border: none;
+  color: var(--mu);
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.expand-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.expand-btn:hover {
+  color: #fff;
+}
+
+.expand-btn.rotated {
+  transform: rotate(180deg);
+  color: #38bdf8;
+}
+
+.inspect-inc-btn {
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.inspect-inc-btn:hover {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+.incident-subtable-row {
+  background: rgba(15, 23, 42, 0.85) !important;
+}
+
+.subtable-cell {
+  padding: 14px 20px !important;
+  border-bottom: 2px solid rgba(56, 189, 248, 0.2) !important;
+}
+
+.subtable-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subtable-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.subtable-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.subtable-title svg {
+  width: 14px;
+  height: 14px;
+}
+
+.subtable-hint {
+  font-size: 11px;
+  color: var(--mu);
+}
+
+.subtable-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--mu);
+  padding: 10px 0;
+}
+
+.sub-flows-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+  background: rgba(10, 15, 29, 0.7);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.sub-flows-table th {
+  padding: 8px 12px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--mu);
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sub-flows-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  color: #cbd5e1;
+}
+
+.sub-flow-row {
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.sub-flow-row:hover {
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.subf-drawer-btn {
+  background: transparent;
+  border: none;
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.subf-drawer-btn:hover {
+  text-decoration: underline;
+}
+
+.ml-1 {
+  margin-left: 6px;
 }
 
 .header-titles {

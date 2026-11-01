@@ -214,6 +214,115 @@ class EmailNotifier:
         )
 
     @classmethod
+    async def send_incident_opened(cls, cfg: Any, incident: Dict[str, Any]) -> Tuple[bool, str]:
+        """Envoie un email immédiat lors de l'ouverture d'un incident de sécurité corrélé."""
+        code = incident.get("incident_code") or f"INC-{incident.get('id', 0):04d}"
+        attack = incident.get("attack_type", "SUSPECT")
+        src_ip = incident.get("src_ip", "0.0.0.0")
+        dst_ip = incident.get("dst_ip", "10.0.0.1")
+        ports = incident.get("ports_summary") or "Non spécifié"
+        sev = incident.get("severity", "High")
+        is_zd = bool(incident.get("is_zero_day"))
+
+        conf_val = float(incident.get("max_confidence", 0.0) or 0.0)
+        conf = round(conf_val * 100.0, 1) if conf_val <= 1.0 else round(conf_val, 1)
+
+        badge_color = "#ef4444" if sev == "Critical" else "#f97316"
+        badge_text = f"Incident {sev.upper()}"
+        if is_zd:
+            badge_color = "#8b5cf6"
+            badge_text = "Zero-Day Inconnu"
+
+        subject = f"[NIDS ALERTE #{code}] Détection d'Attaque : {attack} ({src_ip})"
+        title = f"Ouverture d'Incident : {attack}"
+        subtitle = f"Incident #{code} • Corrélation automatique SOC"
+
+        metrics = [
+            ("Incident Code", code),
+            ("Type d'Attaque", attack),
+            ("Sévérité", sev),
+            ("Source Offensive", src_ip),
+            ("Cible Visée", dst_ip),
+            ("Premiers Ports Visés", ports),
+            ("Confiance Modèle", f"{conf}%"),
+            ("Statut", "🟢 EN COURS (corrélation active)"),
+        ]
+        recom = "Une corrélation de flux a été initiée. Un bilan de synthèse sera automatiquement expédié dès clôture de l'attaque."
+        text_body = f"Incident #{code}: {attack} depuis {src_ip} vers {dst_ip}. Statut: En cours."
+        html_body = cls._create_html_template(
+            title=title,
+            subtitle=subtitle,
+            badge_text=badge_text,
+            badge_color=badge_color,
+            metrics=metrics,
+            recommendation=recom,
+        )
+
+        return await cls.send_email(
+            smtp_host=cfg.smtp_host,
+            smtp_port=cfg.smtp_port,
+            smtp_user=cfg.smtp_user,
+            smtp_password=cfg.smtp_password,
+            email_from=cfg.email_from,
+            email_to=cfg.email_to,
+            subject=subject,
+            html_body=html_body,
+            text_body=text_body,
+            use_tls=cfg.smtp_use_tls,
+        )
+
+    @classmethod
+    async def send_incident_closed(cls, cfg: Any, incident: Dict[str, Any]) -> Tuple[bool, str]:
+        """Envoie un rapport email de synthèse lors de la clôture d'un incident."""
+        code = incident.get("incident_code") or f"INC-{incident.get('id', 0):04d}"
+        attack = incident.get("attack_type", "SUSPECT")
+        src_ip = incident.get("src_ip", "0.0.0.0")
+        dst_ip = incident.get("dst_ip", "10.0.0.1")
+        ports = incident.get("ports_summary") or "Non spécifié"
+        flow_count = incident.get("flow_count", 1)
+        dur = incident.get("duration_sec", 1)
+
+        subject = f"[NIDS BILAN #{code}] Synthèse de Clôture d'Attaque : {attack}"
+        title = f"Synthèse de Clôture d'Incident #{code}"
+        subtitle = f"Attaque {attack} terminée • Analyse consolidée"
+        badge_text = "Incident Clos"
+        badge_color = "#10b981"
+
+        metrics = [
+            ("Incident Code", code),
+            ("Type d'Attaque", attack),
+            ("Attaquant (Source)", src_ip),
+            ("Cible Visée", dst_ip),
+            ("Volume Total", f"{flow_count:,} flux / paquets"),
+            ("Ports Ciblés", ports),
+            ("Durée Active", f"{dur} secondes"),
+            ("Statut", "⚪ TERMINÉ / CLOS (inactivité constatée)"),
+        ]
+        recom = "L'activité hostile a cessé. L'historique complet des flux reste consultable sur le tableau de bord SOC."
+        text_body = f"Incident #{code} ({attack}) clos après {dur}s. Total: {flow_count} flux."
+        html_body = cls._create_html_template(
+            title=title,
+            subtitle=subtitle,
+            badge_text=badge_text,
+            badge_color=badge_color,
+            metrics=metrics,
+            recommendation=recom,
+        )
+
+        return await cls.send_email(
+            smtp_host=cfg.smtp_host,
+            smtp_port=cfg.smtp_port,
+            smtp_user=cfg.smtp_user,
+            smtp_password=cfg.smtp_password,
+            email_from=cfg.email_from,
+            email_to=cfg.email_to,
+            subject=subject,
+            html_body=html_body,
+            text_body=text_body,
+            use_tls=cfg.smtp_use_tls,
+        )
+
+    @classmethod
     async def send_test(cls, cfg: Any) -> Tuple[bool, str]:
         """Envoie un email de test pour valider la chaîne SMTP."""
         subject = "[NIDS SOC] Test de Notification SMTP"

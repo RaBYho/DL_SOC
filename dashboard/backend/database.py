@@ -1,8 +1,9 @@
+import json
 import sqlite3
 import time
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set, Tuple
 from dashboard.backend.config import DB_PATH, BASE, MODELS_DIR
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,8 @@ def _init_db_schema(path: str) -> None:
             con.execute("ALTER TABLE flows ADD COLUMN mse_ae REAL")
         if "anomalie_ae" not in cols:
             con.execute("ALTER TABLE flows ADD COLUMN anomalie_ae INTEGER")
+        if "incident_id" not in cols:
+            con.execute("ALTER TABLE flows ADD COLUMN incident_id INTEGER")
 
         con.execute(
             "CREATE INDEX IF NOT EXISTS idx_flows_received ON flows(received_at DESC)"
@@ -57,6 +60,36 @@ def _init_db_schema(path: str) -> None:
         )
         con.execute("CREATE INDEX IF NOT EXISTS idx_flows_src_ip ON flows(src_ip)")
         con.execute("CREATE INDEX IF NOT EXISTS idx_flows_dst_port ON flows(dst_port)")
+        con.execute(
+            "CREATE INDEX IF NOT EXISTS idx_flows_incident_id ON flows(incident_id)"
+        )
+
+        # Table Incidents (Corrélation SOC de niveau entreprise)
+        con.execute(
+            """CREATE TABLE IF NOT EXISTS incidents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            incident_code TEXT UNIQUE,
+            created_at REAL NOT NULL,
+            updated_at REAL NOT NULL,
+            closed_at REAL,
+            status TEXT DEFAULT 'OPEN',
+            attack_type TEXT NOT NULL,
+            severity TEXT NOT NULL,
+            src_ip TEXT NOT NULL,
+            dst_ip TEXT NOT NULL,
+            sensor_id TEXT,
+            flow_count INTEGER DEFAULT 1,
+            targeted_ports TEXT,
+            ports_summary TEXT,
+            max_confidence REAL DEFAULT 0.0,
+            max_mse REAL DEFAULT 0.0,
+            is_zero_day INTEGER DEFAULT 0,
+            notified_open INTEGER DEFAULT 0,
+            notified_close INTEGER DEFAULT 0)"""
+        )
+        con.execute("CREATE INDEX IF NOT EXISTS idx_incidents_status ON incidents(status)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_incidents_updated ON incidents(updated_at DESC)")
+        con.execute("CREATE INDEX IF NOT EXISTS idx_incidents_corr ON incidents(src_ip, dst_ip, attack_type, status)")
 
         # Table Active Learning / Human-in-the-Loop Feedback
         con.execute(
@@ -472,12 +505,13 @@ def get_active_sensors(db_path: Optional[str] = None) -> List[Dict[str, Any]]:
 
 
 def reset_database(db_path: Optional[str] = None) -> Dict[str, Any]:
-    """Vide la table flows, remet à zéro l'auto-incrément et optimise la base."""
+    """Vide les tables flows et incidents, remet à zéro l'auto-incrément et optimise la base."""
     con = get_connection(db_path)
     with con:
         con.execute("DELETE FROM flows")
+        con.execute("DELETE FROM incidents")
         try:
-            con.execute("DELETE FROM sqlite_sequence WHERE name='flows'")
+            con.execute("DELETE FROM sqlite_sequence WHERE name IN ('flows', 'incidents')")
         except Exception:
             pass
     try:
@@ -820,4 +854,585 @@ def get_model_classes(db_path: Optional[str] = None) -> Dict[str, Any]:
         "attack_classes": attack_classes,
         "all_categories": all_categories,
     }
+
+
+# ---------------------------------------------------------------------------
+# MOTEUR DE CORRÉLATION ET GESTION DES INCIDENTS SOC
+# ---------------------------------------------------------------------------
+
+SEVERITY_MAP = {
+    "DDoS": "Critical",
+    "Bot": "Critical",
+    "DoS-Hulk": "High",
+    "DoS-GoldenEye": "High",
+    "DoS-slowloris": "High",
+    "SSH-Patator": "High",
+    "WebAttack": "High",
+    "DoS-Slowhttptest": "Medium",
+    "PortScan": "Medium",
+    "FTP-Patator": "Medium",
+    "Scan-Vista": "Low",
+    "Zero-Day": "High",
+}
+
+
+def get_severity_for_attack(attack_type: str, is_anomaly: bool = False) -> str:
+    """Détermine la sévérité d'un événement selon la nomenclature SOC."""
+    if is_anomaly and attack_type in ("BENIGN", "Zero-Day"):
+        return "High"
+    return SEVERITY_MAP.get(attack_type, "High" if is_anomaly else "Medium")
+
+
+def summarize_ports(ports: List[int]) -> str:
+    """Synthétise une liste de ports ciblés en notation compacte lisible pour le SOC."""
+    if not ports:
+        return "-"
+    unique_ports = sorted(set(int(p) for p in ports if p is not None and int(p) > 0))
+    if not unique_ports:
+        return "-"
+    if len(unique_ports) == 1:
+        return str(unique_ports[0])
+    if len(unique_ports) <= 4:
+        return ", ".join(str(p) for p in unique_ports)
+
+    # Vérification si la plage est contiguë (ex: scan 20 à 1000)
+    is_contiguous = True
+    for i in range(len(unique_ports) - 1):
+        if unique_ports[i + 1] != unique_ports[i] + 1:
+            is_contiguous = False
+            break
+
+    if is_contiguous:
+        return f"{unique_ports[0]}-{unique_ports[-1]} ({len(unique_ports)} ports)"
+
+    top4 = ", ".join(str(p) for p in unique_ports[:4])
+    return f"{top4} (+{len(unique_ports) - 4} autres)"
+
+
+def insert_and_correlate_flows(
+    flow_records: List[Dict[str, Any]],
+    predictions: List[str],
+    confidences: List[float],
+    mse_values: List[Optional[float]],
+    anomaly_values: List[int],
+    sensor_id: str = "sensor-01",
+    received_at: Optional[float] = None,
+    inactivity_window: float = 45.0,
+    db_path: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Insère un lot de flux dans SQLite et corrèle les flux malveillants
+    en incidents parents de sécurité selon la clé (src_ip, dst_ip, attack_type).
+    """
+    now = float(received_at if received_at is not None else time.time())
+    con = get_connection(db_path)
+
+    new_incidents: List[Dict[str, Any]] = []
+    updated_incidents: List[Dict[str, Any]] = []
+    corr_cache: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+    flow_incident_ids: List[Optional[int]] = []
+    alert_rows: List[Dict[str, Any]] = []
+
+    # 1. Analyse et groupement en mémoire des flux de ce lot
+    for idx, (r, pred, conf, mse_val, anom_val) in enumerate(
+        zip(flow_records, predictions, confidences, mse_values, anomaly_values)
+    ):
+        is_anom = bool(anom_val == 1)
+        is_attack = bool(pred != "BENIGN")
+
+        if not is_attack and not is_anom:
+            flow_incident_ids.append(None)
+            continue
+
+        attack_type = "Zero-Day" if (not is_attack and is_anom) else pred
+        src_ip = str(r.get("src_ip") or "0.0.0.0")
+        dst_ip = str(r.get("dst_ip") or "0.0.0.0")
+        dst_port = int(r.get("dst_port") or 0)
+        c_val = float(conf or 0.0)
+        m_val = float(mse_val or 0.0) if mse_val is not None else 0.0
+
+        key = (src_ip, dst_ip, attack_type)
+
+        if key not in corr_cache:
+            # Recherche d'un incident OUVERT actif dans la fenêtre d'inactivité
+            row = con.execute(
+                """SELECT id, incident_code, created_at, updated_at, flow_count, targeted_ports,
+                          ports_summary, max_confidence, max_mse, is_zero_day, severity
+                   FROM incidents
+                   WHERE status = 'OPEN' AND src_ip = ? AND dst_ip = ? AND attack_type = ?
+                     AND (? - updated_at) <= ?
+                   ORDER BY id DESC LIMIT 1""",
+                (src_ip, dst_ip, attack_type, now, inactivity_window),
+            ).fetchone()
+
+            if row:
+                try:
+                    ports_loaded = set(json.loads(row["targeted_ports"] or "[]"))
+                except Exception:
+                    ports_loaded = set()
+                corr_cache[key] = {
+                    "id": row["id"],
+                    "incident_code": row["incident_code"],
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                    "status": "OPEN",
+                    "attack_type": attack_type,
+                    "severity": row["severity"],
+                    "src_ip": src_ip,
+                    "dst_ip": dst_ip,
+                    "sensor_id": sensor_id,
+                    "flow_count": int(row["flow_count"] or 0),
+                    "targeted_ports": ports_loaded,
+                    "ports_summary": row["ports_summary"],
+                    "max_confidence": float(row["max_confidence"] or 0.0),
+                    "max_mse": float(row["max_mse"] or 0.0),
+                    "is_zero_day": int(row["is_zero_day"] or 0),
+                    "is_new": False,
+                    "is_modified": False,
+                }
+            else:
+                sev = get_severity_for_attack(attack_type, is_anom)
+                ports_set = {dst_port} if dst_port > 0 else set()
+                ports_list = sorted(ports_set)
+                p_sum = summarize_ports(ports_list)
+                cur = con.execute(
+                    """INSERT INTO incidents (
+                        incident_code, created_at, updated_at, status, attack_type, severity,
+                        src_ip, dst_ip, sensor_id, flow_count, targeted_ports, ports_summary,
+                        max_confidence, max_mse, is_zero_day, notified_open, notified_close
+                    ) VALUES (?, ?, ?, 'OPEN', ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, 0, 0)""",
+                    (
+                        "",
+                        now,
+                        now,
+                        attack_type,
+                        sev,
+                        src_ip,
+                        dst_ip,
+                        sensor_id,
+                        json.dumps(ports_list),
+                        p_sum,
+                        c_val,
+                        m_val,
+                        1 if is_anom else 0,
+                    ),
+                )
+                new_id = cur.lastrowid
+                inc_code = f"INC-{new_id:04d}"
+                con.execute("UPDATE incidents SET incident_code = ? WHERE id = ?", (inc_code, new_id))
+                corr_cache[key] = {
+                    "id": new_id,
+                    "incident_code": inc_code,
+                    "created_at": now,
+                    "updated_at": now,
+                    "status": "OPEN",
+                    "attack_type": attack_type,
+                    "severity": sev,
+                    "src_ip": src_ip,
+                    "dst_ip": dst_ip,
+                    "sensor_id": sensor_id,
+                    "flow_count": 0,
+                    "targeted_ports": ports_set,
+                    "ports_summary": p_sum,
+                    "max_confidence": c_val,
+                    "max_mse": m_val,
+                    "is_zero_day": 1 if is_anom else 0,
+                    "is_new": True,
+                    "is_modified": True,
+                }
+
+        inc = corr_cache[key]
+        inc["flow_count"] += 1
+        if dst_port > 0:
+            inc["targeted_ports"].add(dst_port)
+        inc["max_confidence"] = max(inc["max_confidence"], c_val)
+        inc["max_mse"] = max(inc["max_mse"], m_val)
+        if is_anom:
+            inc["is_zero_day"] = 1
+        inc["updated_at"] = now
+        inc["is_modified"] = True
+
+        flow_incident_ids.append(inc["id"])
+
+        # Enregistrement pour l'alerte unitaire
+        t_str = time.strftime("%H:%M:%S", time.localtime(now))
+        alert_rows.append(
+            {
+                "id": int(now * 1000) + idx,
+                "incident_id": inc["id"],
+                "incident_code": inc["incident_code"],
+                "timestamp": t_str,
+                "received_at": t_str,
+                "sensor": sensor_id,
+                "sensor_id": sensor_id,
+                "src_ip": src_ip,
+                "src_port": r.get("src_port", 0),
+                "dst_ip": dst_ip,
+                "dst_port": dst_port,
+                "protocol": "TCP" if r.get("protocol") == 6 else "UDP",
+                "classification": pred,
+                "pred": pred,
+                "confidence": round(c_val * 100.0, 1),
+                "confiance": c_val,
+                "mse_ae": round(m_val, 3) if mse_val is not None else 0.0,
+                "anomalie_ae": int(anom_val or 0),
+                "is_anomaly": is_anom,
+                "severity": inc["severity"],
+            }
+        )
+
+    # 2. Mise à jour en base des incidents modifiés
+    for key, inc in corr_cache.items():
+        if inc["is_modified"]:
+            p_list = sorted(inc["targeted_ports"])
+            p_sum = summarize_ports(p_list)
+            inc["ports_summary"] = p_sum
+            con.execute(
+                """UPDATE incidents
+                   SET updated_at = ?, flow_count = ?, targeted_ports = ?, ports_summary = ?,
+                       max_confidence = ?, max_mse = ?, is_zero_day = ?
+                   WHERE id = ?""",
+                (
+                    inc["updated_at"],
+                    inc["flow_count"],
+                    json.dumps(p_list[:500]),
+                    p_sum,
+                    inc["max_confidence"],
+                    inc["max_mse"],
+                    inc["is_zero_day"],
+                    inc["id"],
+                ),
+            )
+            export_inc = {
+                "id": inc["id"],
+                "incident_code": inc["incident_code"],
+                "created_at": inc["created_at"],
+                "updated_at": inc["updated_at"],
+                "status": "OPEN",
+                "attack_type": inc["attack_type"],
+                "severity": inc["severity"],
+                "src_ip": inc["src_ip"],
+                "dst_ip": inc["dst_ip"],
+                "sensor_id": inc["sensor_id"],
+                "flow_count": inc["flow_count"],
+                "ports_summary": p_sum,
+                "max_confidence": inc["max_confidence"],
+                "max_mse": inc["max_mse"],
+                "is_zero_day": inc["is_zero_day"],
+                "duration_sec": max(1, int(inc["updated_at"] - inc["created_at"])),
+            }
+            if inc["is_new"]:
+                new_incidents.append(export_inc)
+            else:
+                updated_incidents.append(export_inc)
+
+    # 3. Insertion par lot des flux avec leur incident_id
+    rows = [
+        (
+            now,
+            sensor_id,
+            r.get("bidirectional_first_seen_ms"),
+            r.get("src_ip"),
+            r.get("src_mac"),
+            r.get("src_port"),
+            r.get("dst_ip"),
+            r.get("dst_port"),
+            r.get("protocol"),
+            p,
+            float(c),
+            float(m) if m is not None else None,
+            int(a) if a is not None else 0,
+            inc_id,
+        )
+        for r, p, c, m, a, inc_id in zip(
+            flow_records, predictions, confidences, mse_values, anomaly_values, flow_incident_ids
+        )
+    ]
+
+    with con:
+        con.executemany(
+            """INSERT INTO flows (
+                received_at, sensor_id, flow_start_ms, src_ip, src_mac, src_port,
+                dst_ip, dst_port, protocol, pred, confiance, mse_ae, anomalie_ae, incident_id
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            rows,
+        )
+    con.close()
+
+    return {
+        "new_incidents": new_incidents,
+        "updated_incidents": updated_incidents,
+        "total_flows": len(flow_records),
+        "alerts_count": len(alert_rows),
+        "anomalies_count": sum(1 for a in anomaly_values if a == 1),
+        "alert_rows": alert_rows,
+    }
+
+
+def get_incidents(
+    status: Optional[str] = None,
+    severity: Optional[str] = None,
+    search_ip: Optional[str] = None,
+    attack_type: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db_path: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Retourne la liste paginée et enrichie des incidents pour le SOC."""
+    con = get_connection(db_path)
+    query = """SELECT id, incident_code, created_at, updated_at, closed_at, status,
+                      attack_type, severity, src_ip, dst_ip, sensor_id, flow_count,
+                      targeted_ports, ports_summary, max_confidence, max_mse,
+                      is_zero_day, notified_open, notified_close
+               FROM incidents WHERE 1=1"""
+    params: List[Any] = []
+
+    if status and status.upper() != "ALL":
+        query += " AND status = ?"
+        params.append(status.upper())
+
+    if severity:
+        query += " AND severity = ?"
+        params.append(severity)
+
+    if search_ip:
+        query += " AND (src_ip LIKE ? OR dst_ip LIKE ?)"
+        params.extend([f"%{search_ip}%", f"%{search_ip}%"])
+
+    if attack_type:
+        query += " AND attack_type = ?"
+        params.append(attack_type)
+
+    query += " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+
+    rows = con.execute(query, params).fetchall()
+    incidents = []
+    for r in rows:
+        created = float(r["created_at"])
+        updated = float(r["updated_at"])
+        dur = max(1, int(updated - created))
+        conf = float(r["max_confidence"] or 0.0)
+        conf_pct = round(conf * 100.0, 1) if conf <= 1.0 else round(conf, 1)
+
+        try:
+            ports_list = json.loads(r["targeted_ports"] or "[]")
+        except Exception:
+            ports_list = []
+
+        incidents.append(
+            {
+                "id": r["id"],
+                "incident_code": r["incident_code"] or f"INC-{r['id']:04d}",
+                "status": r["status"] or "OPEN",
+                "attack_type": r["attack_type"],
+                "severity": r["severity"],
+                "src_ip": r["src_ip"],
+                "dst_ip": r["dst_ip"],
+                "sensor_id": r["sensor_id"] or "sensor-01",
+                "flow_count": int(r["flow_count"] or 1),
+                "targeted_ports": ports_list,
+                "ports_summary": r["ports_summary"] or summarize_ports(ports_list),
+                "ports_count": len(ports_list),
+                "max_confidence": conf,
+                "confidence": conf_pct,
+                "max_mse": round(float(r["max_mse"] or 0.0), 3),
+                "is_zero_day": bool(r["is_zero_day"]),
+                "created_at": created,
+                "updated_at": updated,
+                "closed_at": r["closed_at"],
+                "duration_sec": dur,
+                "timestamp": time.strftime("%H:%M:%S", time.localtime(created)),
+                "updated_time": time.strftime("%H:%M:%S", time.localtime(updated)),
+                "notified_open": bool(r["notified_open"]),
+                "notified_close": bool(r["notified_close"]),
+            }
+        )
+    con.close()
+    return incidents
+
+
+def get_total_incidents_count(
+    status: Optional[str] = None,
+    severity: Optional[str] = None,
+    search_ip: Optional[str] = None,
+    attack_type: Optional[str] = None,
+    db_path: Optional[str] = None,
+) -> int:
+    """Compte le nombre total d'incidents répondant aux filtres."""
+    con = get_connection(db_path)
+    query = "SELECT COUNT(*) FROM incidents WHERE 1=1"
+    params: List[Any] = []
+
+    if status and status.upper() != "ALL":
+        query += " AND status = ?"
+        params.append(status.upper())
+
+    if severity:
+        query += " AND severity = ?"
+        params.append(severity)
+
+    if search_ip:
+        query += " AND (src_ip LIKE ? OR dst_ip LIKE ?)"
+        params.extend([f"%{search_ip}%", f"%{search_ip}%"])
+
+    if attack_type:
+        query += " AND attack_type = ?"
+        params.append(attack_type)
+
+    count = con.execute(query, params).fetchone()[0]
+    con.close()
+    return int(count or 0)
+
+
+def get_incidents_summary(db_path: Optional[str] = None) -> Dict[str, int]:
+    """Retourne la synthèse globale des incidents (total, ouverts, clos, critiques)."""
+    con = get_connection(db_path)
+    cur = con.cursor()
+    total = cur.execute("SELECT COUNT(*) FROM incidents").fetchone()[0]
+    open_count = cur.execute("SELECT COUNT(*) FROM incidents WHERE status = 'OPEN'").fetchone()[0]
+    closed_count = cur.execute("SELECT COUNT(*) FROM incidents WHERE status = 'CLOSED'").fetchone()[0]
+    critical_count = cur.execute("SELECT COUNT(*) FROM incidents WHERE severity = 'Critical'").fetchone()[0]
+    con.close()
+    return {
+        "total": int(total or 0),
+        "open": int(open_count or 0),
+        "closed": int(closed_count or 0),
+        "critical": int(critical_count or 0),
+    }
+
+
+def get_incident_flows(
+    incident_id: int,
+    limit: int = 50,
+    offset: int = 0,
+    db_path: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Retourne les flux élémentaires rattachés à un incident donné."""
+    con = get_connection(db_path)
+    rows = con.execute(
+        """SELECT id, received_at, sensor_id, src_ip, src_port, dst_ip, dst_port,
+                  protocol, pred, confiance, mse_ae, anomalie_ae, incident_id
+           FROM flows
+           WHERE incident_id = ?
+           ORDER BY id DESC LIMIT ? OFFSET ?""",
+        (incident_id, limit, offset),
+    ).fetchall()
+
+    flows = []
+    for r in rows:
+        pred = r["pred"]
+        sev = SEVERITY_MAP.get(pred, "High" if r["anomalie_ae"] == 1 else "Medium")
+        t_str = time.strftime("%H:%M:%S", time.localtime(r["received_at"]))
+        conf_float = float(r["confiance"] or 0.0)
+        anom_int = int(r["anomalie_ae"] or 0)
+        flows.append(
+            {
+                "id": r["id"],
+                "incident_id": r["incident_id"],
+                "timestamp": t_str,
+                "received_at": t_str,
+                "sensor_id": r["sensor_id"] or "sensor-01",
+                "src_ip": r["src_ip"] or "0.0.0.0",
+                "src_port": r["src_port"] or 0,
+                "dst_ip": r["dst_ip"] or "0.0.0.0",
+                "dst_port": r["dst_port"] or 0,
+                "protocol": "TCP" if r["protocol"] == 6 else "UDP",
+                "classification": pred,
+                "pred": pred,
+                "confidence": round(conf_float * 100.0, 1),
+                "confiance": conf_float,
+                "mse_ae": round(r["mse_ae"], 3) if r["mse_ae"] is not None else 0.0,
+                "anomalie_ae": anom_int,
+                "is_anomaly": bool(anom_int),
+                "severity": sev,
+            }
+        )
+    con.close()
+    return flows
+
+
+def close_inactive_incidents(
+    inactivity_seconds: float = 45.0,
+    now: Optional[float] = None,
+    db_path: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Identifie et clôture les incidents dont aucun nouveau flux
+    n'a été reçu depuis plus de `inactivity_seconds`.
+    Retourne la liste des incidents nouvellement clos pour notification de synthèse.
+    """
+    current_time = float(now if now is not None else time.time())
+    threshold = current_time - inactivity_seconds
+
+    con = get_connection(db_path)
+    cur = con.cursor()
+    rows = cur.execute(
+        """SELECT id, incident_code, created_at, updated_at, attack_type, severity,
+                  src_ip, dst_ip, sensor_id, flow_count, targeted_ports, ports_summary,
+                  max_confidence, max_mse, is_zero_day, notified_open, notified_close
+           FROM incidents
+           WHERE status = 'OPEN' AND updated_at < ?""",
+        (threshold,),
+    ).fetchall()
+
+    closed_incidents: List[Dict[str, Any]] = []
+    if rows:
+        ids_to_close = [r["id"] for r in rows]
+        cur.execute(
+            f"UPDATE incidents SET status = 'CLOSED', closed_at = ? WHERE id IN ({','.join('?' for _ in ids_to_close)})",
+            [current_time] + ids_to_close,
+        )
+        con.commit()
+
+        for r in rows:
+            created = float(r["created_at"])
+            updated = float(r["updated_at"])
+            try:
+                ports_list = json.loads(r["targeted_ports"] or "[]")
+            except Exception:
+                ports_list = []
+            closed_incidents.append(
+                {
+                    "id": r["id"],
+                    "incident_code": r["incident_code"] or f"INC-{r['id']:04d}",
+                    "status": "CLOSED",
+                    "attack_type": r["attack_type"],
+                    "severity": r["severity"],
+                    "src_ip": r["src_ip"],
+                    "dst_ip": r["dst_ip"],
+                    "sensor_id": r["sensor_id"],
+                    "flow_count": int(r["flow_count"] or 1),
+                    "targeted_ports": ports_list,
+                    "ports_summary": r["ports_summary"] or summarize_ports(ports_list),
+                    "max_confidence": float(r["max_confidence"] or 0.0),
+                    "max_mse": float(r["max_mse"] or 0.0),
+                    "is_zero_day": bool(r["is_zero_day"]),
+                    "created_at": created,
+                    "updated_at": updated,
+                    "closed_at": current_time,
+                    "duration_sec": max(1, int(updated - created)),
+                    "notified_close": bool(r["notified_close"]),
+                }
+            )
+
+    con.close()
+    return closed_incidents
+
+
+def mark_incident_notified(
+    incident_id: int,
+    open_notified: Optional[bool] = None,
+    close_notified: Optional[bool] = None,
+    db_path: Optional[str] = None,
+) -> None:
+    """Met à jour les indicateurs de notification d'ouverture et de fermeture."""
+    con = get_connection(db_path)
+    with con:
+        if open_notified is not None:
+            con.execute("UPDATE incidents SET notified_open = ? WHERE id = ?", (1 if open_notified else 0, incident_id))
+        if close_notified is not None:
+            con.execute("UPDATE incidents SET notified_close = ? WHERE id = ?", (1 if close_notified else 0, incident_id))
+    con.close()
+
 

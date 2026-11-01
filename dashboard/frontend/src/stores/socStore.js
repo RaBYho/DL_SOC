@@ -60,6 +60,17 @@ export const useSocStore = defineStore('soc', {
     selectedAlertIds: [],
     batchPatternModalOpen: false,
 
+    // Incidents Correlation (Section Incident Saine)
+    viewMode: 'incidents', // 'incidents' (par défaut) | 'flows'
+    incidents: [],
+    totalDbIncidents: 0,
+    openIncidentsCount: 0,
+    closedIncidentsCount: 0,
+    expandedIncidentIds: [],
+    incidentFlowsCache: {},
+    loadingIncidentFlows: {},
+    filterIncidentStatus: 'ALL', // 'ALL' | 'OPEN' | 'CLOSED'
+
     // PCAP Replay
     pcapFiles: [],
     selectedPcap: '',
@@ -156,6 +167,26 @@ export const useSocStore = defineStore('soc', {
         const matchesAe = !aeOnly || a.anomalie_ae === 1
         return matchesQ && matchesCat && matchesConf && matchesAe
       })
+    },
+
+    filteredIncidents: (state) => {
+      const q = state.filterSearch.trim().toLowerCase()
+      const cat = state.filterCategory
+      const st = state.filterIncidentStatus
+
+      return state.incidents.filter(inc => {
+        const matchesQ = !q || 
+          (inc.src_ip && inc.src_ip.toLowerCase().includes(q)) || 
+          (inc.dst_ip && inc.dst_ip.toLowerCase().includes(q)) || 
+          (inc.incident_code && inc.incident_code.toLowerCase().includes(q))
+        const matchesCat = !cat || inc.attack_type === cat || (cat === 'Unknown (anomaly)' && inc.is_zero_day)
+        const matchesStatus = !st || st === 'ALL' || inc.status === st
+        return matchesQ && matchesCat && matchesStatus
+      })
+    },
+
+    isIncidentExpanded: (state) => (incId) => {
+      return state.expandedIncidentIds.includes(incId)
     },
 
     hasActiveFilters: (state) => {
@@ -328,6 +359,18 @@ export const useSocStore = defineStore('soc', {
           this.hasMoreDbAlerts = this.alerts.length < this.totalDbAlerts
         } else {
           this.totalDbAlerts = this.alerts.length
+        }
+
+        // Incidents Correlés
+        if (data.recent_incidents && Array.isArray(data.recent_incidents)) {
+          this.incidents = data.recent_incidents
+        }
+        if (data.incidents_summary) {
+          this.openIncidentsCount = data.incidents_summary.open || 0
+          this.closedIncidentsCount = data.incidents_summary.closed || 0
+          this.totalDbIncidents = data.incidents_summary.total || 0
+        } else if (data.total_incidents_count !== undefined) {
+          this.totalDbIncidents = data.total_incidents_count
         }
 
         if (data.pcap_files && data.pcap_files.length > 0) {
@@ -519,6 +562,43 @@ export const useSocStore = defineStore('soc', {
           if (latestMse) {
             this.currentMse = Number((this.currentMse * 0.7 + latestMse.mse_ae * 0.3).toFixed(3))
           }
+        }
+
+        // Mettre à jour les incidents corrélés en direct
+        if (msg.recent_incidents && Array.isArray(msg.recent_incidents)) {
+          const incomingMap = new Map()
+          msg.recent_incidents.forEach(inc => incomingMap.set(inc.id, inc))
+          const updatedList = this.incidents.map(oldInc => {
+            if (incomingMap.has(oldInc.id)) {
+              const fresh = incomingMap.get(oldInc.id)
+              incomingMap.delete(oldInc.id)
+              return { ...oldInc, ...fresh, isNew: true }
+            }
+            return oldInc
+          })
+          const brandNew = Array.from(incomingMap.values()).map(inc => ({ ...inc, isNew: true }))
+          this.incidents = [...brandNew, ...updatedList].slice(0, 500)
+        }
+
+        if (msg.incidents_summary) {
+          this.openIncidentsCount = msg.incidents_summary.open || 0
+          this.closedIncidentsCount = msg.incidents_summary.closed || 0
+          this.totalDbIncidents = msg.incidents_summary.total || 0
+        }
+      }
+
+      if (msg.type === 'incidents_closed' && Array.isArray(msg.closed_incidents)) {
+        const closedIds = new Set(msg.closed_incidents.map(c => c.id))
+        this.incidents = this.incidents.map(inc => {
+          if (closedIds.has(inc.id)) {
+            return { ...inc, status: 'CLOSED' }
+          }
+          return inc
+        })
+        if (msg.incidents_summary) {
+          this.openIncidentsCount = msg.incidents_summary.open || 0
+          this.closedIncidentsCount = msg.incidents_summary.closed || 0
+          this.totalDbIncidents = msg.incidents_summary.total || 0
         }
       }
 
@@ -884,6 +964,54 @@ export const useSocStore = defineStore('soc', {
       }
     },
 
+    setViewMode(mode) {
+      this.viewMode = mode
+    },
+
+    setFilterIncidentStatus(status) {
+      this.filterIncidentStatus = status
+    },
+
+    async toggleExpandIncident(incident) {
+      const incId = incident.id
+      const idx = this.expandedIncidentIds.indexOf(incId)
+      if (idx >= 0) {
+        this.expandedIncidentIds.splice(idx, 1)
+      } else {
+        this.expandedIncidentIds.push(incId)
+        if (!this.incidentFlowsCache[incId]) {
+          await this.fetchIncidentFlows(incId)
+        }
+      }
+    },
+
+    async fetchIncidentFlows(incidentId) {
+      this.loadingIncidentFlows = { ...this.loadingIncidentFlows, [incidentId]: true }
+      try {
+        const res = await fetch(`/api/dashboard/incidents/${incidentId}/flows?limit=30`)
+        if (res.ok) {
+          const flows = await res.json()
+          this.incidentFlowsCache = { ...this.incidentFlowsCache, [incidentId]: flows }
+        }
+      } catch (e) {
+        console.error(`Failed to fetch flows for incident ${incidentId}:`, e)
+      } finally {
+        this.loadingIncidentFlows = { ...this.loadingIncidentFlows, [incidentId]: false }
+      }
+    },
+
+    async fetchIncidents() {
+      try {
+        const res = await fetch('/api/dashboard/incidents?limit=100')
+        if (res.ok) {
+          const data = await res.json()
+          this.incidents = data
+        }
+      } catch (e) {
+        console.error('Failed to fetch incidents list:', e)
+      }
+    },
+
     async resetDatabase() {
       this.isLoading = true
       try {
@@ -901,6 +1029,12 @@ export const useSocStore = defineStore('soc', {
         this.timelineSeries = []
         this.threatVectors = { top_source_ips: [], top_dest_ports: [] }
         this.alerts = []
+        this.incidents = []
+        this.totalDbIncidents = 0
+        this.openIncidentsCount = 0
+        this.closedIncidentsCount = 0
+        this.expandedIncidentIds = []
+        this.incidentFlowsCache = {}
         this.currentMse = 0.0
         this.sensorsList = []
         this.sensorsOnline = 0

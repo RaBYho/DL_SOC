@@ -27,7 +27,13 @@ agy --continue
 ## 2. État Actuel du Projet & Sprint 12h Finalisé
 
 - **Branche active :** `main`
-- **Suite de tests :** **32/32 tests unitaires et d'intégration validés** (`pytest -v tests/`).
+- **Suite de tests :** **42/42 tests unitaires et d'intégration validés** (`pytest -v tests/`).
+- **Section Incidents Anti-Fatigue (Approche 2 Corrélation Backend Finalisée) :**
+  - Moteur de corrélation par clé `(src_ip, dst_ip, attack_type)` avec fenêtre glissante d'inactivité de 45s (`dashboard/backend/database.py`).
+  - Table `incidents` SQLite avec codes uniques (`INC-0001`), synthèse compacte des ports (`20-1000`), volumétrie et statut `OPEN`/`CLOSED`.
+  - Notification intelligente multi-canaux (Telegram & Email) : 1 alerte immédiate à l'ouverture, 1 rapport de synthèse à la clôture.
+  - Tâche de fond périodique automatique de clôture d'incidents inactifs (`nids_server.py`).
+  - Vue Switch dans le Dashboard (`IncidentTable.vue`) : **Incidents Corrélés** (par défaut avec accordéons dépliables) vs **Flux Bruts**.
 - **Modèles Actifs en Production (Sprint 12h Complété) :**
   - **DNN v5** (`models/dnn_v5.pt`, 234 Ko, 58 features strictes, calibré avec $T=1.4982$, macro $F_1 = 0.9555$).
   - **Auto-Encodeur v2** (`models/ae_v2.pt`, 24 Ko, seuil quantile 99.9% = $1.481025$, ratio de séparation $29.4\times$).
@@ -52,7 +58,7 @@ cd /home/hoby/Documents/Projet-dev/IA/DL_SOC
 source .venv/bin/activate
 ```
 
-### B. Lancer la Suite de Tests (32/32 tests)
+### B. Lancer la Suite de Tests (42/42 tests)
 ```bash
 .venv/bin/pytest -v tests/
 ```

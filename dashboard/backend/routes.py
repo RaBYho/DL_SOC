@@ -12,12 +12,16 @@ from dashboard.backend.database import (
     get_attack_distribution,
     get_feedback,
     get_feedback_summary,
+    get_incident_flows,
+    get_incidents,
+    get_incidents_summary,
     get_kpis,
     get_model_classes,
     get_recent_alerts,
     get_threat_vectors,
     get_timeline,
     get_total_alerts_count,
+    get_total_incidents_count,
     record_feedback,
     record_batch_feedback,
     reset_database,
@@ -314,6 +318,9 @@ def get_initial_dashboard_state(time_range: str = Query("15m")):
     alerts_raw = get_recent_alerts(limit=150, offset=0)
     alerts = [_enrich_alert(a) for a in alerts_raw]
     total_alerts_count = get_total_alerts_count()
+    recent_incidents = get_incidents(limit=50, offset=0)
+    incidents_summary = get_incidents_summary()
+    total_incidents_count = get_total_incidents_count()
     pcaps = _get_pcap_list()
     model_classes_info = get_model_classes()
 
@@ -325,6 +332,9 @@ def get_initial_dashboard_state(time_range: str = Query("15m")):
         "threat_vectors": tv,
         "recent_alerts": alerts,
         "total_alerts_count": total_alerts_count,
+        "recent_incidents": recent_incidents,
+        "incidents_summary": incidents_summary,
+        "total_incidents_count": total_incidents_count,
         "sensors": get_active_sensors(),
         "pcap_files": pcaps,
         "replay_status": replay_service.get_status(),
@@ -383,6 +393,54 @@ def get_alerts(
     if not raw and offset == 0 and not search_ip and not category and min_conf == 0.0:
         return _get_baseline_alerts()
     return [_enrich_alert(a) for a in raw]
+
+
+@router.get("/incidents")
+def get_incidents_route(
+    response: Response,
+    status: Optional[str] = Query("ALL"),
+    severity: Optional[str] = Query(None),
+    search_ip: Optional[str] = Query(None),
+    attack_type: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    """Retourne la liste filtrée et paginée des incidents de sécurité corrélés."""
+    total = get_total_incidents_count(
+        status=status,
+        severity=severity,
+        search_ip=search_ip,
+        attack_type=attack_type,
+    )
+    incidents = get_incidents(
+        status=status,
+        severity=severity,
+        search_ip=search_ip,
+        attack_type=attack_type,
+        limit=limit,
+        offset=offset,
+    )
+    summary = get_incidents_summary()
+    response.headers["X-Total-Count"] = str(total)
+    response.headers["X-Open-Count"] = str(summary.get("open", 0))
+    response.headers["X-Closed-Count"] = str(summary.get("closed", 0))
+    return incidents
+
+
+@router.get("/incidents/summary")
+def get_incidents_summary_route():
+    """Retourne la synthèse globale des incidents (total, en cours, clos, critiques)."""
+    return get_incidents_summary()
+
+
+@router.get("/incidents/{incident_id}/flows")
+def get_incident_flows_route(
+    incident_id: int,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """Retourne les flux réseau individuels constitutifs d'un incident corrélé."""
+    return get_incident_flows(incident_id=incident_id, limit=limit, offset=offset)
 
 
 @router.get("/sensors")

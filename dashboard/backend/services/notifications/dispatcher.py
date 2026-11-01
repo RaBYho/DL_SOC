@@ -133,6 +133,74 @@ class NotificationDispatcher:
                     "INFO",
                 )
 
+    async def notify_incident_opened(self, incident: Dict[str, Any]):
+        """Expédie une notification instantanée à l'ouverture d'un nouvel incident corrélé."""
+        cfg = get_notifications_config()
+        if not cfg.telegram_enabled and not cfg.email_enabled:
+            return
+
+        tasks = []
+        if cfg.telegram_enabled and cfg.telegram_bot_token and cfg.telegram_chat_id:
+            msg = TelegramNotifier.format_incident_opened(incident)
+            tasks.append(
+                TelegramNotifier.send_message(
+                    bot_token=cfg.telegram_bot_token,
+                    chat_id=cfg.telegram_chat_id,
+                    text=msg,
+                )
+            )
+
+        if cfg.email_enabled and cfg.smtp_host and cfg.email_to:
+            tasks.append(EmailNotifier.send_incident_opened(cfg, incident))
+
+        if tasks:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for res in results:
+                if isinstance(res, Exception):
+                    logger.error(f"Error dispatching incident open notification: {res}")
+                elif isinstance(res, tuple):
+                    success, msg = res
+                    level = "INFO" if success else "WARN"
+                    health_service.record_log(
+                        "notifications",
+                        f"Notification Ouverture #{incident.get('incident_code')}: {msg}",
+                        level,
+                    )
+
+    async def notify_incident_closed(self, incident: Dict[str, Any]):
+        """Expédie un rapport de synthèse à la clôture de l'incident (fin d'attaque)."""
+        cfg = get_notifications_config()
+        if not cfg.telegram_enabled and not cfg.email_enabled:
+            return
+
+        tasks = []
+        if cfg.telegram_enabled and cfg.telegram_bot_token and cfg.telegram_chat_id:
+            msg = TelegramNotifier.format_incident_closed(incident)
+            tasks.append(
+                TelegramNotifier.send_message(
+                    bot_token=cfg.telegram_bot_token,
+                    chat_id=cfg.telegram_chat_id,
+                    text=msg,
+                )
+            )
+
+        if cfg.email_enabled and cfg.smtp_host and cfg.email_to:
+            tasks.append(EmailNotifier.send_incident_closed(cfg, incident))
+
+        if tasks:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for res in results:
+                if isinstance(res, Exception):
+                    logger.error(f"Error dispatching incident close notification: {res}")
+                elif isinstance(res, tuple):
+                    success, msg = res
+                    level = "INFO" if success else "WARN"
+                    health_service.record_log(
+                        "notifications",
+                        f"Notification Clôture #{incident.get('incident_code')}: {msg}",
+                        level,
+                    )
+
 
 # Instance globale
 notification_dispatcher = NotificationDispatcher()
