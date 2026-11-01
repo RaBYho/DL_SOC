@@ -1,0 +1,16 @@
+{
+  "seuil_q99": 0.46625107526779175,
+  "seuil_q995": 0.8299368023872375,
+  "seuil_q999": 1.481024980545044,
+  "archi": [
+    58,
+    32,
+    16,
+    8,
+    16,
+    32,
+    58
+  ],
+  "features_count": 58,
+  "entraine_sur": "BENIGN train uniquement (40000 flux)"
+}

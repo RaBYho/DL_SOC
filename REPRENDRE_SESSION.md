@@ -11,7 +11,7 @@ Pour reprendre exactement cette session de travail avec l'historique complet et 
 ### Option A : Reprendre directement par son ID unique (Recommandé)
 ```bash
 cd /home/hoby/Documents/Projet-dev/IA/DL_SOC
-agy --conversation d1a3c9ac-156f-4867-b4f9-db85fa0d87be
+agy --conversation 72f3bc05-00ba-43a1-a7ac-8560a2dd3bfa
 ```
 
 ### Option B : Reprendre la dernière conversation active
@@ -24,31 +24,23 @@ agy --continue
 
 ---
 
-## 2. État Actuel du Projet & Dernières Réalisations
+## 2. État Actuel du Projet & Sprint 12h Finalisé
 
-- **Branche active :** `main` (synchronisée avec GitHub `origin/main`).
-- **Dernier commit :** [`834bc22`](https://github.com/RaBYho/DL_SOC/commit/834bc22) : `feat(model-agility): dynamic non-frozen model classes across backend, prompts & UI`
-- **Suite de tests :** **30/30 tests unitaires validés** (`pytest tests/`).
-- **Frontend SPA :** Vue 3 + Pinia + Vite compilé avec succès dans `dashboard/dist/`.
-- **Serveur de développement :** Uvicorn actif en tâche de fond sur le port 8000.
-
-### Fonctionnalités Majeures Récemment Finalisées :
-1. **Architecture Modèle Dynamique & Non-Figée :**
-   - Zéro classe codée en dur. Lecture dynamique de `models/classes.json` et agrégation des nouvelles classes issues d'Active Learning (`flows` et `feedback_flows`).
-   - Endpoint `GET /api/dashboard/models/classes`, injection dans `GET /init` et le WebSocket.
-   - Suppression des références statiques "(12 classes)" dans l'UI, le store Pinia, `ModelsView.vue`, `IncidentTable.vue`, `translations.js` et les prompts IA.
-2. **Prompts Forensiques Riches & Détection de Campagne Multi-Flux :**
-   - Sélection multiple d'alertes dans le tableau d'incidents avec raccourcis ("Tous les 0-Day", "Tous les filtrés").
-   - Modal d'investigation de pattern de campagne (`BatchPatternModal.vue`) avec corrélation spatio-temporelle, plage MSE et exportation de prompt prêt pour LLM externes (Gemini, Claude, ChatGPT, Ollama).
-3. **Boucle Active Learning & Human-in-the-Loop :**
-   - Table SQLite `feedback_flows` pour stocker les qualifications et corrections des analystes.
-   - Export du dataset au format JSON et CSV pour ré-entraînement (`/api/dashboard/feedback/export`).
-   - Notebook Google Colab prêt à l'emploi : `retrain_dnn_v5_colab.ipynb`.
-4. **Alerting Multi-Canal :**
-   - Intégration Telegram Bot et SMTP Email avec rapports HTML forensiques et limitation de cadence.
-5. **Surveillance de la Santé Système & Erreurs :**
-   - Diagnostics consolidés de l'infrastructure (sonde, moteur IA, SQLite, WebSocket, hôte CPU/RAM/disque).
-   - Tiroir dédié avec déclenchement de tests unitaires par composant.
+- **Branche active :** `main`
+- **Suite de tests :** **32/32 tests unitaires et d'intégration validés** (`pytest -v tests/`).
+- **Modèles Actifs en Production (Sprint 12h Complété) :**
+  - **DNN v5** (`models/dnn_v5.pt`, 234 Ko, 58 features strictes, calibré avec $T=1.4982$, macro $F_1 = 0.9555$).
+  - **Auto-Encodeur v2** (`models/ae_v2.pt`, 24 Ko, seuil quantile 99.9% = $1.481025$, ratio de séparation $29.4\times$).
+  - **Model Registry Déclaratif** (`models/manifest.json`).
+  - **Schéma Canonique des Features** (`models/schema_features.json`).
+  - **Benchmark Tabulaire LightGBM** (`models/lgb_v5.txt`, $F_1 = 0.9588$, 205 fausses alertes).
+  - **Rapport de Benchmark Complet :** `docs/models_metrics/benchmark_v4_v5_lightgbm.md`.
+  - **Notebook Officiel de Réentraînement Colab :** `retrain_dnn_v5_colab.ipynb` (28 cellules + 3 suites de tests automatisées).
+  - **Cahier R&D Documenté :** `NIDS.ipynb` (en-tête et orientation R&D / Production).
+- **Frontend SPA :** Vue 3 + Pinia + Vite compilé dans `dashboard/dist/` servi par FastAPI.
+- **Rejeux PCAP Réseau Validés :**
+  - `pcap/PortScan.pcap` : 1 024/1 024 flux classifiés PortScan (100% de détection).
+  - `pcap/normal.pcap` : 35/35 flux classifiés BENIGN (0 fausse alerte).
 
 ---
 
@@ -60,7 +52,7 @@ cd /home/hoby/Documents/Projet-dev/IA/DL_SOC
 source .venv/bin/activate
 ```
 
-### B. Lancer la Suite de Tests (30/30 tests)
+### B. Lancer la Suite de Tests (32/32 tests)
 ```bash
 .venv/bin/pytest -v tests/
 ```
@@ -71,8 +63,8 @@ source .venv/bin/activate
 ```
 - **Documentation OpenAPI (Swagger) :** http://localhost:8000/docs
 - **API Dashboard Base :** http://localhost:8000/api/dashboard/init
-- **Classes dynamiques :** http://localhost:8000/api/dashboard/models/classes
-- **Diagnostic Santé :** http://localhost:8000/api/dashboard/system/health
+- **Santé de la Sonde & Modèles :** http://localhost:8000/health
+- **Diagnostic Santé Système :** http://localhost:8000/api/dashboard/system/health
 - **Flux WebSocket Live :** ws://localhost:8000/ws
 
 ### D. Développement & Compilation Frontend (Vue 3 / Vite)
@@ -96,11 +88,9 @@ curl -s http://localhost:8000/api/dashboard/replay/status | python3 -m json.tool
 
 ---
 
-## 4. Prochaine Étape / Roadmap
+## 4. Documentation Technique & Plans
 
-1. **Page Threat Intelligence & Flux CTI en Direct :**
-   - Connecter la vue `ThreatIntelView.vue` à des sources de Threat Intelligence actualisées (MITRE ATT&CK CTI STIX feed, CISA Known Exploited Vulnerabilities catalog, AlienVault OTX ou AbuseIPDB API).
-   - Enrichir les IOCs (IPs malveillantes, ports ciblés) détectés lors des sessions de capture avec les données CTI en temps réel.
-2. **Ré-entraînement du Modèle DNN v5 :**
-   - Exécuter `retrain_dnn_v5_colab.ipynb` avec les nouvelles données exportées de `feedback_flows`.
-   - Remplacer le modèle actif par `dnn_v5.pt` et vérifier la détection automatique des nouvelles classes.
+- [README.md](file:///home/hoby/Documents/Projet-dev/IA/DL_SOC/README.md) : Vue d'ensemble du système et démarrage rapide.
+- [docs/models_metrics/benchmark_v4_v5_lightgbm.md](file:///home/hoby/Documents/Projet-dev/IA/DL_SOC/docs/models_metrics/benchmark_v4_v5_lightgbm.md) : Benchmark comparatif v4, v5, LightGBM et Auto-Encodeur v2.
+- [docs/plans/feuille_de_route_sprint_12h_24h.md](file:///home/hoby/Documents/Projet-dev/IA/DL_SOC/docs/plans/feuille_de_route_sprint_12h_24h.md) : Suivi des 5 blocs du sprint.
+- [docs/plans/plan_amelioration_modeles_et_pipeline_nids.md](file:///home/hoby/Documents/Projet-dev/IA/DL_SOC/docs/plans/plan_amelioration_modeles_et_pipeline_nids.md) : Analyse architecturale et ML critique.

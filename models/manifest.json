@@ -1,0 +1,26 @@
+{
+  "active_version": "v5",
+  "created_at": "2026-11-01",
+  "description": "Mod\u00e8le v5 assaini (58 features) avec calibration T et Auto-Encodeur v2",
+  "classes_file": "classes.json",
+  "feature_cols_file": "feature_cols.json",
+  "schema_file": "schema_features.json",
+  "supervised": {
+    "version": "v5",
+    "model_file": "dnn_v5.pt",
+    "scaler_file": "scaler_v5.joblib",
+    "meta_file": "meta_v5.json",
+    "features_count": 58,
+    "input_dimension": 58,
+    "adapter_needed": false,
+    "temperature": 1.4982
+  },
+  "unsupervised": {
+    "version": "v2",
+    "model_file": "ae_v2.pt",
+    "scaler_file": "scaler_ae_v2.joblib",
+    "meta_file": "meta_ae_v2.json",
+    "threshold_mse": 1.481024980545044,
+    "features_count": 58
+  }
+}

@@ -11,22 +11,56 @@ import torch.nn as nn
 class Scorer:
     """Rejoue exactement la chaîne d'entraînement : colonnes -> nettoyage -> log1p -> scaler -> DNN + Autoencodeur."""
 
-    def __init__(self, base, version="v4", ae_version="v1", device=None):
+    def __init__(self, base, version=None, ae_version=None, manifest_path=None, device=None):
         self.base = str(base)
-        self.version = version
-        self.ae_version = ae_version
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
-        with open(f"{base}/models/feature_cols.json", "r", encoding="utf-8") as f:
+        # 1. Chargement déclaratif depuis le manifest.json si présent
+        manifest_file = Path(manifest_path) if manifest_path else (Path(base) / "models" / "manifest.json")
+        self.manifest = None
+        if manifest_file.exists():
+            try:
+                with open(manifest_file, "r", encoding="utf-8") as f:
+                    self.manifest = json.load(f)
+            except Exception:
+                self.manifest = None
+
+        if self.manifest:
+            active_v = self.manifest.get("active_version", "v4")
+            self.version = version or active_v
+            self.ae_version = ae_version or self.manifest.get("unsupervised", {}).get("version", "v1")
+
+            features_file = self.manifest.get("feature_cols_file", "feature_cols.json")
+            classes_file = self.manifest.get("classes_file", "classes.json")
+            dnn_file = self.manifest.get("supervised", {}).get("model_file", f"dnn_{self.version}.pt")
+            scaler_file = self.manifest.get("supervised", {}).get("scaler_file", f"scaler_{self.version}.joblib")
+
+            ae_file = self.manifest.get("unsupervised", {}).get("model_file", f"ae_{self.ae_version}.pt")
+            ae_meta_file = self.manifest.get("unsupervised", {}).get("meta_file", f"meta_ae_{self.ae_version}.json")
+            ae_scaler_file = self.manifest.get("unsupervised", {}).get("scaler_file", f"scaler_ae_{self.ae_version}.joblib")
+            ae_threshold = self.manifest.get("unsupervised", {}).get("threshold_mse")
+        else:
+            self.version = version or "v4"
+            self.ae_version = ae_version or "v1"
+            features_file = "feature_cols.json"
+            classes_file = "classes.json"
+            dnn_file = f"dnn_{self.version}.pt"
+            scaler_file = f"scaler_{self.version}.joblib"
+            ae_file = f"ae_{self.ae_version}.pt"
+            ae_meta_file = f"meta_ae_{self.ae_version}.json"
+            ae_scaler_file = f"scaler_ae_{self.ae_version}.joblib"
+            ae_threshold = None
+
+        with open(f"{base}/models/{features_file}", "r", encoding="utf-8") as f:
             self.feature_cols = json.load(f)
 
-        with open(f"{base}/models/classes.json", "r", encoding="utf-8") as f:
+        with open(f"{base}/models/{classes_file}", "r", encoding="utf-8") as f:
             classes_data = json.load(f)
         self.classes = list(classes_data.keys()) if isinstance(classes_data, dict) else classes_data
 
         # Modèle supervisé DNN
-        self.scaler = joblib.load(f"{base}/models/scaler_{version}.joblib")
-        ck = torch.load(f"{base}/models/dnn_{version}.pt", map_location=self.device)
+        self.scaler = joblib.load(f"{base}/models/{scaler_file}")
+        ck = torch.load(f"{base}/models/{dnn_file}", map_location=self.device, weights_only=False)
         a = ck["architecture"]
         self.model = nn.Sequential(
             nn.Linear(a["entree"], 256),
@@ -44,19 +78,24 @@ class Scorer:
         self.model.load_state_dict(ck["state_dict"])
         self.model.eval()
 
+        # Calibration des probabilités (Temperature Scaling)
+        self.temperature = 1.0
+        if self.manifest and "supervised" in self.manifest:
+            self.temperature = float(self.manifest["supervised"].get("temperature", 1.0))
+
         # Modèle non-supervisé Auto-encodeur (si présent)
         self.ae_model = None
         self.scaler_ae = None
         self.ae_seuil = None
 
-        ae_path = Path(base) / "models" / f"ae_{ae_version}.pt"
-        ae_meta_path = Path(base) / "models" / f"meta_ae_{ae_version}.json"
-        ae_scaler_path = Path(base) / "models" / f"scaler_ae_{ae_version}.joblib"
+        ae_path = Path(base) / "models" / ae_file
+        ae_meta_path = Path(base) / "models" / ae_meta_file
+        ae_scaler_path = Path(base) / "models" / ae_scaler_file
 
         if ae_path.exists() and ae_meta_path.exists() and ae_scaler_path.exists():
             with open(ae_meta_path, "r", encoding="utf-8") as f:
                 ae_meta = json.load(f)
-            self.ae_seuil = float(ae_meta.get("seuil_q999", 0.6029))
+            self.ae_seuil = float(ae_threshold if ae_threshold is not None else ae_meta.get("seuil_q999", 0.6029))
             archi = ae_meta.get("archi", [59, 32, 16, 8, 16, 32, 59])
             layers = []
             for i in range(len(archi) - 1):
@@ -64,7 +103,7 @@ class Scorer:
                 if i < len(archi) - 2:
                     layers.append(nn.ReLU())
             self.ae_model = nn.Sequential(*layers).to(self.device)
-            self.ae_model.load_state_dict(torch.load(ae_path, map_location=self.device))
+            self.ae_model.load_state_dict(torch.load(ae_path, map_location=self.device, weights_only=False))
             self.ae_model.eval()
             self.scaler_ae = joblib.load(ae_scaler_path)
 
@@ -100,7 +139,10 @@ class Scorer:
         with torch.no_grad():
             for i in range(0, len(X_scaled), 50000):
                 xb = torch.tensor(X_scaled[i : i + 50000]).to(self.device)
-                out.append(torch.softmax(self.model(xb), dim=1).cpu().numpy())
+                logits = self.model(xb)
+                if self.temperature != 1.0:
+                    logits = logits / self.temperature
+                out.append(torch.softmax(logits, dim=1).cpu().numpy())
         proba = np.concatenate(out) if out else np.empty((0, len(self.classes)))
         ids = proba.argmax(1)
 

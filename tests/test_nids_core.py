@@ -10,7 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 @pytest.fixture(scope="module")
 def scorer():
-    return Scorer(base=str(BASE_DIR), version="v4", ae_version="v1", device="cpu")
+    return Scorer(base=str(BASE_DIR), device="cpu")
 
 
 @pytest.fixture(scope="module")
@@ -87,3 +87,24 @@ def test_predict_df_empty(scorer, feature_cols):
     assert "confiance" in res.columns
     assert "mse_ae" in res.columns
     assert "anomalie_ae" in res.columns
+
+
+def test_scorer_manifest_loading():
+    manifest_path = BASE_DIR / "models" / "manifest.json"
+    assert manifest_path.exists()
+    s = Scorer(base=str(BASE_DIR), manifest_path=str(manifest_path), device="cpu")
+    assert s.manifest is not None
+    assert s.manifest["active_version"] in ["v4", "v5"]
+    assert s.manifest["supervised"]["features_count"] == 58
+    assert len(s.classes) == 12
+    assert s.has_ae is True
+
+
+def test_schema_features_consistency(feature_cols):
+    schema_path = BASE_DIR / "models" / "schema_features.json"
+    assert schema_path.exists()
+    with open(schema_path, "r", encoding="utf-8") as f:
+        schema = json.load(f)
+    assert schema["total_features"] == 58
+    assert set(schema["features"].keys()) == set(feature_cols)
+

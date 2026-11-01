@@ -1,0 +1,76 @@
+{
+  "version": "v5",
+  "scaler": "scaler_v5.joblib",
+  "classes": [
+    "BENIGN",
+    "Bot",
+    "DDoS",
+    "DoS-GoldenEye",
+    "DoS-Hulk",
+    "DoS-Slowhttptest",
+    "DoS-slowloris",
+    "FTP-Patator",
+    "PortScan",
+    "SSH-Patator",
+    "Scan-Vista",
+    "WebAttack"
+  ],
+  "features_count": 58,
+  "reglage": {
+    "poids_classes": "aucun",
+    "graine": 0,
+    "dropout": 0.3,
+    "lr": 0.001,
+    "batch": 1024,
+    "temperature_scaling": 1.4982
+  },
+  "architecture": {
+    "entree": 58,
+    "couches": [
+      256,
+      128,
+      64
+    ],
+    "sortie": 12,
+    "dropout": 0.3
+  },
+  "comparatif_test": {
+    "v4_baseline": {
+      "F1_macro": 0.9465,
+      "attaques_ratees": 364,
+      "fausses_alertes": 366
+    },
+    "lightgbm": {
+      "F1_macro": 0.9588,
+      "attaques_ratees": 483,
+      "fausses_alertes": 205
+    },
+    "v5_dnn_graines": {
+      "0": {
+        "F1_macro": 0.9471,
+        "attaques_ratees": 358,
+        "fausses_alertes": 483
+      },
+      "1": {
+        "F1_macro": 0.954,
+        "attaques_ratees": 276,
+        "fausses_alertes": 412
+      },
+      "2": {
+        "F1_macro": 0.9555,
+        "attaques_ratees": 266,
+        "fausses_alertes": 464
+      }
+    },
+    "v5_calibre": {
+      "F1_macro": 0.9517,
+      "attaques_ratees": 462,
+      "fausses_alertes": 223
+    },
+    "v5_double_barriere_ae": {
+      "F1_macro": 0.9496,
+      "attaques_ratees": 368,
+      "fausses_alertes": 426
+    }
+  }
+}

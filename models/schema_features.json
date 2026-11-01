@@ -1,0 +1,425 @@
+{
+  "version": "1.0",
+  "total_features": 58,
+  "description": "Schéma canonique des 58 caractéristiques bidirectionnelles NFStream sans inspection de payload",
+  "categories": {
+    "transport": [
+      "protocol"
+    ],
+    "volumetry_and_duration": [
+      "bidirectional_duration_ms",
+      "bidirectional_packets",
+      "bidirectional_bytes",
+      "src2dst_duration_ms",
+      "src2dst_packets",
+      "src2dst_bytes",
+      "dst2src_duration_ms",
+      "dst2src_packets",
+      "dst2src_bytes"
+    ],
+    "packet_size_statistics": [
+      "bidirectional_min_ps",
+      "bidirectional_mean_ps",
+      "bidirectional_stddev_ps",
+      "bidirectional_max_ps",
+      "src2dst_min_ps",
+      "src2dst_mean_ps",
+      "src2dst_stddev_ps",
+      "src2dst_max_ps",
+      "dst2src_min_ps",
+      "dst2src_mean_ps",
+      "dst2src_stddev_ps",
+      "dst2src_max_ps"
+    ],
+    "inter_arrival_time_statistics": [
+      "bidirectional_min_piat_ms",
+      "bidirectional_mean_piat_ms",
+      "bidirectional_stddev_piat_ms",
+      "bidirectional_max_piat_ms",
+      "src2dst_min_piat_ms",
+      "src2dst_mean_piat_ms",
+      "src2dst_stddev_piat_ms",
+      "src2dst_max_piat_ms",
+      "dst2src_min_piat_ms",
+      "dst2src_mean_piat_ms",
+      "dst2src_stddev_piat_ms",
+      "dst2src_max_piat_ms"
+    ],
+    "tcp_flags": [
+      "bidirectional_syn_packets",
+      "bidirectional_cwr_packets",
+      "bidirectional_ece_packets",
+      "bidirectional_urg_packets",
+      "bidirectional_ack_packets",
+      "bidirectional_psh_packets",
+      "bidirectional_rst_packets",
+      "bidirectional_fin_packets",
+      "src2dst_syn_packets",
+      "src2dst_cwr_packets",
+      "src2dst_ece_packets",
+      "src2dst_urg_packets",
+      "src2dst_ack_packets",
+      "src2dst_psh_packets",
+      "src2dst_rst_packets",
+      "src2dst_fin_packets",
+      "dst2src_syn_packets",
+      "dst2src_cwr_packets",
+      "dst2src_ece_packets",
+      "dst2src_urg_packets",
+      "dst2src_ack_packets",
+      "dst2src_psh_packets",
+      "dst2src_rst_packets",
+      "dst2src_fin_packets"
+    ]
+  },
+  "features": {
+    "protocol": {
+      "index": 0,
+      "type": "int64",
+      "min": 0,
+      "description": "Protocole IANA (6=TCP, 17=UDP, 1=ICMP)"
+    },
+    "bidirectional_duration_ms": {
+      "index": 1,
+      "type": "int64",
+      "min": 0,
+      "description": "Durée en millisecondes (bidirectional)"
+    },
+    "bidirectional_packets": {
+      "index": 2,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets (bidirectional)"
+    },
+    "bidirectional_bytes": {
+      "index": 3,
+      "type": "int64",
+      "min": 0,
+      "description": "Volume en octets (bidirectional)"
+    },
+    "src2dst_duration_ms": {
+      "index": 4,
+      "type": "int64",
+      "min": 0,
+      "description": "Durée en millisecondes (src2dst)"
+    },
+    "src2dst_packets": {
+      "index": 5,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets (src2dst)"
+    },
+    "src2dst_bytes": {
+      "index": 6,
+      "type": "int64",
+      "min": 0,
+      "description": "Volume en octets (src2dst)"
+    },
+    "dst2src_duration_ms": {
+      "index": 7,
+      "type": "int64",
+      "min": 0,
+      "description": "Durée en millisecondes (dst2src)"
+    },
+    "dst2src_packets": {
+      "index": 8,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets (dst2src)"
+    },
+    "dst2src_bytes": {
+      "index": 9,
+      "type": "int64",
+      "min": 0,
+      "description": "Volume en octets (dst2src)"
+    },
+    "bidirectional_min_ps": {
+      "index": 10,
+      "type": "float64",
+      "min": 0,
+      "description": "Taille des paquets (octets) - statistique min (bidirectional)"
+    },
+    "bidirectional_mean_ps": {
+      "index": 11,
+      "type": "float64",
+      "min": 0,
+      "description": "Taille des paquets (octets) - statistique mean (bidirectional)"
+    },
+    "bidirectional_stddev_ps": {
+      "index": 12,
+      "type": "float64",
+      "min": 0,
+      "description": "Taille des paquets (octets) - statistique stddev (bidirectional)"
+    },
+    "bidirectional_max_ps": {
+      "index": 13,
+      "type": "float64",
+      "min": 0,
+      "description": "Taille des paquets (octets) - statistique max (bidirectional)"
+    },
+    "src2dst_min_ps": {
+      "index": 14,
+      "type": "float64",
+      "min": 0,
+      "description": "Taille des paquets (octets) - statistique min (src2dst)"
+    },
+    "src2dst_mean_ps": {
+      "index": 15,
+      "type": "float64",
+      "min": 0,
+      "description": "Taille des paquets (octets) - statistique mean (src2dst)"
+    },
+    "src2dst_stddev_ps": {
+      "index": 16,
+      "type": "float64",
+      "min": 0,
+      "description": "Taille des paquets (octets) - statistique stddev (src2dst)"
+    },
+    "src2dst_max_ps": {
+      "index": 17,
+      "type": "float64",
+      "min": 0,
+      "description": "Taille des paquets (octets) - statistique max (src2dst)"
+    },
+    "dst2src_min_ps": {
+      "index": 18,
+      "type": "float64",
+      "min": 0,
+      "description": "Taille des paquets (octets) - statistique min (dst2src)"
+    },
+    "dst2src_mean_ps": {
+      "index": 19,
+      "type": "float64",
+      "min": 0,
+      "description": "Taille des paquets (octets) - statistique mean (dst2src)"
+    },
+    "dst2src_stddev_ps": {
+      "index": 20,
+      "type": "float64",
+      "min": 0,
+      "description": "Taille des paquets (octets) - statistique stddev (dst2src)"
+    },
+    "dst2src_max_ps": {
+      "index": 21,
+      "type": "float64",
+      "min": 0,
+      "description": "Taille des paquets (octets) - statistique max (dst2src)"
+    },
+    "bidirectional_min_piat_ms": {
+      "index": 22,
+      "type": "float64",
+      "min": 0,
+      "description": "Temps inter-arrivée des paquets (ms) - statistique piat (bidirectional)"
+    },
+    "bidirectional_mean_piat_ms": {
+      "index": 23,
+      "type": "float64",
+      "min": 0,
+      "description": "Temps inter-arrivée des paquets (ms) - statistique piat (bidirectional)"
+    },
+    "bidirectional_stddev_piat_ms": {
+      "index": 24,
+      "type": "float64",
+      "min": 0,
+      "description": "Temps inter-arrivée des paquets (ms) - statistique piat (bidirectional)"
+    },
+    "bidirectional_max_piat_ms": {
+      "index": 25,
+      "type": "float64",
+      "min": 0,
+      "description": "Temps inter-arrivée des paquets (ms) - statistique piat (bidirectional)"
+    },
+    "src2dst_min_piat_ms": {
+      "index": 26,
+      "type": "float64",
+      "min": 0,
+      "description": "Temps inter-arrivée des paquets (ms) - statistique piat (src2dst)"
+    },
+    "src2dst_mean_piat_ms": {
+      "index": 27,
+      "type": "float64",
+      "min": 0,
+      "description": "Temps inter-arrivée des paquets (ms) - statistique piat (src2dst)"
+    },
+    "src2dst_stddev_piat_ms": {
+      "index": 28,
+      "type": "float64",
+      "min": 0,
+      "description": "Temps inter-arrivée des paquets (ms) - statistique piat (src2dst)"
+    },
+    "src2dst_max_piat_ms": {
+      "index": 29,
+      "type": "float64",
+      "min": 0,
+      "description": "Temps inter-arrivée des paquets (ms) - statistique piat (src2dst)"
+    },
+    "dst2src_min_piat_ms": {
+      "index": 30,
+      "type": "float64",
+      "min": 0,
+      "description": "Temps inter-arrivée des paquets (ms) - statistique piat (dst2src)"
+    },
+    "dst2src_mean_piat_ms": {
+      "index": 31,
+      "type": "float64",
+      "min": 0,
+      "description": "Temps inter-arrivée des paquets (ms) - statistique piat (dst2src)"
+    },
+    "dst2src_stddev_piat_ms": {
+      "index": 32,
+      "type": "float64",
+      "min": 0,
+      "description": "Temps inter-arrivée des paquets (ms) - statistique piat (dst2src)"
+    },
+    "dst2src_max_piat_ms": {
+      "index": 33,
+      "type": "float64",
+      "min": 0,
+      "description": "Temps inter-arrivée des paquets (ms) - statistique piat (dst2src)"
+    },
+    "bidirectional_syn_packets": {
+      "index": 34,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP SYN (bidirectional)"
+    },
+    "bidirectional_cwr_packets": {
+      "index": 35,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP CWR (bidirectional)"
+    },
+    "bidirectional_ece_packets": {
+      "index": 36,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP ECE (bidirectional)"
+    },
+    "bidirectional_urg_packets": {
+      "index": 37,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP URG (bidirectional)"
+    },
+    "bidirectional_ack_packets": {
+      "index": 38,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP ACK (bidirectional)"
+    },
+    "bidirectional_psh_packets": {
+      "index": 39,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP PSH (bidirectional)"
+    },
+    "bidirectional_rst_packets": {
+      "index": 40,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP RST (bidirectional)"
+    },
+    "bidirectional_fin_packets": {
+      "index": 41,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP FIN (bidirectional)"
+    },
+    "src2dst_syn_packets": {
+      "index": 42,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP SYN (src2dst)"
+    },
+    "src2dst_cwr_packets": {
+      "index": 43,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP CWR (src2dst)"
+    },
+    "src2dst_ece_packets": {
+      "index": 44,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP ECE (src2dst)"
+    },
+    "src2dst_urg_packets": {
+      "index": 45,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP URG (src2dst)"
+    },
+    "src2dst_ack_packets": {
+      "index": 46,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP ACK (src2dst)"
+    },
+    "src2dst_psh_packets": {
+      "index": 47,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP PSH (src2dst)"
+    },
+    "src2dst_rst_packets": {
+      "index": 48,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP RST (src2dst)"
+    },
+    "src2dst_fin_packets": {
+      "index": 49,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP FIN (src2dst)"
+    },
+    "dst2src_syn_packets": {
+      "index": 50,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP SYN (dst2src)"
+    },
+    "dst2src_cwr_packets": {
+      "index": 51,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP CWR (dst2src)"
+    },
+    "dst2src_ece_packets": {
+      "index": 52,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP ECE (dst2src)"
+    },
+    "dst2src_urg_packets": {
+      "index": 53,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP URG (dst2src)"
+    },
+    "dst2src_ack_packets": {
+      "index": 54,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP ACK (dst2src)"
+    },
+    "dst2src_psh_packets": {
+      "index": 55,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP PSH (dst2src)"
+    },
+    "dst2src_rst_packets": {
+      "index": 56,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP RST (dst2src)"
+    },
+    "dst2src_fin_packets": {
+      "index": 57,
+      "type": "int64",
+      "min": 0,
+      "description": "Nombre de paquets avec drapeau TCP FIN (dst2src)"
+    }
+  }
+}
