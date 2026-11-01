@@ -289,15 +289,49 @@ def get_threat_vectors(
     return result
 
 
+def get_total_alerts_count(
+    search_ip: Optional[str] = None,
+    category: Optional[str] = None,
+    min_conf: float = 0.0,
+    anomalies_only: bool = False,
+    db_path: Optional[str] = None,
+) -> int:
+    """Retourne le nombre total d'alertes correspondant aux filtres en base SQLite."""
+    con = get_connection(db_path)
+    query = """SELECT COUNT(*) FROM flows 
+               WHERE (pred != 'BENIGN' OR anomalie_ae = 1)"""
+    params: List[Any] = []
+
+    if search_ip:
+        query += " AND (src_ip LIKE ? OR dst_ip LIKE ?)"
+        params.extend([f"%{search_ip}%", f"%{search_ip}%"])
+
+    if category:
+        query += " AND pred = ?"
+        params.append(category)
+
+    if min_conf > 0.0:
+        query += " AND confiance >= ?"
+        params.append(min_conf / 100.0)
+
+    if anomalies_only:
+        query += " AND anomalie_ae = 1"
+
+    count = con.execute(query, params).fetchone()[0] or 0
+    con.close()
+    return int(count)
+
+
 def get_recent_alerts(
-    limit: int = 60,
+    limit: int = 100,
+    offset: int = 0,
     search_ip: Optional[str] = None,
     category: Optional[str] = None,
     min_conf: float = 0.0,
     anomalies_only: bool = False,
     db_path: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """Retourne la liste filtrée des dernières alertes pour le tableau en direct."""
+    """Retourne la liste filtrée et paginée des alertes pour le tableau du SOC."""
     con = get_connection(db_path)
 
     query = """SELECT id, received_at, sensor_id, src_ip, src_port, dst_ip, dst_port, 
@@ -321,8 +355,8 @@ def get_recent_alerts(
     if anomalies_only:
         query += " AND anomalie_ae = 1"
 
-    query += " ORDER BY id DESC LIMIT ?"
-    params.append(limit)
+    query += " ORDER BY id DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
 
     rows = con.execute(query, params).fetchall()
 

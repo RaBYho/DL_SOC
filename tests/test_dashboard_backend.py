@@ -125,12 +125,19 @@ def test_dashboard_api_endpoints(test_db, monkeypatch):
     assert res_stats.status_code == 200
     assert "kpis" in res_stats.json()
 
-    # Test /api/dashboard/alerts avec filtre
+    # Test /api/dashboard/alerts avec filtre et pagination
     res_alerts = client.get("/api/dashboard/alerts?category=DDoS")
     assert res_alerts.status_code == 200
+    assert "X-Total-Count" in res_alerts.headers
+    assert int(res_alerts.headers["X-Total-Count"]) == 1
     alerts = res_alerts.json()
     assert len(alerts) == 1
     assert alerts[0]["classification"] == "DDoS"
+
+    # Test pagination offset
+    res_offset = client.get("/api/dashboard/alerts?limit=1&offset=1")
+    assert res_offset.status_code == 200
+    assert len(res_offset.json()) == 1
 
     # Test /api/dashboard/pcaps
     res_pcap = client.get("/api/dashboard/pcaps")

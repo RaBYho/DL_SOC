@@ -6,6 +6,9 @@
         <h2 class="card-title">{{ store.t('table.title') }}</h2>
         <span class="card-subtitle">
           {{ store.t('table.subtitle') }} &middot; {{ store.filteredAlerts.length }} / {{ store.alerts.length }} alertes
+          <template v-if="store.totalDbAlerts > store.alerts.length">
+            ({{ store.totalDbAlerts }} en base)
+          </template>
         </span>
       </div>
       <div class="live-counter-pill">
@@ -300,6 +303,100 @@
       </div>
     </div>
 
+    <!-- Table Pagination & History Bar -->
+    <div v-if="store.filteredAlerts.length > 0" class="table-pagination-bar">
+      <!-- Left: Items info -->
+      <div class="pagination-info">
+        <span>
+          {{ store.t('table.showing') }} 
+          <b>{{ startIndex + 1 }}</b>-<b>{{ endIndex }}</b> 
+          {{ store.t('table.of') }} 
+          <b>{{ totalFiltered }}</b> {{ store.t('table.items') }}
+        </span>
+        <span v-if="store.alerts.length < store.totalDbAlerts" class="db-total-badge" :title="'Total en base: ' + store.totalDbAlerts">
+          ({{ store.totalDbAlerts }} en base)
+        </span>
+      </div>
+
+      <!-- Center: Load Older from SQLite button if more exist in DB -->
+      <div v-if="store.hasMoreDbAlerts || store.alerts.length < store.totalDbAlerts" class="pagination-db-load">
+        <button 
+          type="button" 
+          class="load-more-btn" 
+          :disabled="store.isLoadingOlderAlerts"
+          @click="store.loadOlderAlerts(100)"
+          :title="store.t('table.loadOlderFromDb')"
+        >
+          <svg v-if="store.isLoadingOlderAlerts" class="spin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="7 13 12 18 17 13"></polyline>
+            <polyline points="7 6 12 11 17 6"></polyline>
+          </svg>
+          <span>{{ store.isLoadingOlderAlerts ? store.t('table.loadingHistory') : store.t('table.loadOlderFromDb') }}</span>
+        </button>
+      </div>
+
+      <!-- Right: Page size selector and page navigation -->
+      <div class="pagination-controls">
+        <div class="page-size-selector">
+          <span class="page-size-label">{{ store.t('table.perPage') }}</span>
+          <select v-model="pageSize" aria-label="Items per page" class="page-size-select">
+            <option :value="25">25</option>
+            <option :value="50">50</option>
+            <option :value="100">100</option>
+            <option :value="250">250</option>
+            <option value="all">{{ store.t('table.all') }}</option>
+          </select>
+        </div>
+
+        <div v-if="totalPages > 1 && pageSize !== 'all'" class="page-nav-group">
+          <button 
+            type="button" 
+            class="page-nav-btn" 
+            :disabled="currentPage === 1" 
+            @click="goToPage(1)"
+            title="Première page"
+          >
+            &laquo;
+          </button>
+          <button 
+            type="button" 
+            class="page-nav-btn" 
+            :disabled="currentPage === 1" 
+            @click="prevPage"
+            title="Page précédente"
+          >
+            &lsaquo;
+          </button>
+          
+          <span class="page-indicator">
+            {{ store.t('table.page') }} <b>{{ currentPage }}</b> / <b>{{ totalPages }}</b>
+          </span>
+
+          <button 
+            type="button" 
+            class="page-nav-btn" 
+            :disabled="currentPage === totalPages" 
+            @click="nextPage"
+            title="Page suivante"
+          >
+            &rsaquo;
+          </button>
+          <button 
+            type="button" 
+            class="page-nav-btn" 
+            :disabled="currentPage === totalPages" 
+            @click="goToPage(totalPages)"
+            title="Dernière page"
+          >
+            &raquo;
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Batch Pattern & Campaign Investigation Modal -->
     <BatchPatternModal />
 
@@ -316,7 +413,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useSocStore } from '@/stores/socStore'
 import { api } from '@/services/api'
 import BatchPatternModal from './BatchPatternModal.vue'
@@ -326,6 +423,69 @@ const isPromptCopied = ref(false)
 const toastMessage = ref('')
 const showExportMenu = ref(false)
 const exportDropdownRef = ref(null)
+
+// Pagination & Navigation State
+const currentPage = ref(1)
+const pageSize = ref(50)
+
+// Reset to page 1 whenever filters change
+watch(
+  [() => store.filterSearch, () => store.filterCategory, () => store.filterMinConfidence, () => store.filterAutoencoderOnly],
+  () => {
+    currentPage.value = 1
+  }
+)
+
+const totalFiltered = computed(() => store.filteredAlerts.length)
+
+const totalPages = computed(() => {
+  if (pageSize.value === 'all') return 1
+  const size = Number(pageSize.value) || 50
+  return Math.max(1, Math.ceil(totalFiltered.value / size))
+})
+
+watch(totalPages, (newTotal) => {
+  if (currentPage.value > newTotal) {
+    currentPage.value = newTotal || 1
+  }
+})
+
+const startIndex = computed(() => {
+  if (pageSize.value === 'all') return 0
+  const size = Number(pageSize.value) || 50
+  return (currentPage.value - 1) * size
+})
+
+const endIndex = computed(() => {
+  if (pageSize.value === 'all') return totalFiltered.value
+  const size = Number(pageSize.value) || 50
+  return Math.min(startIndex.value + size, totalFiltered.value)
+})
+
+const displayedAlerts = computed(() => {
+  if (pageSize.value === 'all') {
+    return store.filteredAlerts
+  }
+  return store.filteredAlerts.slice(startIndex.value, endIndex.value)
+})
+
+function goToPage(p) {
+  if (p >= 1 && p <= totalPages.value) {
+    currentPage.value = p
+  }
+}
+
+function prevPage() {
+  if (currentPage.value > 1) {
+    currentPage.value--
+  }
+}
+
+function nextPage() {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+  }
+}
 
 function handleClickOutside(event) {
   if (exportDropdownRef.value && !exportDropdownRef.value.contains(event.target)) {
@@ -360,10 +520,6 @@ async function copyBatchPrompt() {
 }
 
 const attackCategories = computed(() => store.availableAttackCategories)
-
-const displayedAlerts = computed(() => {
-  return store.filteredAlerts.slice(0, 80)
-})
 
 function formatTime(val) {
   if (!val) return new Date().toTimeString().slice(0, 8)
@@ -1185,6 +1341,162 @@ tbody tr.row-new {
   width: 16px;
   height: 16px;
   color: var(--ok, #10b981);
+}
+
+/* Table Pagination & History Bar */
+.table-pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  background: var(--panel2);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 12px;
+}
+
+.pagination-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--mu);
+}
+
+.pagination-info b {
+  color: var(--text-pri, #fff);
+}
+
+.db-total-badge {
+  font-size: 11px;
+  color: var(--ac);
+  background: rgba(108, 140, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(108, 140, 255, 0.2);
+}
+
+.pagination-db-load {
+  display: flex;
+  align-items: center;
+}
+
+.load-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(108, 140, 255, 0.12);
+  border: 1px solid rgba(108, 140, 255, 0.28);
+  border-radius: 6px;
+  color: var(--ac, #6c8cff);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.load-more-btn:hover:not(:disabled) {
+  background: rgba(108, 140, 255, 0.24);
+  border-color: var(--ac, #6c8cff);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.load-more-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--mu);
+}
+
+.page-size-label {
+  font-size: 11px;
+}
+
+.page-size-select {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text-pri, #fff);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  outline: none;
+}
+
+.page-size-select:focus {
+  border-color: var(--ac);
+}
+
+.page-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-nav-btn {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--text-pri, #fff);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.page-nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--ac);
+  color: var(--ac);
+}
+
+.page-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.page-indicator {
+  padding: 0 6px;
+  font-size: 11px;
+  color: var(--mu);
+  white-space: nowrap;
+}
+
+.page-indicator b {
+  color: var(--text-pri, #fff);
 }
 
 .slide-down-enter-active, .slide-down-leave-active {

@@ -118,7 +118,19 @@ export const translations = {
       autoencoder: "Autoencodeur",
       severity: "Sévérité",
       emptyMessage: "Aucun incident réseau ne correspond aux critères de filtre.",
-      resetFilters: "Réinitialiser les filtres"
+      resetFilters: "Réinitialiser les filtres",
+      page: "Page",
+      of: "sur",
+      perPage: "Par page :",
+      all: "Tout",
+      prevPage: "Précédent",
+      nextPage: "Suivant",
+      showing: "Affichage de",
+      to: "à",
+      items: "alertes",
+      loadOlderFromDb: "Charger l'historique ancien",
+      loadingHistory: "Chargement SQLite...",
+      allLoaded: "Toutes les alertes de la base sont chargées"
     },
     // Multi-Selection & Batch Campaign Pattern
     batch: {
@@ -320,7 +332,19 @@ export const translations = {
       autoencoder: "Autoencoder",
       severity: "Severity",
       emptyMessage: "No network incidents match your current filter criteria.",
-      resetFilters: "Reset all filters"
+      resetFilters: "Reset all filters",
+      page: "Page",
+      of: "of",
+      perPage: "Per page:",
+      all: "All",
+      prevPage: "Previous",
+      nextPage: "Next",
+      showing: "Showing",
+      to: "to",
+      items: "alerts",
+      loadOlderFromDb: "Load older history from DB",
+      loadingHistory: "Loading SQLite...",
+      allLoaded: "All database alerts loaded"
     },
     // Multi-Selection & Batch Campaign Pattern
     batch: {

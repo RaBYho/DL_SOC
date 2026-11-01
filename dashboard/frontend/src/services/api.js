@@ -32,9 +32,11 @@ export const api = {
   stopReplay: () => request('/replay/stop', { method: 'POST' }),
   getReplayStatus: () => request('/replay/status'),
   getSensors: () => request('/sensors'),
-  getAlerts: (limit = 100, offset = 0, pred = null, anomalieOnly = false) => {
-    const params = new URLSearchParams({ limit, offset, anomalie_only: anomalieOnly })
-    if (pred) params.append('pred', pred)
+  getAlerts: (limit = 100, offset = 0, pred = null, anomalieOnly = false, searchIp = null, minConf = 0) => {
+    const params = new URLSearchParams({ limit, offset, anomalies_only: anomalieOnly })
+    if (pred) params.append('category', pred)
+    if (searchIp) params.append('search_ip', searchIp)
+    if (minConf > 0) params.append('min_conf', minConf)
     return request(`/alerts?${params.toString()}`)
   },
   resetDatabase: () => request('/database/reset', { method: 'POST' }),

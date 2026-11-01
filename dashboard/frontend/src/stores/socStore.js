@@ -51,6 +51,9 @@ export const useSocStore = defineStore('soc', {
 
     // Feed & Inspection
     alerts: [],
+    totalDbAlerts: 0,
+    isLoadingOlderAlerts: false,
+    hasMoreDbAlerts: true,
     selectedFlow: null,
     drawerOpen: false,
     incidentFeedbackMap: {},
@@ -320,6 +323,13 @@ export const useSocStore = defineStore('soc', {
           })
         }
 
+        if (data.total_alerts_count !== undefined) {
+          this.totalDbAlerts = data.total_alerts_count
+          this.hasMoreDbAlerts = this.alerts.length < this.totalDbAlerts
+        } else {
+          this.totalDbAlerts = this.alerts.length
+        }
+
         if (data.pcap_files && data.pcap_files.length > 0) {
           this.pcapFiles = data.pcap_files
         } else if (data.pcaps && data.pcaps.length > 0) {
@@ -424,6 +434,8 @@ export const useSocStore = defineStore('soc', {
           attack_pct: 0.0
         }
         this.alerts = []
+        this.totalDbAlerts = 0
+        this.hasMoreDbAlerts = false
         this.attackDistribution = msg.distribution || []
         this.timelineSeries = msg.timeline || []
         this.threatVectors = msg.threat_vectors || { top_source_ips: [], top_dest_ports: [] }
@@ -499,7 +511,8 @@ export const useSocStore = defineStore('soc', {
               severity: a.severity || this.resolveSeverity(pred, anom)
             }
           })
-          this.alerts = [...markedAlerts, ...this.alerts].slice(0, 300)
+          this.alerts = [...markedAlerts, ...this.alerts].slice(0, 1500)
+          this.totalDbAlerts = Math.max(this.totalDbAlerts + markedAlerts.length, this.alerts.length)
 
           // Update current MSE
           const latestMse = markedAlerts.find(a => a.mse_ae !== null && a.mse_ae !== undefined)
@@ -822,6 +835,52 @@ export const useSocStore = defineStore('soc', {
         }
       } catch (err) {
         console.warn('Failed to fetch dynamic model classes:', err)
+      }
+    },
+
+    async loadOlderAlerts(pageSize = 100) {
+      if (this.isLoadingOlderAlerts || !this.hasMoreDbAlerts) return
+      this.isLoadingOlderAlerts = true
+      try {
+        const offset = this.alerts.length
+        const olderAlerts = await api.getAlerts(pageSize, offset)
+        if (Array.isArray(olderAlerts) && olderAlerts.length > 0) {
+          const existingIds = new Set(this.alerts.map(a => String(a.id || `${a.src_ip}-${a.dst_port}-${a.received_at}`)))
+          const formatted = olderAlerts.filter(a => {
+            const id = String(a.id || `${a.src_ip}-${a.dst_port}-${a.received_at}`)
+            return !existingIds.has(id)
+          }).map(a => {
+            const pred = a.pred || a.classification || 'BENIGN'
+            const anom = a.anomalie_ae !== undefined ? a.anomalie_ae : (a.is_anomaly ? 1 : 0)
+            const conf = a.confiance !== undefined ? a.confiance : (a.confidence ? a.confidence / 100 : 0.9)
+            return {
+              ...a,
+              pred: pred,
+              classification: pred,
+              confiance: conf,
+              confidence: a.confidence !== undefined ? a.confidence : Math.round(conf * 100),
+              sensor: a.sensor || a.sensor_id || 'sensor-edge-01',
+              sensor_id: a.sensor_id || a.sensor || 'sensor-edge-01',
+              received_at: a.received_at || a.timestamp || '',
+              timestamp: a.timestamp || a.received_at || '',
+              anomalie_ae: anom,
+              is_anomaly: Boolean(anom),
+              severity: a.severity || this.resolveSeverity(pred, anom)
+            }
+          })
+          if (formatted.length > 0) {
+            this.alerts = [...this.alerts, ...formatted]
+          }
+          if (olderAlerts.length < pageSize || (this.totalDbAlerts > 0 && this.alerts.length >= this.totalDbAlerts)) {
+            this.hasMoreDbAlerts = false
+          }
+        } else {
+          this.hasMoreDbAlerts = false
+        }
+      } catch (err) {
+        console.error('Failed to load older alerts from SQLite:', err)
+      } finally {
+        this.isLoadingOlderAlerts = false
       }
     },
 

@@ -2,7 +2,7 @@ import asyncio
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Query, Request, Response, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from dashboard.backend.config import AE_THRESHOLD, PCAP_DIR
@@ -17,6 +17,7 @@ from dashboard.backend.database import (
     get_recent_alerts,
     get_threat_vectors,
     get_timeline,
+    get_total_alerts_count,
     record_feedback,
     record_batch_feedback,
     reset_database,
@@ -310,8 +311,9 @@ def get_initial_dashboard_state(time_range: str = Query("15m")):
     kpis = _format_kpis(get_kpis())
     dist = _format_distribution(get_attack_distribution())
     tv = _format_threat_vectors(get_threat_vectors(limit=5))
-    alerts_raw = get_recent_alerts(limit=60)
+    alerts_raw = get_recent_alerts(limit=150, offset=0)
     alerts = [_enrich_alert(a) for a in alerts_raw]
+    total_alerts_count = get_total_alerts_count()
     pcaps = _get_pcap_list()
     model_classes_info = get_model_classes()
 
@@ -322,6 +324,7 @@ def get_initial_dashboard_state(time_range: str = Query("15m")):
         "timeline": get_timeline(window_seconds=900, buckets=60),
         "threat_vectors": tv,
         "recent_alerts": alerts,
+        "total_alerts_count": total_alerts_count,
         "sensors": get_active_sensors(),
         "pcap_files": pcaps,
         "replay_status": replay_service.get_status(),
@@ -350,21 +353,34 @@ def get_stats():
 
 @router.get("/alerts")
 def get_alerts(
-    limit: int = Query(60, ge=1, le=500),
+    response: Response,
+    limit: int = Query(100, ge=1, le=5000),
+    offset: int = Query(0, ge=0),
     search_ip: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
     min_conf: float = Query(0.0, ge=0.0, le=100.0),
     anomalies_only: bool = Query(False),
 ):
-    """Retourne la liste filtrée des alertes."""
-    raw = get_recent_alerts(
-        limit=limit,
+    """Retourne la liste filtrée et paginée des alertes depuis la base SQLite."""
+    total = get_total_alerts_count(
         search_ip=search_ip,
         category=category,
         min_conf=min_conf,
         anomalies_only=anomalies_only,
     )
-    if not raw:
+    raw = get_recent_alerts(
+        limit=limit,
+        offset=offset,
+        search_ip=search_ip,
+        category=category,
+        min_conf=min_conf,
+        anomalies_only=anomalies_only,
+    )
+    response.headers["X-Total-Count"] = str(total)
+    response.headers["X-Limit"] = str(limit)
+    response.headers["X-Offset"] = str(offset)
+
+    if not raw and offset == 0 and not search_ip and not category and min_conf == 0.0:
         return _get_baseline_alerts()
     return [_enrich_alert(a) for a in raw]
 
