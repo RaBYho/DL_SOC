@@ -63,63 +63,66 @@
         <span>{{ store.t('table.zeroDayOnly') }}</span>
       </label>
 
-      <!-- Quick Zero-Day Batch Selection -->
+      <!-- Clear Button (Only shown when filters are active) -->
       <button 
+        v-if="store.hasActiveFilters" 
         type="button" 
-        class="quick-batch-btn" 
-        :class="{ 'btn-disabled': store.totalZeroDaysCount === 0 }"
-        :title="store.totalZeroDaysCount > 0 ? `Sélectionner les ${store.totalZeroDaysCount} Zero-Days pour analyse de campagne` : 'Aucune anomalie Zero-Day détectée dans la sélection actuelle'"
-        @click="store.selectAllZeroDays"
+        class="clear-btn" 
+        @click="store.clearFilters"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-        </svg>
-        <span>{{ store.t('batch.selectZeroDays') }} ({{ store.totalZeroDaysCount }})</span>
-      </button>
-
-      <!-- Active Learning Feedback Download Links -->
-      <a 
-        href="/api/dashboard/feedback/export?format=json&download=true" 
-        download="feedback_flows.json"
-        class="export-feedback-btn"
-        title="Télécharger les flux qualifiés par l'analyste au format JSON (pour réentraînement Active Learning Colab)"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-        <span>feedback.json</span>
-      </a>
-
-      <a 
-        href="/api/dashboard/feedback/export?format=csv" 
-        download="feedback_flows.csv"
-        class="export-feedback-btn"
-        title="Télécharger les flux qualifiés par l'analyste au format CSV"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-        <span>feedback.csv</span>
-      </a>
-
-      <!-- Deselect Button if items selected -->
-      <button 
-        v-if="store.selectedCount > 0" 
-        type="button" 
-        class="deselect-btn" 
-        @click="store.clearSelectedAlerts"
-      >
-        <span>{{ store.t('batch.deselect') }} ({{ store.selectedCount }})</span>
-      </button>
-
-      <!-- Clear Button -->
-      <button class="clear-btn" @click="store.clearFilters">
         {{ store.t('table.clearFilters') }}
       </button>
+
+      <!-- Consolidated Export Dropdown at right end of toolbar -->
+      <div class="export-dropdown-wrapper" ref="exportDropdownRef">
+        <button 
+          type="button" 
+          class="export-dropdown-trigger" 
+          :class="{ active: showExportMenu }"
+          @click.stop="showExportMenu = !showExportMenu"
+          title="Exporter le jeu de données Active Learning (flux qualifiés par l'analyste)"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Exporter</span>
+          <svg class="chevron-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+
+        <transition name="dropdown-pop">
+          <div v-if="showExportMenu" class="export-dropdown-menu" @click.stop>
+            <div class="export-menu-header">Dataset Active Learning</div>
+            <a 
+              href="/api/dashboard/feedback/export?format=json&download=true" 
+              download="feedback_flows.json"
+              class="export-menu-item"
+              @click="showExportMenu = false"
+            >
+              <span class="fmt-badge json">JSON</span>
+              <div class="fmt-details">
+                <span class="fmt-title">feedback_flows.json</span>
+                <span class="fmt-desc">Format structuré pour Colab &amp; Fine-Tuning</span>
+              </div>
+            </a>
+            <a 
+              href="/api/dashboard/feedback/export?format=csv" 
+              download="feedback_flows.csv"
+              class="export-menu-item"
+              @click="showExportMenu = false"
+            >
+              <span class="fmt-badge csv">CSV</span>
+              <div class="fmt-details">
+                <span class="fmt-title">feedback_flows.csv</span>
+                <span class="fmt-desc">Format tableur pour reporting et analyse</span>
+              </div>
+            </a>
+          </div>
+        </transition>
+      </div>
     </div>
 
     <!-- Floating Batch Actions Bar -->
@@ -313,7 +316,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useSocStore } from '@/stores/socStore'
 import { api } from '@/services/api'
 import BatchPatternModal from './BatchPatternModal.vue'
@@ -321,6 +324,22 @@ import BatchPatternModal from './BatchPatternModal.vue'
 const store = useSocStore()
 const isPromptCopied = ref(false)
 const toastMessage = ref('')
+const showExportMenu = ref(false)
+const exportDropdownRef = ref(null)
+
+function handleClickOutside(event) {
+  if (exportDropdownRef.value && !exportDropdownRef.value.contains(event.target)) {
+    showExportMenu.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 
 async function copyBatchPrompt() {
   if (!store.selectedCount) return
@@ -867,11 +886,16 @@ tbody tr.row-new {
   border: 1px solid rgba(178, 102, 255, 0.3);
 }
 
-/* Quick Batch Buttons in Filters Bar */
-.quick-batch-btn {
-  background: rgba(244, 63, 94, 0.12);
-  border: 1px solid rgba(244, 63, 94, 0.3);
-  color: #fb7185;
+/* Consolidated Export Dropdown in Filters Bar */
+.export-dropdown-wrapper {
+  position: relative;
+  margin-left: auto;
+}
+
+.export-dropdown-trigger {
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #38bdf8;
   padding: 6px 12px;
   border-radius: 8px;
   font-size: 12px;
@@ -880,69 +904,119 @@ tbody tr.row-new {
   display: flex;
   align-items: center;
   gap: 6px;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.quick-batch-btn:hover {
-  background: rgba(244, 63, 94, 0.22);
-  border-color: rgba(244, 63, 94, 0.5);
-  color: #fff;
-}
-
-.btn-disabled {
-  opacity: 0.45;
-  cursor: not-allowed !important;
-}
-
-.quick-batch-btn svg {
-  width: 14px;
-  height: 14px;
-  color: #f43f5e;
-}
-
-.export-feedback-btn {
-  background: rgba(56, 189, 248, 0.08);
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  color: #38bdf8;
-  padding: 6px 11px;
-  border-radius: 8px;
-  font-size: 11.5px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  text-decoration: none;
-  transition: all 0.2s ease;
-}
-
-.export-feedback-btn:hover {
+.export-dropdown-trigger:hover,
+.export-dropdown-trigger.active {
   background: rgba(56, 189, 248, 0.18);
   border-color: rgba(56, 189, 248, 0.5);
   color: #fff;
 }
 
-.export-feedback-btn svg {
-  width: 13px;
-  height: 13px;
-  color: #38bdf8;
+.export-dropdown-trigger svg {
+  width: 14px;
+  height: 14px;
 }
 
-.deselect-btn {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+.chevron-svg {
+  width: 12px !important;
+  height: 12px !important;
+  transition: transform 0.2s ease;
+}
+
+.export-dropdown-trigger.active .chevron-svg {
+  transform: rotate(180deg);
+}
+
+.export-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 290px;
+  background: #0f172a;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65), 0 0 12px rgba(56, 189, 248, 0.1);
+  padding: 8px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.export-menu-header {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: #94a3b8;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  padding: 4px 8px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 2px;
 }
 
-.deselect-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
+.export-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background 0.18s ease;
+  cursor: pointer;
+}
+
+.export-menu-item:hover {
+  background: rgba(56, 189, 248, 0.12);
+}
+
+.fmt-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.fmt-badge.json {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.fmt-badge.csv {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.fmt-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.fmt-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.fmt-desc {
+  font-size: 10.5px;
+  color: #94a3b8;
+  line-height: 1.3;
+}
+
+.dropdown-pop-enter-active,
+.dropdown-pop-leave-active {
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dropdown-pop-enter-from,
+.dropdown-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scale(0.97);
 }
 
 /* Floating Batch Action Bar */

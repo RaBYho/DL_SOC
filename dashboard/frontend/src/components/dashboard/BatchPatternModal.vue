@@ -253,17 +253,8 @@
             <h4 class="prompt-section-title">Qualification Humaine Groupée (Human-in-the-Loop)</h4>
             <p class="prompt-section-sub">
               Labellisez et requalifiez d'un seul coup les <b>{{ store.selectedCount }} flux</b> sélectionnés.
-              Cette étiquette est immédiatement enregistrée dans la base et synchronisée sur disque dans <code>feedback_flows.json</code> et <code>feedback_flows.csv</code> pour le réentraînement Active Learning.
+              Cette étiquette est immédiatement enregistrée dans la base et synchronisée sur disque dans <code>feedback_flows.json</code> pour le réentraînement Active Learning.
             </p>
-            <div class="triage-export-pills">
-              <span class="pills-title">Exports réentraînement :</span>
-              <a href="/api/dashboard/feedback/export?format=json&download=true" download="feedback_flows.json" class="export-pill-btn">
-                📥 feedback_flows.json
-              </a>
-              <a href="/api/dashboard/feedback/export?format=csv" download="feedback_flows.csv" class="export-pill-btn">
-                📥 feedback_flows.csv
-              </a>
-            </div>
           </div>
 
           <form class="batch-form" @submit.prevent="submitManualBatchQualification">
@@ -1205,41 +1196,6 @@ function formatVerdictLabel(verdict) {
 /* TAB 3: Batch Triage Form */
 .triage-intro {
   margin-bottom: 1.25rem;
-}
-
-.triage-export-pills {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-  flex-wrap: wrap;
-}
-
-.pills-title {
-  font-size: 11.5px;
-  color: #94a3b8;
-  font-weight: 500;
-}
-
-.export-pill-btn {
-  background: rgba(56, 189, 248, 0.1);
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  color: #38bdf8;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 11.5px;
-  font-weight: 600;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.2s ease;
-}
-
-.export-pill-btn:hover {
-  background: rgba(56, 189, 248, 0.2);
-  color: #fff;
-  border-color: rgba(56, 189, 248, 0.5);
 }
 
 .batch-form {

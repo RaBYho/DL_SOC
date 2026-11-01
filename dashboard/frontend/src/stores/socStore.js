@@ -155,6 +155,15 @@ export const useSocStore = defineStore('soc', {
       })
     },
 
+    hasActiveFilters: (state) => {
+      return Boolean(
+        (state.filterSearch && state.filterSearch.trim() !== '') ||
+        (state.filterCategory && state.filterCategory !== '') ||
+        (state.filterMinConfidence > 0) ||
+        state.filterAutoencoderOnly
+      )
+    },
+
     latestCriticalAlert: (state) => {
       return state.alerts.find(a => a.severity === 'Critical' || a.pred === 'DDoS' || a.pred === 'Bot') || null
     },
