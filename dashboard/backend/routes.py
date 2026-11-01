@@ -638,7 +638,10 @@ def get_feedback_summary_endpoint():
 
 
 @router.get("/feedback/export")
-def export_feedback_endpoint(format: str = Query("json", pattern="^(json|csv)$")):
+def export_feedback_endpoint(
+    format: str = Query("json", pattern="^(json|csv)$"),
+    download: bool = Query(False),
+):
     """Télécharge le jeu de données qualifié au format JSON ou CSV prêt pour l'entraînement."""
     data = export_feedback_dataset()
     if format == "csv":
@@ -651,9 +654,13 @@ def export_feedback_endpoint(format: str = Query("json", pattern="^(json|csv)$")
             keys = [
                 "id", "incident_id", "timestamp", "src_ip", "dst_ip",
                 "src_port", "dst_port", "protocol", "model_predicted_label",
-                "model_mse_score", "human_verdict", "corrected_attack_type", "analyst_notes"
+                "model_mse_score", "human_verdict", "corrected_attack_type",
+                "label", "analyst_verdict", "analyst_notes", "status"
             ]
-            writer = csv.DictWriter(output, fieldnames=keys, extrasaction="ignore")
+            first_item = data[0] if data else {}
+            extra_keys = [k for k in first_item.keys() if k not in keys and k != "raw_features"]
+            all_csv_keys = keys + extra_keys
+            writer = csv.DictWriter(output, fieldnames=all_csv_keys, extrasaction="ignore")
             writer.writeheader()
             for row in data:
                 writer.writerow(row)
@@ -661,7 +668,16 @@ def export_feedback_endpoint(format: str = Query("json", pattern="^(json|csv)$")
         return Response(
             content=csv_bytes,
             media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=nids_active_learning_feedback.csv"},
+            headers={"Content-Disposition": "attachment; filename=feedback_flows.csv"},
+        )
+    if download:
+        import json
+        from fastapi.responses import Response
+        json_bytes = json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8")
+        return Response(
+            content=json_bytes,
+            media_type="application/json",
+            headers={"Content-Disposition": "attachment; filename=feedback_flows.json"},
         )
     return {"count": len(data), "dataset": data}
 

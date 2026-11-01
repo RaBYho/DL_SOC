@@ -67,7 +67,8 @@
       <button 
         type="button" 
         class="quick-batch-btn" 
-        :title="`Sélectionner les ${store.totalZeroDaysCount} Zero-Days pour analyse de campagne`"
+        :class="{ 'btn-disabled': store.totalZeroDaysCount === 0 }"
+        :title="store.totalZeroDaysCount > 0 ? `Sélectionner les ${store.totalZeroDaysCount} Zero-Days pour analyse de campagne` : 'Aucune anomalie Zero-Day détectée dans la sélection actuelle'"
         @click="store.selectAllZeroDays"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -75,6 +76,35 @@
         </svg>
         <span>{{ store.t('batch.selectZeroDays') }} ({{ store.totalZeroDaysCount }})</span>
       </button>
+
+      <!-- Active Learning Feedback Download Links -->
+      <a 
+        href="/api/dashboard/feedback/export?format=json&download=true" 
+        download="feedback_flows.json"
+        class="export-feedback-btn"
+        title="Télécharger les flux qualifiés par l'analyste au format JSON (pour réentraînement Active Learning Colab)"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span>feedback.json</span>
+      </a>
+
+      <a 
+        href="/api/dashboard/feedback/export?format=csv" 
+        download="feedback_flows.csv"
+        class="export-feedback-btn"
+        title="Télécharger les flux qualifiés par l'analyste au format CSV"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span>feedback.csv</span>
+      </a>
 
       <!-- Deselect Button if items selected -->
       <button 
@@ -859,10 +889,43 @@ tbody tr.row-new {
   color: #fff;
 }
 
+.btn-disabled {
+  opacity: 0.45;
+  cursor: not-allowed !important;
+}
+
 .quick-batch-btn svg {
   width: 14px;
   height: 14px;
   color: #f43f5e;
+}
+
+.export-feedback-btn {
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #38bdf8;
+  padding: 6px 11px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.export-feedback-btn:hover {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: rgba(56, 189, 248, 0.5);
+  color: #fff;
+}
+
+.export-feedback-btn svg {
+  width: 13px;
+  height: 13px;
+  color: #38bdf8;
 }
 
 .deselect-btn {

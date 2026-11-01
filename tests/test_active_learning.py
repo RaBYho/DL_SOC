@@ -138,3 +138,25 @@ def test_batch_feedback_api_endpoints():
 
     fb2 = client.get("/api/dashboard/incidents/batch-inc-2/feedback").json()["feedback"]
     assert fb2["human_verdict"] == "CONFIRMED_ZERODAY"
+
+
+def test_feedback_sync_to_disk_and_download():
+    client = TestClient(app)
+    from pathlib import Path
+    from dashboard.backend.database import sync_feedback_to_disk
+
+    res = sync_feedback_to_disk()
+    assert res["count"] >= 0
+    assert "files" in res
+
+    # Verify physical files exist on disk
+    json_path = Path("feedback_flows.json")
+    csv_path = Path("feedback_flows.csv")
+    assert json_path.exists()
+    assert csv_path.exists()
+
+    # Test download endpoint with attachment header
+    res_dl = client.get("/api/dashboard/feedback/export?format=json&download=true")
+    assert res_dl.status_code == 200
+    assert "attachment" in res_dl.headers.get("content-disposition", "")
+    assert "feedback_flows.json" in res_dl.headers.get("content-disposition", "")

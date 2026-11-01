@@ -1,7 +1,11 @@
 import sqlite3
 import time
+import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional
-from dashboard.backend.config import DB_PATH
+from dashboard.backend.config import DB_PATH, BASE, MODELS_DIR
+
+logger = logging.getLogger(__name__)
 
 
 _initialized_dbs = set()
@@ -83,6 +87,10 @@ def init_db(db_path: Optional[str] = None) -> None:
     path = str(db_path or DB_PATH)
     _init_db_schema(path)
     _initialized_dbs.add(path)
+    try:
+        sync_feedback_to_disk(path)
+    except Exception as e:
+        logger.warning(f"Initial feedback sync warning: {e}")
 
 
 
@@ -499,6 +507,11 @@ def record_feedback(
     con.commit()
     con.close()
 
+    try:
+        sync_feedback_to_disk(db_path)
+    except Exception as e:
+        logger.error(f"Erreur lors de la synchronisation feedback sur disque: {e}")
+
     return {
         "status": "success",
         "incident_id": incident_id,
@@ -559,6 +572,11 @@ def record_batch_feedback(
         )
         con.commit()
     con.close()
+
+    try:
+        sync_feedback_to_disk(db_path)
+    except Exception as e:
+        logger.error(f"Erreur lors de la synchronisation feedback sur disque: {e}")
 
     return {
         "status": "success",
@@ -639,13 +657,75 @@ def export_feedback_dataset(db_path: Optional[str] = None) -> List[Dict[str, Any
     dataset = []
     for r in rows:
         item = dict(r)
+        # Détermination du label d'entraînement officiel
+        if item.get("human_verdict") == "FALSE_POSITIVE":
+            item["label"] = "BENIGN"
+            item["analyst_verdict"] = "BENIGN"
+        else:
+            lbl = item.get("corrected_attack_type") or item.get("model_predicted_label") or "BENIGN"
+            item["label"] = lbl
+            item["analyst_verdict"] = lbl
+
         if item.get("raw_features"):
             try:
-                item["raw_features"] = json.loads(item["raw_features"])
+                feats = json.loads(item["raw_features"])
+                item["raw_features"] = feats
+                if isinstance(feats, dict):
+                    for k, v in feats.items():
+                        if k not in item:
+                            item[k] = v
             except Exception:
                 pass
         dataset.append(item)
     return dataset
+
+
+def sync_feedback_to_disk(db_path: Optional[str] = None) -> Dict[str, Any]:
+    """Exporte automatiquement la table feedback_flows vers feedback_flows.json et feedback_flows.csv sur disque."""
+    import json
+    import csv
+
+    dataset = export_feedback_dataset(db_path)
+    base_dir = Path(BASE)
+    models_dir = Path(MODELS_DIR)
+
+    json_paths = [base_dir / "feedback_flows.json", models_dir / "feedback_flows.json"]
+    csv_paths = [base_dir / "feedback_flows.csv", models_dir / "feedback_flows.csv"]
+
+    # 1. Écriture JSON
+    json_str = json.dumps(dataset, indent=2, ensure_ascii=False)
+    for p in json_paths:
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json_str, encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Erreur écriture JSON {p}: {e}")
+
+    # 2. Écriture CSV
+    if dataset:
+        keys = [
+            "id", "incident_id", "timestamp", "src_ip", "dst_ip",
+            "src_port", "dst_port", "protocol", "model_predicted_label",
+            "model_mse_score", "human_verdict", "corrected_attack_type",
+            "label", "analyst_verdict", "analyst_notes", "status"
+        ]
+        first_item = dataset[0]
+        extra_keys = [k for k in first_item.keys() if k not in keys and k != "raw_features"]
+        all_csv_keys = keys + extra_keys
+
+        for p in csv_paths:
+            try:
+                p.parent.mkdir(parents=True, exist_ok=True)
+                with open(p, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=all_csv_keys, extrasaction="ignore")
+                    writer.writeheader()
+                    for row in dataset:
+                        writer.writerow(row)
+            except Exception as e:
+                logger.error(f"Erreur écriture CSV {p}: {e}")
+
+    logger.info(f"[Active Learning] Synchronisé {len(dataset)} flux qualifiés sur disque (JSON et CSV).")
+    return {"count": len(dataset), "files": [str(p) for p in json_paths + csv_paths]}
 
 
 def get_model_classes(db_path: Optional[str] = None) -> Dict[str, Any]:

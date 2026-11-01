@@ -12,12 +12,23 @@ BASE = os.environ.get("NIDS_BASE", str(PROJECT_ROOT))
 DB_PATH = Path(os.environ.get("NIDS_DB", str(DEFAULT_DB_PATH)))
 API_KEY = os.environ.get("NIDS_API_KEY", "dev-secret-key")
 
-# Paramètres des modèles d'IA
-DEFAULT_AE_THRESHOLD = 0.6029
+# Charger les paramètres depuis manifest.json si présent
+manifest_path = MODELS_DIR / "manifest.json"
+manifest_data = {}
+if manifest_path.exists():
+    try:
+        import json
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            manifest_data = json.load(f)
+    except Exception:
+        pass
+
+# Paramètres des modèles d'IA (v5 natif et Auto-Encodeur v2)
+DEFAULT_AE_THRESHOLD = float(manifest_data.get("ae_threshold", 1.481025))
 AE_THRESHOLD = DEFAULT_AE_THRESHOLD
 DEFAULT_CONF_THRESHOLD = 70.0
-ACTIVE_DNN_VERSION = "v4"
-ACTIVE_AE_VERSION = "v1"
+ACTIVE_DNN_VERSION = str(manifest_data.get("active_version", "v5"))
+ACTIVE_AE_VERSION = str(manifest_data.get("active_ae_version", "v2"))
 
 # Paramètres du serveur
 HOST = os.environ.get("NIDS_HOST", "0.0.0.0")

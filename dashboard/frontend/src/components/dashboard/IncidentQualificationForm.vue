@@ -317,7 +317,7 @@ const submit = async () => {
       analystNotes.value,
       props.flow
     )
-    feedbackSuccessMsg.value = 'Qualification enregistrée pour l\'Active Learning'
+    feedbackSuccessMsg.value = 'Qualification enregistrée et synchronisée dans feedback_flows.json !'
     setTimeout(() => {
       feedbackSuccessMsg.value = ''
     }, 4000)

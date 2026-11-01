@@ -20,7 +20,14 @@ export const useSocStore = defineStore('soc', {
     isStreamPaused: false,
     activeTimeRange: '15m',
     isLoading: true,
-    aeThreshold: Number(localStorage.getItem('soc_ae_threshold')) || 0.6029,
+    aeThreshold: (() => {
+      const stored = Number(localStorage.getItem('soc_ae_threshold'))
+      // Si la valeur stockée correspond à l'ancien seuil v1 (0.6029) ou est invalide, migrer vers le seuil Auto-Encodeur v2 (1.4810)
+      if (!stored || isNaN(stored) || stored <= 0.61) {
+        return 1.4810
+      }
+      return stored
+    })(),
     currentMse: 0.28,
 
     // Core Metrics (KPIs)
@@ -166,12 +173,13 @@ export const useSocStore = defineStore('soc', {
       const idSet = new Set(state.selectedAlertIds.map(String))
       return state.alerts.filter(a => {
         const id = String(a.id || `${a.src_ip}-${a.dst_port}-${a.received_at}`)
-        return idSet.has(id) && (a.anomalie_ae === 1 || a.is_zero_day || (a.mse_ae !== undefined && a.mse_ae > state.aeThreshold))
+        const isZd = Boolean(a.anomalie_ae === 1 || a.anomalie_ae === true || a.is_anomaly === true || a.is_zero_day === true)
+        return idSet.has(id) && isZd
       }).length
     },
 
     totalZeroDaysCount: (state) => {
-      return state.alerts.filter(a => a.anomalie_ae === 1 || a.is_zero_day || (a.mse_ae !== undefined && a.mse_ae > state.aeThreshold)).length
+      return state.alerts.filter(a => Boolean(a.anomalie_ae === 1 || a.anomalie_ae === true || a.is_anomaly === true || a.is_zero_day === true)).length
     },
 
     isAlertSelected: (state) => (alert) => {
@@ -621,11 +629,13 @@ export const useSocStore = defineStore('soc', {
     },
 
     selectAllZeroDays() {
-      const zdAlerts = this.alerts.filter(
-        a => a.anomalie_ae === 1 || a.is_zero_day || (a.mse_ae !== undefined && a.mse_ae > this.aeThreshold)
+      // Sélectionner exclusivement les flux anormaux Zero-Day confirmés (anomalie_ae === 1 ou is_anomaly === true)
+      const targetList = this.filteredAlerts.length < this.alerts.length ? this.filteredAlerts : this.alerts
+      const zdAlerts = targetList.filter(
+        a => Boolean(a.anomalie_ae === 1 || a.anomalie_ae === true || a.is_anomaly === true || a.is_zero_day === true)
       )
       const ids = zdAlerts.map(a => String(a.id || `${a.src_ip}-${a.dst_port}-${a.received_at}`))
-      this.selectedAlertIds = Array.from(new Set([...this.selectedAlertIds, ...ids]))
+      this.selectedAlertIds = Array.from(new Set(ids))
     },
 
     selectAllFiltered() {
