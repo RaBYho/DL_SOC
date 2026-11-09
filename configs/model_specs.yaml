@@ -1,32 +1,35 @@
-# Spécifications des modèles du pipeline NIDS
-# Validé après inspection statique du Jalon 1
+# Spécifications validées des modèles du pipeline NIDS
+# Jalon 1 achevé avec succès
 
 stage1_catboost:
   name: "NIDS-CatBoost"
   source: "https://huggingface.co/pop123ux/pcap-ml-traffic-classifier"
   local_path: "models/cicids_catboost.cbm"
+  features_json: "models/catboost_feature_names.json"
   type: "binary"
-  file_size_kb: 604
+  file_size_kb: 591
+  num_features: 76
   scaler_path: null
-  features: []
 
 stage1_xgboost:
   name: "NIDS-XGBoost (AegisAI)"
   source: "https://github.com/csperera/aegis-ai"
   local_path: "models/xgb_model.json"
-  feature_names_path: "models/xgb_feature_names.json"
+  features_json: "models/xgb_feature_names.json"
   scaler_path: "models/xgb_scaler.pkl"
   type: "binary"
+  file_size_kb: 1670
+  num_features: 30
   target_auc: 0.9992
-  features: []
 
 stage2_cnn:
-  name: "CNN-1D"
+  name: "CNN-1D (PyTorch)"
   source: "https://huggingface.co/saidimn/ids-cnn-cicids2017"
   local_path: "models/cnn1d_attacks_only.pth"
-  scaler_path: "models/scaler.pkl"
-  file_size_mb: 1.97
+  scaler_path: "models/cnn_scaler.pkl"
   type: "multiclass"
+  file_size_mb: 1.92
+  num_features: 78
   num_classes: 14
   classes:
     - "Bot"
