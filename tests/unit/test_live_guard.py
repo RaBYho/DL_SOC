@@ -231,3 +231,33 @@ def test_ip_isolation(guard_config: dict):
 
     assert score_a >= 60.0
     assert score_b == 0.0
+
+
+def test_slow_portscan_detection_via_distinct_ports(guard_config: dict):
+    """Vérifie qu'un scan lent (<15 flux/10s mais >=10 ports distincts) déclenche bien une alerte PortScan."""
+    guard = LiveAlertGuard(guard_config)
+    src = "192.168.1.50"
+
+    # 12 flux espacés de 2 secondes (durée: 24s) vers 12 ports distincts
+    t_12 = np.linspace(0.0, 24.0, 12)
+    df_12 = pd.DataFrame({
+        "Source IP": [src] * 12,
+        "Destination IP": ["172.16.0.1"] * 12,
+        "Destination Port": list(range(1, 13)),
+        "SYN Flag Count": [1] * 12,
+        "Timestamp": t_12,
+    })
+    # Même si individuellement chaque micro-flux est marqué BENIGN par un modèle local :
+    verdicts = pd.Series(["BENIGN"] * 12)
+
+    alerts = guard.process_batch(
+        flows_df=df_12,
+        verdicts=verdicts,
+        s1_scores=np.zeros(12),
+        s2_confs=np.zeros(12),
+        timestamps=t_12,
+    )
+
+    assert len(alerts) == 1
+    assert alerts[0].attack_class == "PortScan"
+    assert alerts[0].flow_count >= 10

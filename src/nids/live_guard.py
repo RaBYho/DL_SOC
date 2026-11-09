@@ -34,6 +34,8 @@ class LiveAlertGuard:
         self.volumetric_classes = set(quorum_cfg.get("volumetric_classes", []))
         self.volumetric_min = int(quorum_cfg.get("volumetric_min_flows", 15))
         self.volumetric_window = float(quorum_cfg.get("volumetric_window_sec", 10.0))
+        self.portscan_min_ports = int(quorum_cfg.get("portscan_min_distinct_ports", 10))
+        self.portscan_window = float(quorum_cfg.get("portscan_window_sec", 120.0))
 
         cooldown_cfg = config.get("cooldown", {})
         self.ttl_sec = float(cooldown_cfg.get("ttl_sec", 300.0))
@@ -41,8 +43,10 @@ class LiveAlertGuard:
         # États internes
         self.host_scores: dict[str, float] = {}
         self.host_last_time: dict[str, float] = {}
+        self.host_ports: dict[str, list[tuple[float, int]]] = {}
         self.volumetric_history: dict[tuple[str, str], list[float]] = {}
         self.last_alert_time: dict[tuple[str, str], float] = {}
+        self.last_host_alert_time: dict[str, float] = {}
         self.suppressed_counts: dict[tuple[str, str], int] = {}
 
     def get_host_score(self, src_ip: str, current_time: float) -> float:
@@ -76,8 +80,9 @@ class LiveAlertGuard:
     def _handle_alert_emission(
         self, key: tuple[str, str], t: float, dst: str, score: float, count: int
     ) -> ConsolidatedAlert | None:
-        """Gère l'émission d'alerte sous réserve du cooldown anti-flood."""
-        last_t = self.last_alert_time.get(key)
+        """Gère l'émission d'alerte sous réserve du cooldown anti-flood au niveau de l'hôte."""
+        src, verdict = key
+        last_t = self.last_host_alert_time.get(src)
         if last_t is not None and (t - last_t) < self.ttl_sec:
             self.suppressed_counts[key] = self.suppressed_counts.get(key, 0) + 1
             return None
@@ -85,12 +90,13 @@ class LiveAlertGuard:
         suppressed = self.suppressed_counts.get(key, 0)
         self.suppressed_counts[key] = 0
         self.last_alert_time[key] = t
+        self.last_host_alert_time[src] = t
 
         return ConsolidatedAlert(
             timestamp=t,
-            src_ip=key[0],
+            src_ip=src,
             dst_ip=dst,
-            attack_class=key[1],
+            attack_class=verdict,
             host_score=round(score, 2),
             flow_count=count,
             suppressed_count=suppressed,
@@ -107,29 +113,71 @@ class LiveAlertGuard:
             return ts_col.astype(float).to_numpy()
         return (pd.to_datetime(ts_col).astype(np.int64) / 1e9).to_numpy()
 
+    def _check_portscan_heuristic(
+        self, src: str, dst_p: int, syn_f: int, t: float
+    ) -> tuple[bool, int]:
+        """Détecte les scans de ports par dispersion multi-ports (même avec flux 2-paquets)."""
+        if syn_f == 0 or dst_p <= 0:
+            return False, 0
+        history = self.host_ports.setdefault(src, [])
+        history.append((t, dst_p))
+        cutoff = t - self.portscan_window
+        valid = [(pt, p) for (pt, p) in history if pt >= cutoff]
+        self.host_ports[src] = valid
+        distinct_ports = len(set(p for (_, p) in valid))
+        return distinct_ports >= self.portscan_min_ports, distinct_ports
+
+    def _evaluate_volumetric_quorum(
+        self, key: tuple[str, str], t: float, distinct_p: int
+    ) -> tuple[bool, int]:
+        """Vérifie si le quorum volumétrique classique ou multi-ports est atteint."""
+        cnt = self._check_quorum(key, t)
+        is_ok = (cnt >= self.volumetric_min) or (distinct_p >= self.portscan_min_ports)
+        return is_ok, max(cnt, distinct_p)
+
     def _process_single_flow(
-        self, src: str, dst: str, verdict: str, conf: float, t: float
+        self,
+        src: str,
+        dst: str,
+        verdict: str,
+        conf: float,
+        t: float,
+        dst_p: int = 0,
+        syn_f: int = 0,
     ) -> ConsolidatedAlert | None:
         """Traite un flux unique et retourne une alerte si le seuil et le quorum sont atteints."""
-        current_score = self.get_host_score(src, t)
-        weight = self._determine_weight(verdict, conf)
-        new_score = current_score + weight
+        is_pscan, distinct_p = self._check_portscan_heuristic(src, dst_p, syn_f, t)
+        if is_pscan and (verdict == BENIGN or verdict in self.volumetric_classes):
+            verdict, conf = "PortScan", 1.0
+
+        new_score = self.get_host_score(src, t) + self._determine_weight(verdict, conf)
         self.host_scores[src] = new_score
         self.host_last_time[src] = t
-
         if verdict == BENIGN:
             return None
 
-        key = (src, verdict)
-        flow_count = 1
+        key, flow_count = (src, verdict), 1
         if verdict in self.volumetric_classes:
-            flow_count = self._check_quorum(key, t)
-            if flow_count < self.volumetric_min:
+            is_ok, flow_count = self._evaluate_volumetric_quorum(key, t, distinct_p)
+            if not is_ok:
                 return None
 
         if new_score >= self.alert_threshold:
             return self._handle_alert_emission(key, t, dst, new_score, flow_count)
         return None
+
+    def _extract_ports_and_syn(self, df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
+        """Extrait les ports de destination et les flags SYN de manière sécurisée."""
+        n = len(df)
+        if "Destination Port" in df.columns:
+            dp = pd.to_numeric(df["Destination Port"], errors="coerce").fillna(0).to_numpy(dtype=int)
+        else:
+            dp = np.zeros(n, dtype=int)
+        if "SYN Flag Count" in df.columns:
+            syn = pd.to_numeric(df["SYN Flag Count"], errors="coerce").fillna(0).to_numpy(dtype=int)
+        else:
+            syn = np.zeros(n, dtype=int)
+        return dp, syn
 
     def process_batch(
         self,
@@ -144,6 +192,7 @@ class LiveAlertGuard:
             return []
 
         ts = self._extract_timestamps(flows_df, timestamps)
+        dp, syn = self._extract_ports_and_syn(flows_df)
         alerts: list[ConsolidatedAlert] = []
 
         for i in range(len(flows_df)):
@@ -152,7 +201,9 @@ class LiveAlertGuard:
             verdict = str(verdicts.iloc[i])
             conf = float(s2_confs[i])
 
-            alert = self._process_single_flow(src, dst, verdict, conf, float(ts[i]))
+            alert = self._process_single_flow(
+                src, dst, verdict, conf, float(ts[i]), int(dp[i]), int(syn[i])
+            )
             if alert is not None:
                 alerts.append(alert)
 

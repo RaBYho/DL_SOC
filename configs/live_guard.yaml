@@ -35,6 +35,8 @@ quorum_rules:
     - "PortScan"
   volumetric_min_flows: 15
   volumetric_window_sec: 10.0
+  portscan_min_distinct_ports: 10
+  portscan_window_sec: 120.0
 
 cooldown:
   ttl_sec: 300.0
