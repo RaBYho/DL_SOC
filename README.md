@@ -74,6 +74,19 @@ python scripts/run_live.py --replay-dir data/samples/chunks/
 python scripts/run_live.py --watch-dir /tmp/nids_chunks/ --output alerts.json
 ```
 
+### Capture Réseau en Direct sur Carte Réseau (Live Sniffing)
+Pour capturer directement les paquets sur votre interface réseau active (ex: `enx3ecd36af7cdb` ou `eth0`), les convertir en flux via `cicflowmeter` et les scorer en temps réel :
+```bash
+# Capture en direct par tranches de 5 secondes (avec dumpcap ou tcpdump) :
+sudo python scripts/run_live_capture.py -i enx3ecd36af7cdb -b 5
+
+# Ou sans sudo si votre utilisateur appartient au groupe wireshark :
+python scripts/run_live_capture.py -i enx3ecd36af7cdb
+
+# Test sur un fichier PCAP hors-ligne (sans droits root) :
+python scripts/run_live_capture.py --pcap mon_trafic.pcap --output alerts.json
+```
+
 ---
 
 ## 4. Stratégie de Test et Assurance Qualité
