@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nids"
+version = "0.1.0"
+description = "Pipeline NIDS Hybride à Deux Étages (CatBoost, XGBoost, CNN-1D) + Kitsune"
+authors = [{ name = "Hoby" }]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "pyarrow>=14.0.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.1.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+markers = [
+    "requires_models: tests requiring pre-trained models downloaded in models/",
+    "requires_kitsune: tests requiring Kitsune environment and pcap samples",
+    "e2e: end-to-end integration tests",
+    "slow: slow running tests",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

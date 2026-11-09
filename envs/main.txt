@@ -1,0 +1,19 @@
+# Core data processing & format
+pandas>=2.0.0
+pyarrow>=14.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+pyyaml>=6.0
+
+# Supervised Models (Étage 1 & 2)
+catboost>=1.2.0
+xgboost>=2.0.0
+scikit-learn>=1.3.0
+
+# PyTorch CPU (CRITIQUE pour économiser la data mobile : ~200 Mo vs 2.5 Go pour la version CUDA)
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.0.0
+
+# Dev & Quality
+pytest>=7.4.0
+ruff>=0.1.0
