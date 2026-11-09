@@ -94,3 +94,24 @@ def test_drain_and_purge_remaining_pcaps(tmp_path: Path):
 
     assert "capture_00001.pcap" in processed
     assert not pcap_file.exists()  # Purge atomique vérifiée !
+
+
+def test_run_live_capture_no_kitsune_flag(tmp_path: Path):
+    """Vérifie le fonctionnement du flag --no-kitsune en ligne de commande."""
+    pcap_file = tmp_path / "traffic.pcap"
+    pkts = [
+        IP(src="192.168.10.15", dst="172.16.0.2") / TCP(sport=54321, dport=443, flags="S"),
+        IP(src="172.16.0.2", dst="192.168.10.15") / TCP(sport=443, dport=54321, flags="SA"),
+    ]
+    wrpcap(str(pcap_file), pkts)
+
+    cmd = [
+        sys.executable,
+        "scripts/run_live_capture.py",
+        "--pcap",
+        str(pcap_file),
+        "--no-kitsune",
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    assert res.returncode == 0
+    assert "Exécution terminée" in res.stdout

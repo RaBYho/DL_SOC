@@ -40,3 +40,21 @@ class Stage2Model(Protocol):
             np.ndarray: Matrice 2D de forme (n, nb_classes), chaque ligne sommant à 1.
         """
         ...
+
+
+@runtime_checkable
+class KitsuneModel(Protocol):
+    """Protocole pour le détecteur d'anomalies non-supervisé Kitsune."""
+
+    name: str
+
+    def score(self, df: pd.DataFrame) -> np.ndarray:
+        """Calcule le score d'erreur de reconstruction RMSE pour chaque flux.
+
+        Args:
+            df: DataFrame contenant les flux réseau à évaluer.
+
+        Returns:
+            np.ndarray: Vecteur 1D de scores RMSE positifs, shape (n,).
+        """
+        ...

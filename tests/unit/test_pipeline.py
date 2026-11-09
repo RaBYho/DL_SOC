@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from nids.pipeline import CascadedNIDSPipeline
-from nids.labels import BENIGN, SUSPECT_UNCERTAIN
+from nids.labels import BENIGN, SUSPECT_UNCERTAIN, ANOMALY_UNKNOWN
 
 
 class MockStage1:
@@ -25,6 +25,16 @@ class MockStage2:
 
     def predict_proba(self, df: pd.DataFrame) -> np.ndarray:
         return self._probas[: len(df)]
+
+
+class MockKitsune:
+    name: str = "MockKitsune"
+
+    def __init__(self, scores: list[float]) -> None:
+        self._scores = np.array(scores, dtype=float)
+
+    def score(self, df: pd.DataFrame) -> np.ndarray:
+        return self._scores[: len(df)]
 
 
 class ExplodingStage2:
@@ -90,3 +100,31 @@ def test_pipeline_requires_at_least_one_stage1_model():
     s2 = MockStage2(probas=[], classes=["DDoS"])
     with pytest.raises(ValueError, match="Au moins un modèle"):
         CascadedNIDSPipeline(stage1_models=[], stage2_model=s2)
+
+
+def test_pipeline_kitsune_parallel_branch_intercepts_zero_day():
+    """Vérifie la requalification des flux bénins anormaux en ANOMALY_UNKNOWN par Kitsune (FIX-01)."""
+    df = pd.DataFrame({"dummy": [1, 2, 3]})
+    # Flux 0: Bénin Étage 1 (0.1 < 0.5) et Bénin Kitsune (0.05 < 0.15) -> BENIGN
+    # Flux 1: Bénin Étage 1 (0.2 < 0.5) mais Anormal Kitsune (0.30 >= 0.15) -> ANOMALY_UNKNOWN (0-day)
+    # Flux 2: Suspect Étage 1 (0.9 >= 0.5) et Confiant Étage 2 (0.95 >= 0.7) -> DDoS
+    s1 = MockStage1(scores=[0.1, 0.2, 0.9])
+    s2 = MockStage2(probas=[[0.95, 0.05]], classes=["DDoS", "PortScan"])
+    kitsune = MockKitsune(scores=[0.05, 0.30])  # Appelé uniquement sur les flux 0 et 1
+
+    pipeline = CascadedNIDSPipeline(
+        stage1_models=[s1],
+        stage2_model=s2,
+        t1=0.5,
+        t2=0.7,
+        kitsune_detector=kitsune,
+        t3=0.15,
+    )
+    res = pipeline.predict(df)
+
+    assert len(res) == 3
+    assert res.loc[0, "verdict"] == BENIGN
+    assert res.loc[1, "verdict"] == ANOMALY_UNKNOWN
+    assert res.loc[1, "confidence"] == 1.0  # min(1.0, 0.30 / (2 * 0.15)) = 1.0
+    assert res.loc[1, "stage2_class"] == ANOMALY_UNKNOWN
+    assert res.loc[2, "verdict"] == "DDoS"

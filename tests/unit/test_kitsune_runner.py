@@ -61,3 +61,22 @@ def test_generate_aligned_packet_scores(tmp_path: Path):
     attack_pkts = pkts[~pkts.index.isin(benign_pkts.index)]
 
     assert attack_pkts["rmse_score"].mean() > benign_pkts["rmse_score"].mean()
+
+
+def test_kitnet_score_dataframe():
+    """Vérifie le calcul vectorisé des scores RMSE pour un DataFrame de flux."""
+    detector = KitNETAnomalyDetector(n_features=4, fm_grace=0, ad_grace=0, seed=123)
+    df = pd.DataFrame({
+        "Flow ID": ["F1", "F2"],
+        "Source IP": ["10.0.0.1", "10.0.0.2"],
+        "f1": [1.0, 2.0],
+        "f2": [0.5, 1.5],
+        "f3": [0.2, 0.8],
+        "f4": [1.1, 0.9],
+    })
+
+    scores = detector.score(df)
+    assert isinstance(scores, np.ndarray)
+    assert len(scores) == 2
+    assert np.all(scores >= 0.0)
+    assert detector.score(pd.DataFrame()).size == 0

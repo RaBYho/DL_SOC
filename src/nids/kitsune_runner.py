@@ -11,13 +11,14 @@ class KitNETAnomalyDetector:
 
     def __init__(
         self,
-        n_features: int,
+        n_features: int = 78,
         max_autoencoders: int = 10,
         fm_grace: int = 500,
         ad_grace: int = 500,
         learning_rate: float = 0.01,
         seed: int = 42,
     ) -> None:
+        self.name = "KitNET"
         self.n_features = n_features
         self.max_autoencoders = max_autoencoders
         self.fm_grace = fm_grace
@@ -42,6 +43,39 @@ class KitNETAnomalyDetector:
         reconstruction = x * self.weights
         rmse = float(np.sqrt(np.mean((x - reconstruction) ** 2)))
         return rmse, False
+
+    def _prepare_array(self, data: pd.DataFrame | np.ndarray) -> np.ndarray:
+        """Prépare et adapte la matrice de caractéristiques à n_features."""
+        if isinstance(data, pd.DataFrame):
+            num_df = data.select_dtypes(include=[np.number])
+            arr = num_df.fillna(0.0).to_numpy(dtype=float)
+            if arr.shape[1] > self.n_features:
+                return arr[:, : self.n_features]
+            if arr.shape[1] < self.n_features:
+                pad = np.zeros((len(arr), self.n_features - arr.shape[1]))
+                return np.hstack([arr, pad])
+            return arr
+        arr = np.asarray(data, dtype=float)
+        return arr.reshape(1, -1) if arr.ndim == 1 else arr
+
+    def score(self, data: pd.DataFrame | np.ndarray, normalize: bool = True) -> np.ndarray:
+        """Calcule les scores RMSE d'anomalie pour un lot de flux ou de paquets."""
+        if len(data) == 0:
+            return np.empty(0, dtype=float)
+
+        arr = self._prepare_array(data)
+        if self.packet_count + len(arr) <= self.total_grace:
+            self.packet_count += len(arr)
+            return np.zeros(len(arr), dtype=float)
+
+        self.packet_count += len(arr)
+        if normalize:
+            norms = np.linalg.norm(arr, axis=1, keepdims=True)
+            norms[norms == 0] = 1.0
+            arr = arr / norms
+
+        reconstruction = arr * self.weights
+        return np.sqrt(np.mean((arr - reconstruction) ** 2, axis=1))
 
 
 def compute_live_dynamic_threshold(

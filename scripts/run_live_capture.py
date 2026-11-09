@@ -15,6 +15,7 @@ import yaml
 
 from nids.adapters.stage1 import CatBoostStage1, XGBoostStage1
 from nids.adapters.stage2 import CnnStage2
+from nids.kitsune_runner import KitNETAnomalyDetector
 from nids.pipeline import CascadedNIDSPipeline
 from nids.flow_extractor import convert_pcap_to_flows, get_default_interface
 from nids.live_filter import pre_filter_flows
@@ -36,6 +37,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-chunks", type=int, default=None, help="Arrêter après N chunks traités.")
     parser.add_argument("--output", type=Path, default=None, help="Fichier JSON de sortie des alertes.")
     parser.add_argument("--config", type=Path, default=Path("configs/live_guard.yaml"), help="Config live_guard.")
+    parser.add_argument("--t1", type=float, default=0.01, help="Seuil Étage 1 (défaut: 0.01).")
+    parser.add_argument("--t2", type=float, default=0.10, help="Seuil Étage 2 (défaut: 0.10).")
+    parser.add_argument("--t3", type=float, default=0.15, help="Seuil Kitsune RMSE (défaut: 0.15).")
+    parser.add_argument("--no-kitsune", action="store_true", help="Désactive la branche Kitsune.")
     return parser.parse_args()
 
 
@@ -208,16 +213,27 @@ def _run_live_loop(
     return alerts
 
 
+def _build_pipeline(args: argparse.Namespace) -> CascadedNIDSPipeline:
+    """Instancie le pipeline hybride avec modèles supervisés et Kitsune."""
+    kitsune = None if args.no_kitsune else KitNETAnomalyDetector(n_features=78, fm_grace=0, ad_grace=0)
+    return CascadedNIDSPipeline(
+        [CatBoostStage1(), XGBoostStage1()],
+        CnnStage2(),
+        t1=args.t1,
+        t2=args.t2,
+        kitsune_detector=kitsune,
+        t3=args.t3,
+    )
+
+
 def main() -> None:
     args = parse_args()
-    print("=" * 78)
-    print("   🛡️  CAPTURE & ANALYSE RÉSEAU TEMPS RÉEL (CICFlowMeter + NIDS)")
-    print("=" * 78)
+    print("=" * 78 + "\n   🛡️  CAPTURE & ANALYSE RÉSEAU TEMPS RÉEL (CICFlowMeter + NIDS)\n" + "=" * 78)
 
     with open(args.config) as f:
         config = yaml.safe_load(f)
 
-    pipe = CascadedNIDSPipeline([CatBoostStage1(), XGBoostStage1()], CnnStage2())
+    pipe = _build_pipeline(args)
     guard = LiveAlertGuard(config)
     iface = args.interface or get_default_interface()
     allow_loopback = args.allow_loopback or (iface == "lo")
@@ -236,9 +252,7 @@ def main() -> None:
         with open(args.output, "w") as f:
             json.dump([asdict(a) for a in alerts], f, indent=2)
 
-    print("\n" + "=" * 78)
-    print(f"✅ Exécution terminée : {len(alerts)} alerte(s) consolidée(s).")
-    print("=" * 78 + "\n")
+    print(f"\n✅ Exécution terminée : {len(alerts)} alerte(s) consolidée(s).\n" + "=" * 78)
 
 
 if __name__ == "__main__":

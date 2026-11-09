@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 
-from nids.adapters.base import Stage1Model, Stage2Model
+from nids.adapters.base import Stage1Model, Stage2Model, KitsuneModel
 
 
 class DummyStage1:
@@ -19,6 +19,13 @@ class DummyStage2:
 
     def predict_proba(self, df: pd.DataFrame) -> np.ndarray:
         return np.tile([0.8, 0.2], (len(df), 1))
+
+
+class DummyKitsune:
+    name: str = "DummyKitsune"
+
+    def score(self, df: pd.DataFrame) -> np.ndarray:
+        return np.ones(len(df), dtype=float) * 0.25
 
 
 class IncompleteModel:
@@ -50,3 +57,16 @@ def test_stage2_protocol_compliance():
     assert isinstance(probas, np.ndarray)
     assert probas.shape == (2, 2)
     assert np.allclose(probas.sum(axis=1), 1.0)
+
+
+def test_kitsune_protocol_compliance():
+    """Vérifie la conformité au protocole KitsuneModel."""
+    model = DummyKitsune()
+    assert isinstance(model, KitsuneModel)
+    assert not isinstance(IncompleteModel(), KitsuneModel)
+
+    df = pd.DataFrame({"col1": [1, 2, 3]})
+    scores = model.score(df)
+    assert isinstance(scores, np.ndarray)
+    assert scores.shape == (3,)
+    assert np.all(scores >= 0.0)
