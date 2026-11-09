@@ -58,6 +58,19 @@ def _normalize_flow_df(raw_df: pd.DataFrame, mapping: dict[str, str]) -> pd.Data
     return df.replace([np.inf, -np.inf], 0.0).fillna(0.0)
 
 
+def _extract_and_load_flows(pcap: Path, temp_csv: Path, mapping: dict[str, str]) -> pd.DataFrame:
+    """Exécute CICFlowMeter en isolation et charge le DataFrame normalisé."""
+    try:
+        _run_cicflowmeter_on_pcap(pcap, temp_csv)
+    except Exception:
+        return pd.DataFrame()
+
+    if not temp_csv.exists() or temp_csv.stat().st_size == 0:
+        return pd.DataFrame()
+    raw_df = pd.read_csv(temp_csv)
+    return _normalize_flow_df(raw_df, mapping) if len(raw_df) > 0 else pd.DataFrame()
+
+
 def convert_pcap_to_flows(
     pcap_path: Path | str,
     output_csv: Path | str | None = None,
@@ -65,6 +78,9 @@ def convert_pcap_to_flows(
 ) -> pd.DataFrame:
     """Convertit un PCAP en DataFrame normalisé compatible avec le pipeline ML."""
     pcap = Path(pcap_path)
+    if not pcap.exists() or pcap.stat().st_size <= 24:
+        return pd.DataFrame()
+
     with open(mapping_path) as f:
         mapping = yaml.safe_load(f)
 
@@ -72,18 +88,11 @@ def convert_pcap_to_flows(
         temp_csv = Path(tmp.name)
 
     try:
-        _run_cicflowmeter_on_pcap(pcap, temp_csv)
-        if not temp_csv.exists() or temp_csv.stat().st_size == 0:
-            return pd.DataFrame()
-        raw_df = pd.read_csv(temp_csv)
-        if len(raw_df) == 0:
-            return pd.DataFrame()
-        norm_df = _normalize_flow_df(raw_df, mapping)
-        if output_csv:
-            out_p = Path(output_csv)
-            out_p.parent.mkdir(parents=True, exist_ok=True)
-            norm_df.to_csv(out_p, index=False)
-        return norm_df
+        df = _extract_and_load_flows(pcap, temp_csv, mapping)
+        if output_csv and len(df) > 0:
+            Path(output_csv).parent.mkdir(parents=True, exist_ok=True)
+            df.to_csv(output_csv, index=False)
+        return df
     finally:
         if temp_csv.exists():
             temp_csv.unlink()

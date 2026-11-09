@@ -53,7 +53,7 @@ def _start_capture_process(tool: str, iface: str, duration: int, pcap_pattern: P
     """Démarre le processus de capture réseau périodique par micro-batchs."""
     tool_bin = _check_tool_exists(tool)
     if tool == "dumpcap":
-        cmd = [tool_bin, "-i", iface, "-b", f"duration:{duration}", "-w", str(pcap_pattern), "-q"]
+        cmd = [tool_bin, "-P", "-i", iface, "-b", f"duration:{duration}", "-w", str(pcap_pattern), "-q"]
     else:
         cmd = [tool_bin, "-i", iface, "-G", str(duration), "-w", str(pcap_pattern), "-q"]
 
@@ -147,6 +147,9 @@ def _run_live_loop(
             for pf in ready_files:
                 if pf.name not in processed:
                     processed.add(pf.name)
+                    if not pf.exists() or pf.stat().st_size <= 24:
+                        _cleanup_pcap(pf, args.keep_pcaps)
+                        continue
                     print(f"⚡ [Batch #{len(processed)}] Traitement de {pf.name}...")
                     chunk_alerts = _process_pcap_chunk(pf, pipe, guard, cfg)
                     for a in chunk_alerts:
