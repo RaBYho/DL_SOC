@@ -39,10 +39,16 @@ def _is_micro_dead_orphan(df: pd.DataFrame, min_packets: int) -> pd.Series:
     return (total_pkts < min_packets) & (syn_flags == 0)
 
 
-def _build_ignore_mask(df: pd.DataFrame, cfg: dict[str, Any]) -> pd.Series:
+def _build_ignore_mask(
+    df: pd.DataFrame, cfg: dict[str, Any], allow_loopback: bool = False
+) -> pd.Series:
     """Construit le masque booléen d'exclusion à partir de la configuration."""
     ignored_ports = set(cfg.get("ignored_ports", [5353, 1900, 5355, 137, 138]))
-    whitelisted_ips = set(cfg.get("whitelisted_ips", ["127.0.0.1"]))
+    raw_whitelist = cfg.get("whitelisted_ips", ["127.0.0.1"])
+    if allow_loopback:
+        whitelisted_ips = set(ip for ip in raw_whitelist if not ip.startswith("127."))
+    else:
+        whitelisted_ips = set(raw_whitelist)
     min_packets = int(cfg.get("min_total_packets", 2))
 
     mask_mcast = (
@@ -54,12 +60,15 @@ def _build_ignore_mask(df: pd.DataFrame, cfg: dict[str, Any]) -> pd.Series:
 
 
 def pre_filter_flows(
-    df: pd.DataFrame, config: dict[str, Any]
+    df: pd.DataFrame, config: dict[str, Any], allow_loopback: bool | None = None
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Sépare les flux à analyser de ceux écartés par pré-filtrage déterministe."""
     if len(df) == 0:
         return df.copy(), df.copy()
 
     cfg = config.get("pre_filter", {})
-    should_ignore = _build_ignore_mask(df, cfg)
+    if allow_loopback is None:
+        allow_loopback = bool(cfg.get("allow_loopback", False))
+
+    should_ignore = _build_ignore_mask(df, cfg, allow_loopback=allow_loopback)
     return df.loc[~should_ignore].copy(), df.loc[should_ignore].copy()

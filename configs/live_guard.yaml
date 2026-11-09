@@ -11,6 +11,7 @@ pre_filter:
   min_total_packets: 2
   whitelisted_ips:
     - "127.0.0.1"
+  allow_loopback: false
   whitelisted_udp_443_cdns: true
 
 threat_scoring:

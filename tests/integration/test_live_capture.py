@@ -35,3 +35,62 @@ def test_run_live_capture_offline_pcap(tmp_path: Path):
     assert res.returncode == 0
     assert "CAPTURE & ANALYSE RÉSEAU TEMPS RÉEL" in res.stdout
     assert "Exécution terminée" in res.stdout
+
+
+def test_run_live_capture_allow_loopback(tmp_path: Path):
+    """Vérifie que le flag --allow-loopback permet le traitement du trafic 127.0.0.1."""
+    pcap_file = tmp_path / "loopback_sample.pcap"
+    pkts = [
+        IP(src="127.0.0.1", dst="127.0.0.1") / TCP(sport=40000, dport=80, flags="S"),
+        IP(src="127.0.0.1", dst="127.0.0.1") / TCP(sport=80, dport=40000, flags="SA"),
+        IP(src="127.0.0.1", dst="127.0.0.1") / TCP(sport=40000, dport=80, flags="A"),
+    ]
+    wrpcap(str(pcap_file), pkts)
+
+    cmd = [
+        sys.executable,
+        "scripts/run_live_capture.py",
+        "--pcap",
+        str(pcap_file),
+        "--allow-loopback",
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    assert res.returncode == 0
+    assert "Exécution terminée" in res.stdout
+
+
+def test_drain_and_purge_remaining_pcaps(tmp_path: Path):
+    """Vérifie le traitement garanti du reliquat (files[-1]) et sa purge immédiate."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("run_live_capture", "scripts/run_live_capture.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    _drain_remaining_pcaps = mod._drain_remaining_pcaps
+
+    import yaml
+    from nids.adapters.stage1 import CatBoostStage1, XGBoostStage1
+    from nids.adapters.stage2 import CnnStage2
+    from nids.pipeline import CascadedNIDSPipeline
+    from nids.live_guard import LiveAlertGuard
+
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    pcap_file = work_dir / "capture_00001.pcap"
+    pkts = [
+        IP(src="192.168.1.10", dst="172.16.0.2") / TCP(sport=12345, dport=80, flags="S"),
+        IP(src="172.16.0.2", dst="192.168.1.10") / TCP(sport=80, dport=12345, flags="SA"),
+    ]
+    wrpcap(str(pcap_file), pkts)
+
+    with open("configs/live_guard.yaml") as f:
+        cfg = yaml.safe_load(f)
+
+    pipe = CascadedNIDSPipeline([CatBoostStage1(), XGBoostStage1()], CnnStage2())
+    guard = LiveAlertGuard(cfg)
+    processed = set()
+
+    # Le fichier doit être traité et supprimé immédiatement
+    _drain_remaining_pcaps(work_dir, processed, pipe, guard, cfg, allow_loopback=False, keep=False)
+
+    assert "capture_00001.pcap" in processed
+    assert not pcap_file.exists()  # Purge atomique vérifiée !

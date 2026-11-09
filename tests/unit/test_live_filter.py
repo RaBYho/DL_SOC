@@ -63,6 +63,31 @@ def test_filter_whitelisted_ips(base_config: dict):
     assert len(ignored) == 2
 
 
+def test_allow_loopback_flag(base_config: dict):
+    """Vérifie que 127.0.0.1 est conservé uniquement lorsque allow_loopback=True."""
+    df = pd.DataFrame({
+        "Flow ID": ["F_Loopback", "F_External"],
+        "Source IP": ["127.0.0.1", "192.168.1.50"],
+        "Destination IP": ["127.0.0.1", "172.16.0.1"],
+        "Source Port": [40000, 50000],
+        "Destination Port": [80, 80],
+        "Protocol": [6, 6],
+        "Total Fwd Packets": [5, 5],
+        "Total Backward Packets": [5, 5],
+        "SYN Flag Count": [1, 1],
+    })
+
+    # Par défaut (allow_loopback=False) : 127.0.0.1 est ignoré
+    to_score_def, ignored_def = pre_filter_flows(df, base_config, allow_loopback=False)
+    assert "F_Loopback" in ignored_def["Flow ID"].values
+    assert "F_External" in to_score_def["Flow ID"].values
+
+    # Avec allow_loopback=True : 127.0.0.1 est conservé dans to_score
+    to_score_allow, ignored_allow = pre_filter_flows(df, base_config, allow_loopback=True)
+    assert "F_Loopback" in to_score_allow["Flow ID"].values
+    assert "F_External" in to_score_allow["Flow ID"].values
+
+
 def test_filter_orphan_vs_syn_scan(base_config: dict):
     """Vérifie qu'un flux micro-mort (1 paquet sans SYN) est ignoré mais un SYN Scan conservé."""
     df = pd.DataFrame({
