@@ -64,6 +64,16 @@ Pour tester immédiatement le pipeline complet sur l'échantillon fourni :
 python scripts/run_demo.py data/samples/mini.csv --packets data/samples/packet_scores.parquet
 ```
 
+### Moteur Temps Réel & Réduction des Fausses Alertes (Phase 12)
+Pour rejouer des micro-batchs de 10 secondes avec pré-filtrage déterministe, corrélation par hôte (*leaky bucket*), quorum volumétrique et déduplication *cooldown* :
+```bash
+# Mode Replay déterministe (testable en local) :
+python scripts/run_live.py --replay-dir data/samples/chunks/
+
+# Mode Surveillance temps réel (watcher de dossier) :
+python scripts/run_live.py --watch-dir /tmp/nids_chunks/ --output alerts.json
+```
+
 ---
 
 ## 4. Stratégie de Test et Assurance Qualité
@@ -79,8 +89,8 @@ make test-all
 ```
 
 **Couverture des tests :**
-- `tests/unit/` : Alignement vectorisé, étiquettes, protocoles d'adaptateurs, seuils anti-fuite, fusion à 6 cas.
-- `tests/integration/` : Inférence sur vrais modèles CatBoost, XGBoost, CNN-1D et synchronisation paquets-flux.
+- `tests/unit/` : Alignement vectorisé, étiquettes, adaptateurs, seuils anti-fuite, fusion à 6 cas, pré-filtrage déterministe (`live_filter.py`), score de menace cumulé par hôte avec décroissance exponentielle, quorum volumétrique, cooldown anti-flood (`live_guard.py`) et calibration dynamique Kitsune anti-empoisonnement.
+- `tests/integration/` : Inférence sur vrais modèles CatBoost, XGBoost, CNN-1D, synchronisation paquets-flux, pipeline temps réel complet et script CLI `run_live.py`.
 - `tests/e2e/` : Exécution du pipeline complet avec rapport décisionnel.
 
 ---

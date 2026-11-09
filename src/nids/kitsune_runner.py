@@ -44,6 +44,35 @@ class KitNETAnomalyDetector:
         return rmse, False
 
 
+def compute_live_dynamic_threshold(
+    rmse_scores: Sequence[float],
+    s1_scores: Sequence[float],
+    t1: float = 0.5,
+    percentile: float = 99.9,
+    multiplier: float = 1.5,
+    filter_poisoning: bool = True,
+) -> float:
+    """Calcule le seuil dynamique t3 en protégeant la baseline contre l'empoisonnement.
+
+    Exclut tout flux suspect (s1_score >= t1) du calcul du percentile de référence.
+    """
+    rmses = np.asarray(rmse_scores, dtype=float)
+    s1s = np.asarray(s1_scores, dtype=float)
+
+    if filter_poisoning:
+        # Exclusion stricte des flux suspects à l'Étage 1
+        clean_mask = (s1s < t1) & (~np.isnan(rmses))
+        valid_rmses = rmses[clean_mask]
+    else:
+        valid_rmses = rmses[~np.isnan(rmses)]
+
+    if len(valid_rmses) == 0:
+        return 0.15
+
+    base_p = float(np.percentile(valid_rmses, percentile))
+    return float(round(base_p * multiplier, 4))
+
+
 def generate_aligned_packet_scores(
     flows_df: pd.DataFrame,
     output_path: Path | str,

@@ -1,0 +1,44 @@
+# Configuration du moteur Live et de réduction des fausses alertes (Phase 12)
+
+pre_filter:
+  ignore_multicast_broadcast: true
+  ignored_ports:
+    - 5353  # mDNS
+    - 1900  # SSDP
+    - 5355  # LLMNR
+    - 137   # NetBIOS Name Service
+    - 138   # NetBIOS Datagram Service
+  min_total_packets: 2
+  whitelisted_ips:
+    - "127.0.0.1"
+  whitelisted_udp_443_cdns: true
+
+threat_scoring:
+  alert_threshold: 100.0
+  half_life_sec: 60.0
+  weights:
+    BENIGN: 0.0
+    SUSPECT_UNCERTAIN: 15.0
+    ANOMALY_UNKNOWN: 20.0
+    KNOWN_ATTACK: 40.0
+    KNOWN_ATTACK_HIGH_CONF: 100.0
+    UNKNOWN_ATTACK_LIKELY: 60.0
+
+quorum_rules:
+  volumetric_classes:
+    - "DDoS"
+    - "DoS Hulk"
+    - "DoS GoldenEye"
+    - "DoS Slowloris"
+    - "DoS Slowhttptest"
+    - "PortScan"
+  volumetric_min_flows: 15
+  volumetric_window_sec: 10.0
+
+cooldown:
+  ttl_sec: 300.0
+
+kitsune_live:
+  dynamic_threshold_percentile: 99.9
+  dynamic_threshold_multiplier: 1.5
+  filter_poisoning_with_stage1: true
