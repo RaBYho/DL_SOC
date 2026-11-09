@@ -1,0 +1,19 @@
+# Seuils opérationnels et paramètres de fusion NIDS
+
+stage1:
+  t1: 0.5  # Seuil de suspicion de l'Étage 1 (orienté rappel)
+  aggregation: "max"  # Règle d'agrégation entre CatBoost et XGBoost ("max" ou "mean")
+
+stage2:
+  t2: 0.7  # Seuil de confiance minimale de l'Étage 2
+
+kitsune:
+  t3: 0.15  # Seuil d'anomalie RMSE de Kitsune (calibré au 99e percentile bénin au Jalon 4)
+  time_tolerance_sec: 1.0  # Tolérance d'alignement temporel en secondes
+  aggregation_rule: "max"  # Règle d'agrégation paquet -> flux ("max" ou "top_k_mean")
+
+labels:
+  default_benign: "BENIGN"
+  anomaly_unknown: "ANOMALY_UNKNOWN"
+  suspect_uncertain: "SUSPECT_UNCERTAIN"
+  unknown_attack_likely: "UNKNOWN_ATTACK_LIKELY"
