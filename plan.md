@@ -45,7 +45,7 @@ flowchart TD
 | Rôle | Modèle | Type | Source |
 |---|---|---|---|
 | **Étage 1 (Binaire - Détecteur)** | NIDS-CatBoost | Supervisé binaire | [pop123ux/pcap-ml-traffic-classifier](https://huggingface.co/pop123ux/pcap-ml-traffic-classifier) |
-| **Étage 1 (Second avis)** | XGBoost (+ Autoencodeur éventuel) | Supervisé binaire | [ScriptedLines404/NIDS](https://github.com/ScriptedLines404/Network-Intrusion-Detection-System-using-Deep-Learning) |
+| **Étage 1 (Second avis)** | NIDS-XGBoost (AegisAI) | Supervisé binaire | [csperera/aegis-ai](https://github.com/csperera/aegis-ai) |
 | **Étage 2 (14 classes)** | `cnn1d_attacks_only.pth` + `scaler.pkl` | Supervisé multiclasse | [saidimn/ids-cnn-cicids2017](https://huggingface.co/saidimn/ids-cnn-cicids2017) |
 | **Détection d'anomalies** | Kitsune (AfterImage + KitNET) | Non-supervisé en ligne | [ymirsky/Kitsune-py](https://github.com/ymirsky/Kitsune-py) |
 
@@ -129,7 +129,7 @@ flowchart LR
 2. **Audit & Inspection Statique des Modèles :**
    - Télécharger les poids dans `models/` (exclus de Git).
    - **Règle de sécurité :** Ne lancer aucun `pickle.load()` aveugle. Inspecter la structure via `pickletools.dis()`, `h5py`, ou `torch.load(..., weights_only=True)`.
-   - Analyser le XGBoost de `ScriptedLines404` : déterminer s'il est binaire/multiclasse et s'il dépend de l'autoencodeur `.h5`.
+   - Intégrer le XGBoost de `csperera/aegis-ai` (`xgb_model.json`, `feature_names.json`, `scaler.pkl`) comme second avis validé sur CICIDS2017.
    - Analyser le CNN-1D de `saidimn` : vérifier la structure du réseau (reconstruire le `nn.Module` si seul le `state_dict` est présent) et documenter l'ordre exact des 14 classes.
 3. **Spécification formelle :**
    - Figer la configuration dans `configs/model_specs.yaml` (chemins, types, liste ordonnée des variables d'entrée par modèle).

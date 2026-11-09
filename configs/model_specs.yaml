@@ -11,9 +11,14 @@ stage1_catboost:
   features: []
 
 stage1_xgboost:
-  name: "NIDS-XGBoost"
-  status: "deprecated_or_trained_on_demand"
-  note: "Dépôt ScriptedLines404 introuvable. Écarté au profit de CatBoost."
+  name: "NIDS-XGBoost (AegisAI)"
+  source: "https://github.com/csperera/aegis-ai"
+  local_path: "models/xgb_model.json"
+  feature_names_path: "models/xgb_feature_names.json"
+  scaler_path: "models/xgb_scaler.pkl"
+  type: "binary"
+  target_auc: 0.9992
+  features: []
 
 stage2_cnn:
   name: "CNN-1D"
