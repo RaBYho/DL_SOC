@@ -1,36 +1,49 @@
 # Spécifications des modèles du pipeline NIDS
-# Rempli et complété lors de l'audit statique du Jalon 1
+# Validé après inspection statique du Jalon 1
 
 stage1_catboost:
   name: "NIDS-CatBoost"
   source: "https://huggingface.co/pop123ux/pcap-ml-traffic-classifier"
-  local_path: "models/stage1_catboost.cbm"
+  local_path: "models/cicids_catboost.cbm"
   type: "binary"
+  file_size_kb: 604
   scaler_path: null
-  features: []  # Liste ordonnée renseignée après inspection
+  features: []
 
 stage1_xgboost:
   name: "NIDS-XGBoost"
-  source: "https://github.com/ScriptedLines404/Network-Intrusion-Detection-System-using-Deep-Learning"
-  local_path: "models/stage1_xgboost.json"
-  autoencoder_path: "models/autoencoder.h5"
-  type: "binary"
-  scaler_path: null
-  features: []  # Liste ordonnée renseignée après inspection
+  status: "deprecated_or_trained_on_demand"
+  note: "Dépôt ScriptedLines404 introuvable. Écarté au profit de CatBoost."
 
 stage2_cnn:
   name: "CNN-1D"
   source: "https://huggingface.co/saidimn/ids-cnn-cicids2017"
   local_path: "models/cnn1d_attacks_only.pth"
   scaler_path: "models/scaler.pkl"
+  file_size_mb: 1.97
   type: "multiclass"
   num_classes: 14
-  classes: []  # Noms et ordre exacts des 14 classes d'attaques
-  features: []  # Liste ordonnée des features attendues
+  classes:
+    - "Bot"
+    - "DDoS"
+    - "DoS GoldenEye"
+    - "DoS Hulk"
+    - "DoS Slowhttptest"
+    - "DoS slowloris"
+    - "FTP-Patator"
+    - "Heartbleed"
+    - "Infiltration"
+    - "PortScan"
+    - "SSH-Patator"
+    - "Web Attack – Brute Force"
+    - "Web Attack – Sql Injection"
+    - "Web Attack – XSS"
 
 kitsune:
   name: "Kitsune-KitNET"
   source: "https://github.com/ymirsky/Kitsune-py"
   max_autoencoders: 10
-  grace_period_fm: 50000
-  grace_period_ad: 50000
+  grace_period_fm_prod: 50000
+  grace_period_ad_prod: 50000
+  grace_period_fm_test: 500
+  grace_period_ad_test: 500
