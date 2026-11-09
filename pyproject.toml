@@ -24,6 +24,9 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+filterwarnings = [
+    "ignore::sklearn.exceptions.InconsistentVersionWarning",
+]
 markers = [
     "requires_models: tests requiring pre-trained models downloaded in models/",
     "requires_kitsune: tests requiring Kitsune environment and pcap samples",

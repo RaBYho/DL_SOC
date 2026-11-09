@@ -1,10 +1,12 @@
 """Adaptateurs d'inférence pour les modèles de l'Étage 1 (CatBoost et XGBoost)."""
 
 import json
+import warnings
 from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
+from sklearn.exceptions import InconsistentVersionWarning
 
 from nids.features import align
 
@@ -57,7 +59,10 @@ class XGBoostStage1:
         with open(features_path) as f:
             self.expected_features: list[str] = json.load(f)
 
-        loaded_scaler = joblib.load(str(scaler_path))
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
+            loaded_scaler = joblib.load(str(scaler_path))
+
         if isinstance(loaded_scaler, tuple):
             self.scaler = loaded_scaler[0]
         else:

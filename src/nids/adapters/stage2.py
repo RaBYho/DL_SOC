@@ -1,10 +1,12 @@
 """Adaptateur d'inférence pour le classifieur fine-grained CNN-1D (Étage 2)."""
 
 import json
+import warnings
 from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
+from sklearn.exceptions import InconsistentVersionWarning
 import torch
 import torch.nn as nn
 
@@ -78,8 +80,10 @@ class CnnStage2:
         with open(features_path) as f:
             self.expected_features: list[str] = json.load(f)
 
-        # Chargement du scaler
-        self.scaler = joblib.load(str(scaler_path))
+        # Chargement du scaler avec suppression de l'avertissement de version mineure
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
+            self.scaler = joblib.load(str(scaler_path))
 
         # Initialisation et chargement des poids du réseau de neurones
         self.model = AttackCNN1D(num_classes=len(self.classes))
@@ -97,7 +101,7 @@ class CnnStage2:
             return np.empty((0, len(self.classes)), dtype=float)
 
         aligned = align(df, self.expected_features)
-        scaled = self.scaler.transform(aligned)
+        scaled = self.scaler.transform(aligned.values)
 
         # Reshape (n_samples, 1, n_features) pour Conv1d
         tensor_in = torch.from_numpy(scaled).float().unsqueeze(1)
