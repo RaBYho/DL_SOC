@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from nids.live_filter import pre_filter_flows
+from nids.live_filter import pre_filter_flows, SessionTracker
 
 
 @pytest.fixture
@@ -126,3 +126,79 @@ def test_pre_filter_does_not_mutate_input(base_config: dict):
 
     _ = pre_filter_flows(df, base_config)
     pd.testing.assert_frame_equal(df, df_copy)
+
+
+def test_established_flow_without_syn_kept_by_session_tracker(base_config: dict):
+    """Vérifie qu'un paquet orphelin (1 paquet, 0 SYN) est conservé si sa session TCP est active (FIX-03)."""
+    tracker = SessionTracker(ttl_sec=120.0)
+
+    # Batch 1: poignée de main SYN pour la session A
+    batch1 = pd.DataFrame({
+        "Flow ID": ["F_Init"],
+        "Source IP": ["192.168.1.10"],
+        "Destination IP": ["172.16.0.1"],
+        "Source Port": [54321],
+        "Destination Port": [80],
+        "Protocol": [6],
+        "Total Fwd Packets": [2],
+        "Total Backward Packets": [1],
+        "SYN Flag Count": [1],
+        "Timestamp": [100.0],
+    })
+    to_score1, _ = pre_filter_flows(batch1, base_config, session_tracker=tracker)
+    assert len(to_score1) == 1
+
+    # Batch 2: continuation session A (1 paquet, 0 SYN) vs nouveau flux inconnu B (1 paquet, 0 SYN)
+    batch2 = pd.DataFrame({
+        "Flow ID": ["F_Continuation_A", "F_Unknown_B"],
+        "Source IP": ["192.168.1.10", "192.168.1.20"],
+        "Destination IP": ["172.16.0.1", "172.16.0.1"],
+        "Source Port": [54321, 55555],
+        "Destination Port": [80, 80],
+        "Protocol": [6, 6],
+        "Total Fwd Packets": [1, 1],
+        "Total Backward Packets": [0, 0],
+        "SYN Flag Count": [0, 0],
+        "Timestamp": [115.0, 115.0],
+    })
+    to_score2, ignored2 = pre_filter_flows(batch2, base_config, session_tracker=tracker)
+
+    # La session A active est conservée malgré 1 seul paquet sans SYN
+    assert "F_Continuation_A" in to_score2["Flow ID"].values
+    # Le flux inconnu B sans SYN est bien éliminé en orphelin
+    assert "F_Unknown_B" in ignored2["Flow ID"].values
+
+
+def test_session_tracker_ttl_expiration(base_config: dict):
+    """Vérifie qu'après expiration du TTL (120s), une session n'est plus protégée."""
+    tracker = SessionTracker(ttl_sec=120.0)
+
+    batch_syn = pd.DataFrame({
+        "Flow ID": ["F_Old"],
+        "Source IP": ["192.168.1.10"],
+        "Destination IP": ["172.16.0.1"],
+        "Source Port": [54321],
+        "Destination Port": [80],
+        "Protocol": [6],
+        "Total Fwd Packets": [2],
+        "Total Backward Packets": [1],
+        "SYN Flag Count": [1],
+        "Timestamp": [100.0],
+    })
+    pre_filter_flows(batch_syn, base_config, session_tracker=tracker)
+
+    # 130 secondes plus tard (> 120s TTL)
+    batch_late = pd.DataFrame({
+        "Flow ID": ["F_Late"],
+        "Source IP": ["192.168.1.10"],
+        "Destination IP": ["172.16.0.1"],
+        "Source Port": [54321],
+        "Destination Port": [80],
+        "Protocol": [6],
+        "Total Fwd Packets": [1],
+        "Total Backward Packets": [0],
+        "SYN Flag Count": [0],
+        "Timestamp": [230.0],
+    })
+    _, ignored = pre_filter_flows(batch_late, base_config, session_tracker=tracker)
+    assert "F_Late" in ignored["Flow ID"].values

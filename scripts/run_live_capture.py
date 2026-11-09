@@ -18,8 +18,13 @@ from nids.adapters.stage2 import CnnStage2
 from nids.kitsune_runner import KitNETAnomalyDetector
 from nids.pipeline import CascadedNIDSPipeline
 from nids.flow_extractor import convert_pcap_to_flows, get_default_interface
-from nids.live_filter import pre_filter_flows
+from nids.live_filter import pre_filter_flows, SessionTracker
 from nids.live_guard import LiveAlertGuard, ConsolidatedAlert
+
+DEFAULT_BPF_FILTER = (
+    "not (udp port 5353 or udp port 1900 or udp port 5355 or udp port 137 or udp port 138 "
+    "or net 224.0.0.0/4 or host 239.255.255.250 or host 255.255.255.255)"
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -28,7 +33,7 @@ def parse_args() -> argparse.Namespace:
         description="Capture temps réel (dumpcap/tcpdump) et analyse via CICFlowMeter + NIDS."
     )
     parser.add_argument("-i", "--interface", type=str, default=None, help="Interface réseau (défaut: auto-détectée).")
-    parser.add_argument("-b", "--duration", type=int, default=5, help="Durée de chaque micro-batch en secondes.")
+    parser.add_argument("-b", "--duration", type=int, default=15, help="Durée de chaque micro-batch en secondes.")
     parser.add_argument("--tool", choices=["dumpcap", "tcpdump"], default="dumpcap", help="Outil de capture.")
     parser.add_argument("--pcap", type=Path, default=None, help="Mode PCAP hors-ligne (sans capture live).")
     parser.add_argument("--work-dir", type=Path, default=Path("/tmp/nids_capture"), help="Dossier temporaire PCAP/CSV.")
@@ -41,6 +46,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--t2", type=float, default=0.10, help="Seuil Étage 2 (défaut: 0.10).")
     parser.add_argument("--t3", type=float, default=0.15, help="Seuil Kitsune RMSE (défaut: 0.15).")
     parser.add_argument("--no-kitsune", action="store_true", help="Désactive la branche Kitsune.")
+    parser.add_argument("--bpf-filter", type=str, default=DEFAULT_BPF_FILTER, help="Filtre BPF noyau pour capture.")
     return parser.parse_args()
 
 
@@ -55,13 +61,20 @@ def _check_tool_exists(tool: str) -> str:
     raise FileNotFoundError(f"L'outil de capture '{tool}' n'est pas installé sur le système.")
 
 
-def _start_capture_process(tool: str, iface: str, duration: int, pcap_pattern: Path) -> subprocess.Popen:
-    """Démarre le processus de capture réseau périodique par micro-batchs."""
+def _start_capture_process(
+    tool: str, iface: str, duration: int, pcap_pattern: Path, bpf_filter: str | None = None
+) -> subprocess.Popen:
+    """Démarre le processus de capture réseau avec filtrage BPF noyau."""
     tool_bin = _check_tool_exists(tool)
     if tool == "dumpcap":
-        cmd = [tool_bin, "-P", "-i", iface, "-b", f"duration:{duration}", "-w", str(pcap_pattern), "-q"]
+        cmd = [tool_bin, "-P", "-i", iface, "-b", f"duration:{duration}"]
+        if bpf_filter:
+            cmd.extend(["-f", bpf_filter])
+        cmd.extend(["-w", str(pcap_pattern), "-q"])
     else:
         cmd = [tool_bin, "-i", iface, "-G", str(duration), "-w", str(pcap_pattern), "-q"]
+        if bpf_filter:
+            cmd.extend([bpf_filter])
 
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
@@ -89,13 +102,16 @@ def _process_pcap_chunk(
     guard: LiveAlertGuard,
     cfg: dict[str, Any],
     allow_loopback: bool = False,
+    session_tracker: SessionTracker | None = None,
 ) -> list[ConsolidatedAlert]:
     """Convertit un PCAP en flux CICFlowMeter et l'analyse via le pipeline live."""
     flows_df = convert_pcap_to_flows(pcap_path)
     if len(flows_df) == 0:
         return []
 
-    to_score, _ = pre_filter_flows(flows_df, cfg, allow_loopback=allow_loopback)
+    to_score, _ = pre_filter_flows(
+        flows_df, cfg, allow_loopback=allow_loopback, session_tracker=session_tracker
+    )
     if len(to_score) == 0:
         return []
 
@@ -132,10 +148,11 @@ def _run_offline_pcap(
     guard: LiveAlertGuard,
     cfg: dict[str, Any],
     allow_loopback: bool = False,
+    session_tracker: SessionTracker | None = None,
 ) -> list[ConsolidatedAlert]:
     """Traite un fichier PCAP unique hors-ligne sans capture active."""
     print(f"📦 [Offline PCAP] Extraction des flux depuis : {args.pcap}")
-    alerts = _process_pcap_chunk(args.pcap, pipe, guard, cfg, allow_loopback)
+    alerts = _process_pcap_chunk(args.pcap, pipe, guard, cfg, allow_loopback, session_tracker)
     for a in alerts:
         _display_alert(a)
     return alerts
@@ -149,6 +166,7 @@ def _drain_remaining_pcaps(
     cfg: dict[str, Any],
     allow_loopback: bool,
     keep: bool,
+    session_tracker: SessionTracker | None = None,
 ) -> list[ConsolidatedAlert]:
     """Traite et purge tous les fichiers PCAP restants après l'arrêt de la capture."""
     remaining = sorted(work_dir.glob("capture*.pcap"))
@@ -157,7 +175,7 @@ def _drain_remaining_pcaps(
         if pf.name not in processed and pf.exists() and pf.stat().st_size > 24:
             processed.add(pf.name)
             print(f"⚡ [Batch Final #{len(processed)}] Traitement de {pf.name}...")
-            chunk_alerts = _process_pcap_chunk(pf, pipe, guard, cfg, allow_loopback)
+            chunk_alerts = _process_pcap_chunk(pf, pipe, guard, cfg, allow_loopback, session_tracker)
             for a in chunk_alerts:
                 _display_alert(a)
             drain_alerts.extend(chunk_alerts)
@@ -172,11 +190,12 @@ def _run_live_loop(
     guard: LiveAlertGuard,
     cfg: dict[str, Any],
     allow_loopback: bool = False,
+    session_tracker: SessionTracker | None = None,
 ) -> list[ConsolidatedAlert]:
     """Boucle de surveillance et d'analyse des chunks PCAP générés en temps réel."""
     args.work_dir.mkdir(parents=True, exist_ok=True)
     pcap_pattern = args.work_dir / "capture.pcap"
-    proc = _start_capture_process(args.tool, iface, args.duration, pcap_pattern)
+    proc = _start_capture_process(args.tool, iface, args.duration, pcap_pattern, args.bpf_filter)
     processed: set[str] = set()
     alerts: list[ConsolidatedAlert] = []
 
@@ -192,7 +211,7 @@ def _run_live_loop(
                         _cleanup_pcap(pf, args.keep_pcaps)
                         continue
                     print(f"⚡ [Batch #{len(processed)}] Traitement de {pf.name}...")
-                    chunk_alerts = _process_pcap_chunk(pf, pipe, guard, cfg, allow_loopback)
+                    chunk_alerts = _process_pcap_chunk(pf, pipe, guard, cfg, allow_loopback, session_tracker)
                     for a in chunk_alerts:
                         _display_alert(a)
                     alerts.extend(chunk_alerts)
@@ -207,7 +226,7 @@ def _run_live_loop(
         except subprocess.TimeoutExpired:
             proc.kill()
         drain_alerts = _drain_remaining_pcaps(
-            args.work_dir, processed, pipe, guard, cfg, allow_loopback, args.keep_pcaps
+            args.work_dir, processed, pipe, guard, cfg, allow_loopback, args.keep_pcaps, session_tracker
         )
         alerts.extend(drain_alerts)
     return alerts
@@ -235,14 +254,16 @@ def main() -> None:
 
     pipe = _build_pipeline(args)
     guard = LiveAlertGuard(config)
+    session_ttl = float(config.get("pre_filter", {}).get("session_ttl_sec", 120.0))
+    session_tracker = SessionTracker(ttl_sec=session_ttl)
     iface = args.interface or get_default_interface()
     allow_loopback = args.allow_loopback or (iface == "lo")
 
     try:
         if args.pcap:
-            alerts = _run_offline_pcap(args, pipe, guard, config, allow_loopback)
+            alerts = _run_offline_pcap(args, pipe, guard, config, allow_loopback, session_tracker)
         else:
-            alerts = _run_live_loop(args, iface, pipe, guard, config, allow_loopback)
+            alerts = _run_live_loop(args, iface, pipe, guard, config, allow_loopback, session_tracker)
     except (PermissionError, FileNotFoundError) as err:
         print(f"\n❌ ERREUR DE CAPTURE RÉSEAU :\n{err}\n")
         sys.exit(1)

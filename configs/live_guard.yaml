@@ -13,6 +13,7 @@ pre_filter:
     - "127.0.0.1"
   allow_loopback: false
   whitelisted_udp_443_cdns: true
+  session_ttl_sec: 120.0
 
 threat_scoring:
   alert_threshold: 100.0

@@ -13,6 +13,30 @@ def test_run_live_capture_help():
     assert res.returncode == 0
     assert "Capture temps réel" in res.stdout
     assert "--interface" in res.stdout
+    assert "--bpf-filter" in res.stdout
+    assert "--duration" in res.stdout
+
+
+def test_run_live_capture_bpf_filter_argument(tmp_path: Path):
+    """Vérifie que le flag --bpf-filter est accepté en CLI."""
+    pcap_file = tmp_path / "traffic_bpf.pcap"
+    pkts = [
+        IP(src="192.168.10.15", dst="172.16.0.2") / TCP(sport=54321, dport=443, flags="S"),
+        IP(src="172.16.0.2", dst="192.168.10.15") / TCP(sport=443, dport=54321, flags="SA"),
+    ]
+    wrpcap(str(pcap_file), pkts)
+
+    cmd = [
+        sys.executable,
+        "scripts/run_live_capture.py",
+        "--pcap",
+        str(pcap_file),
+        "--bpf-filter",
+        "tcp and not port 5353",
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    assert res.returncode == 0
+    assert "Exécution terminée" in res.stdout
 
 
 def test_run_live_capture_offline_pcap(tmp_path: Path):
