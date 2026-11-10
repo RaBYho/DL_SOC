@@ -50,6 +50,12 @@ mtu_normalization:
   tcp_mss: 1460.0
 
 kitsune_live:
+  enabled: true
+  default_t3: 0.0035  # Échelle réelle KitNET normalisé (moyenne bénigne ~0.0019, mu+3sigma ~0.00345)
+  dynamic_calibration: true
+  calibration_method: "mu_plus_3sigma"  # "mu_plus_3sigma" ou "percentile"
   dynamic_threshold_percentile: 99.9
   dynamic_threshold_multiplier: 1.5
   filter_poisoning_with_stage1: true
+  min_clean_flows: 10
+  max_history_flows: 2000

@@ -75,11 +75,13 @@ class CascadedNIDSPipeline:
         verdicts: np.ndarray,
         confidences: np.ndarray,
         classes: np.ndarray,
+        k_scores_out: np.ndarray,
     ) -> None:
         """Évalue les flux bénins avec Kitsune pour intercepter les anomalies Zero-Day."""
         if self.kitsune_detector is None or len(benign_indices) == 0:
             return
         k_scores = np.asarray(self.kitsune_detector.score(df.iloc[benign_indices]), dtype=float)
+        k_scores_out[benign_indices] = k_scores
         for j, idx in enumerate(benign_indices):
             rmse = float(k_scores[j])
             if rmse >= self.t3:
@@ -90,7 +92,10 @@ class CascadedNIDSPipeline:
     def predict(self, df: pd.DataFrame) -> pd.DataFrame:
         """Exécute l'inférence hybride (Étage 1 + Étage 2 + branche parallèle Kitsune)."""
         n_samples = len(df)
+        has_kitsune = self.kitsune_detector is not None
         cols = ["stage1_score", "is_suspect", "stage2_class", "confidence", "verdict"]
+        if has_kitsune:
+            cols.append("kitsune_score")
         if n_samples == 0:
             return pd.DataFrame(columns=cols)
 
@@ -98,17 +103,22 @@ class CascadedNIDSPipeline:
         verdicts = np.full(n_samples, BENIGN, dtype=object)
         stage2_classes = np.full(n_samples, None, dtype=object)
         confidences = np.zeros(n_samples, dtype=float)
+        k_scores = np.full(n_samples, np.nan, dtype=float) if has_kitsune else None
 
         self._evaluate_stage2(df, np.where(is_suspect)[0], verdicts, confidences, stage2_classes)
-        self._evaluate_kitsune(df, np.where(~is_suspect)[0], verdicts, confidences, stage2_classes)
+        if has_kitsune:
+            self._evaluate_kitsune(
+                df, np.where(~is_suspect)[0], verdicts, confidences, stage2_classes, k_scores
+            )
 
-        return pd.DataFrame(
-            {
-                "stage1_score": s1_scores,
-                "is_suspect": is_suspect,
-                "stage2_class": stage2_classes,
-                "confidence": confidences,
-                "verdict": verdicts,
-            },
-            index=df.index,
-        )
+        res = {
+            "stage1_score": s1_scores,
+            "is_suspect": is_suspect,
+            "stage2_class": stage2_classes,
+            "confidence": confidences,
+            "verdict": verdicts,
+        }
+        if has_kitsune:
+            res["kitsune_score"] = k_scores
+
+        return pd.DataFrame(res, index=df.index)

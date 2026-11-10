@@ -128,3 +128,24 @@ def test_pipeline_kitsune_parallel_branch_intercepts_zero_day():
     assert res.loc[1, "confidence"] == 1.0  # min(1.0, 0.30 / (2 * 0.15)) = 1.0
     assert res.loc[1, "stage2_class"] == ANOMALY_UNKNOWN
     assert res.loc[2, "verdict"] == "DDoS"
+
+
+def test_pipeline_returns_kitsune_scores_column():
+    """Vérifie que le DataFrame retourné contient la colonne kitsune_score."""
+    df = pd.DataFrame({"dummy": [1, 2]})
+    s1 = MockStage1(scores=[0.1, 0.9])  # Flux 0 bénin, flux 1 suspect
+    s2 = MockStage2(probas=[[0.9, 0.1]], classes=["DDoS", "PortScan"])
+    kitsune = MockKitsune(scores=[0.003])
+
+    pipeline = CascadedNIDSPipeline(
+        stage1_models=[s1],
+        stage2_model=s2,
+        t1=0.5,
+        kitsune_detector=kitsune,
+        t3=0.0035,
+    )
+    res = pipeline.predict(df)
+
+    assert "kitsune_score" in res.columns
+    assert res.loc[0, "kitsune_score"] == 0.003
+    assert np.isnan(res.loc[1, "kitsune_score"])  # Non évalué par Kitsune car suspect Étage 1

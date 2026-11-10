@@ -79,32 +79,80 @@ class KitNETAnomalyDetector:
 
 
 def compute_live_dynamic_threshold(
-    rmse_scores: Sequence[float],
-    s1_scores: Sequence[float],
-    t1: float = 0.5,
-    percentile: float = 99.9,
-    multiplier: float = 1.5,
-    filter_poisoning: bool = True,
+    rmse_scores: Sequence[float], s1_scores: Sequence[float], t1: float = 0.5,
+    percentile: float = 99.9, multiplier: float = 1.5, filter_poisoning: bool = True,
+    method: str = "percentile", fallback_t3: float = 0.0035,
 ) -> float:
-    """Calcule le seuil dynamique t3 en protégeant la baseline contre l'empoisonnement.
-
-    Exclut tout flux suspect (s1_score >= t1) du calcul du percentile de référence.
-    """
-    rmses = np.asarray(rmse_scores, dtype=float)
-    s1s = np.asarray(s1_scores, dtype=float)
-
+    """Calcule le seuil dynamique t3 en protégeant la baseline contre l'empoisonnement."""
+    rmses, s1s = np.asarray(rmse_scores, dtype=float), np.asarray(s1_scores, dtype=float)
     if filter_poisoning:
-        # Exclusion stricte des flux suspects à l'Étage 1
-        clean_mask = (s1s < t1) & (~np.isnan(rmses))
-        valid_rmses = rmses[clean_mask]
+        valid_rmses = rmses[(s1s < t1) & (~np.isnan(rmses))]
     else:
         valid_rmses = rmses[~np.isnan(rmses)]
-
     if len(valid_rmses) == 0:
-        return 0.15
-
+        return fallback_t3
+    if method == "mu_plus_3sigma":
+        return float(round(float(np.mean(valid_rmses)) + 3.0 * float(np.std(valid_rmses)), 5))
     base_p = float(np.percentile(valid_rmses, percentile))
     return float(round(base_p * multiplier, 4))
+
+
+class LiveKitsuneCalibrator:
+    """Gestionnaire de calibration dynamique du seuil Kitsune (t3) sur trafic sain."""
+
+    def __init__(
+        self,
+        default_t3: float = 0.0035,
+        method: str = "mu_plus_3sigma",
+        percentile: float = 99.9,
+        multiplier: float = 1.5,
+        filter_poisoning: bool = True,
+        min_clean_flows: int = 10,
+        max_history_flows: int = 2000,
+        t1: float = 0.5,
+    ) -> None:
+        self.default_t3 = default_t3
+        self.method = method
+        self.percentile = percentile
+        self.multiplier = multiplier
+        self.filter_poisoning = filter_poisoning
+        self.min_clean_flows = min_clean_flows
+        self.max_history_flows = max_history_flows
+        self.t1 = t1
+        self.current_threshold = default_t3
+        self._clean_scores: list[float] = []
+
+    def update(self, rmse_scores: Sequence[float], s1_scores: Sequence[float]) -> float:
+        """Met à jour l'historique bénin et recalibre t3 si min_clean_flows est atteint."""
+        rmses = np.asarray(rmse_scores, dtype=float)
+        s1s = np.asarray(s1_scores, dtype=float)
+
+        mask = (~np.isnan(rmses)) & (rmses < self.current_threshold)
+        if self.filter_poisoning:
+            mask = mask & (s1s < self.t1)
+
+        clean_add = rmses[mask]
+        if len(clean_add) > 0:
+            self._clean_scores.extend(clean_add.tolist())
+            if len(self._clean_scores) > self.max_history_flows:
+                self._clean_scores = self._clean_scores[-self.max_history_flows :]
+
+        if len(self._clean_scores) >= self.min_clean_flows:
+            self.current_threshold = compute_live_dynamic_threshold(
+                rmse_scores=self._clean_scores,
+                s1_scores=np.zeros(len(self._clean_scores)),
+                t1=self.t1,
+                percentile=self.percentile,
+                multiplier=self.multiplier,
+                filter_poisoning=False,
+                method=self.method,
+                fallback_t3=self.default_t3,
+            )
+        return self.current_threshold
+
+    def __len__(self) -> int:
+        """Retourne le nombre de flux sains enregistrés dans la fenêtre."""
+        return len(self._clean_scores)
 
 
 def generate_aligned_packet_scores(
