@@ -40,7 +40,7 @@ quorum_rules:
   portscan_window_sec: 120.0
 
 cooldown:
-  ttl_sec: 300.0
+  ttl_sec: 15.0  # Durée en secondes pendant laquelle les alertes pour un même hôte sont dédupliquées (15s par défaut pour tests réactifs)
 
 kitsune_live:
   dynamic_threshold_percentile: 99.9

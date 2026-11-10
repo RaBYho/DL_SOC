@@ -47,6 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--t3", type=float, default=0.15, help="Seuil Kitsune RMSE (défaut: 0.15).")
     parser.add_argument("--no-kitsune", action="store_true", help="Désactive la branche Kitsune.")
     parser.add_argument("--bpf-filter", type=str, default=DEFAULT_BPF_FILTER, help="Filtre BPF noyau pour capture.")
+    parser.add_argument("--cooldown", type=float, default=None, help="Durée de cooldown anti-flood en secondes (écrase la config).")
     return parser.parse_args()
 
 
@@ -251,6 +252,9 @@ def main() -> None:
 
     with open(args.config) as f:
         config = yaml.safe_load(f)
+
+    if args.cooldown is not None:
+        config.setdefault("cooldown", {})["ttl_sec"] = args.cooldown
 
     pipe = _build_pipeline(args)
     guard = LiveAlertGuard(config)

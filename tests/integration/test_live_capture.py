@@ -139,3 +139,25 @@ def test_run_live_capture_no_kitsune_flag(tmp_path: Path):
     res = subprocess.run(cmd, capture_output=True, text=True)
     assert res.returncode == 0
     assert "Exécution terminée" in res.stdout
+
+
+def test_run_live_capture_cooldown_flag(tmp_path: Path):
+    """Vérifie le fonctionnement du flag --cooldown en ligne de commande."""
+    pcap_file = tmp_path / "traffic_cd.pcap"
+    pkts = [
+        IP(src="192.168.10.15", dst="172.16.0.2") / TCP(sport=54321, dport=443, flags="S"),
+        IP(src="172.16.0.2", dst="192.168.10.15") / TCP(sport=443, dport=54321, flags="SA"),
+    ]
+    wrpcap(str(pcap_file), pkts)
+
+    cmd = [
+        sys.executable,
+        "scripts/run_live_capture.py",
+        "--pcap",
+        str(pcap_file),
+        "--cooldown",
+        "5.0",
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    assert res.returncode == 0
+    assert "Exécution terminée" in res.stdout
