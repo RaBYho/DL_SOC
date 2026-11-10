@@ -20,7 +20,7 @@ rules:
     attack_class: "Web Attack – Brute Force"
     confidence: 1.0
     patterns:
-      - "(?i)user-agent:\\s*.*(gobuster|dirb|sqlmap|nikto|masscan|wfuzz|ffuf)"
+      - "(?i)user-agent:\\s*.*(gobuster|dirb|sqlmap|nikto|masscan|wfuzz|ffuf|hydra)"
 
   - id: "DPI-SQLI"
     attack_class: "Web Attack – Sql Injection"

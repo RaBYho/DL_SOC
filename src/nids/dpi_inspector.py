@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import re
 from typing import Any
+from urllib.parse import unquote_to_bytes
 import pandas as pd
 from scapy.all import IP, IPv6, PcapReader, Raw, TCP, UDP
 import yaml
@@ -52,9 +53,10 @@ class DPIInspector:
         """Vérifie si la charge utile brute correspond à l'une des règles DPI."""
         if not self.enabled or not payload:
             return None
+        decoded = unquote_to_bytes(payload.replace(b"+", b" "))
         for rule in self.rules:
             for pattern in rule.regexes:
-                if pattern.search(payload):
+                if pattern.search(payload) or pattern.search(decoded):
                     return rule.attack_class, rule.confidence
         return None
 

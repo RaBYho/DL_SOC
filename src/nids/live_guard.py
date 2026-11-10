@@ -5,7 +5,7 @@ from typing import Any, Sequence
 import numpy as np
 import pandas as pd
 
-from nids.labels import BENIGN
+from nids.labels import BENIGN, ANOMALY_UNKNOWN
 
 
 @dataclass(frozen=True)
@@ -50,6 +50,7 @@ class LiveAlertGuard:
         self.volumetric_history: dict[tuple[str, str], list[float]] = {}
         self.last_alert_time: dict[tuple[str, str], float] = {}
         self.last_host_alert_time: dict[str, float] = {}
+        self.last_host_verdict: dict[str, str] = {}
         self.suppressed_counts: dict[tuple[str, str], int] = {}
 
     def get_host_score(self, src_ip: str, current_time: float) -> float:
@@ -86,7 +87,9 @@ class LiveAlertGuard:
         """Gère l'émission d'alerte sous réserve du cooldown anti-flood au niveau de l'hôte."""
         src, verdict = key
         last_t = self.last_host_alert_time.get(src)
-        if last_t is not None and (t - last_t) < self.ttl_sec:
+        last_v = self.last_host_verdict.get(src)
+        is_upgrade = (last_v == ANOMALY_UNKNOWN and verdict != ANOMALY_UNKNOWN)
+        if last_t is not None and (t - last_t) < self.ttl_sec and not is_upgrade:
             self.suppressed_counts[key] = self.suppressed_counts.get(key, 0) + 1
             return None
 
@@ -94,6 +97,7 @@ class LiveAlertGuard:
         self.suppressed_counts[key] = 0
         self.last_alert_time[key] = t
         self.last_host_alert_time[src] = t
+        self.last_host_verdict[src] = verdict
 
         return ConsolidatedAlert(
             timestamp=t,
@@ -146,9 +150,10 @@ class LiveAlertGuard:
         """Applique les heuristiques comportementales (DDoS et scan multi-ports)."""
         is_ddos, ddos_cnt = self._check_ddos_heuristic(src, t)
         is_pscan, distinct_p = self._check_portscan_heuristic(src, dst_p, syn_f, t)
-        if is_ddos and (verdict == BENIGN or verdict in self.volumetric_classes):
+        upgrade_ok = verdict in (BENIGN, ANOMALY_UNKNOWN) or verdict in self.volumetric_classes
+        if is_ddos and upgrade_ok:
             return "DDoS", 1.0, distinct_p, ddos_cnt
-        if is_pscan and (verdict == BENIGN or verdict in self.volumetric_classes):
+        if is_pscan and upgrade_ok:
             return "PortScan", 1.0, distinct_p, ddos_cnt
         return verdict, conf, distinct_p, ddos_cnt
 
