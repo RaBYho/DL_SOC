@@ -83,7 +83,10 @@ class DPIInspector:
             with PcapReader(str(pcap_file)) as reader:
                 for pkt in reader:
                     if pkt.haslayer(Raw):
-                        hit = self.inspect_payload(bytes(pkt[Raw].load))
+                        load = bytes(pkt[Raw].load)
+                        if load.startswith((b"HTTP/1.", b"HTTP/2", b"HTTP/0.9")):
+                            continue
+                        hit = self.inspect_payload(load)
                         if hit is not None:
                             for key in self._extract_packet_keys(pkt):
                                 matches[key] = hit

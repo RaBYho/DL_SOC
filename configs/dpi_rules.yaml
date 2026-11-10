@@ -46,4 +46,4 @@ rules:
     patterns:
       - "\\$\\{jndi:(ldap|rmi|dns):"
       - "\\$\\{\\$\\{lower:j\\}ndi:"
-      - ";\\s*(cat|id|uname|whoami|curl|wget)\\b"
+      - ';\\s*(?:(?:cat|curl|wget)\\s+[^=\\s]|(?:whoami|uname|id)(?:\\s*($|;|&|\\||\\r|\\n)|\\s+-[a-zA-Z]))'
