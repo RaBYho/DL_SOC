@@ -1,4 +1,4 @@
-"""Adaptateur d'inférence pour le classifieur fine-grained CNN-1D (Étage 2)."""
+"""Adaptateur d'inférence pour le classifieur fine-grained DNN-1D (Étage 2)."""
 
 import json
 import warnings
@@ -15,7 +15,7 @@ from nids.labels import ATTACK_CLASSES
 
 
 class AttackCNN1D(nn.Module):
-    """Architecture PyTorch 1D-CNN pour la classification des 14 types d'attaques."""
+    """Architecture PyTorch 1D-DNN pour la classification des 14 types d'attaques."""
 
     def __init__(self, num_classes: int = 14) -> None:
         super().__init__()
@@ -58,15 +58,15 @@ class AttackCNN1D(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Passe avant du CNN-1D. Shape d'entrée: (batch_size, 1, n_features)."""
+        """Passe avant du DNN-1D. Shape d'entrée: (batch_size, 1, n_features)."""
         x = self.features(x)
         return self.classifier(x)
 
 
 class CnnStage2:
-    """Adaptateur pour le modèle PyTorch CNN-1D de l'Étage 2."""
+    """Adaptateur pour le modèle PyTorch DNN-1D de l'Étage 2."""
 
-    name: str = "CnnStage2"
+    name: str = "DnnStage2"
 
     def __init__(
         self,
@@ -111,3 +111,8 @@ class CnnStage2:
             probas = torch.softmax(logits, dim=1).cpu().numpy()
 
         return probas.astype(float)
+
+
+# Alias pour nommage DNN
+DnnStage2 = CnnStage2
+

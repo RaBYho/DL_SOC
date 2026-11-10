@@ -57,7 +57,7 @@ mtu_normalization:
 
 kitsune_live:
   enabled: true
-  default_t3: 0.0100  # Échelle adaptée au trafic réel sur carte physique (Web TLS ~0.0058)
+  default_t3: 0.0200  # Seuil adapté au trafic réel sur carte physique (Web TLS ~0.0110)
   dynamic_calibration: true
   calibration_method: "mu_plus_3sigma"  # "mu_plus_3sigma" ou "percentile"
   dynamic_threshold_percentile: 99.9

@@ -8,37 +8,7 @@ Ce document définit la feuille de route technique pour le développement du sys
 
 ### Schéma de traitement des flux et paquets
 
-```mermaid
-flowchart TD
-    subgraph Ingestion["1. Ingestion Réseau"]
-        PCAP["Capture Réseau (PCAP)"]
-        CFM["CICFlowMeter"]
-        PCAP --> CFM
-        CFM --> Flows["Flux Réseau (CSV / Parquet)\n+ Métadonnées (IPs, Ports, Proto, Horodatage)"]
-    end
-
-    subgraph Supervised["2. Pipeline Supervisé en Cascade"]
-        Flows --> Stage1["Étage 1 : Filtrage Rapide\n(CatBoost + XGBoost)\nSeuil de rappel t1"]
-        Stage1 -- "Bénin (Score < t1)" --> BenignDirect["Normal"]
-        Stage1 -- "Suspect (Score >= t1)" --> Stage2["Étage 2 : Classification Fine\n(CNN-1D - 14 classes d'attaques)\nSeuil de confiance t2"]
-        Stage2 --> S2_Out["Résultat Supervisé\n(Classe d'attaque ou Suspect Incertain)"]
-    end
-
-    subgraph Unsupervised["3. Branche Non-Supervisée (Anomalies)"]
-        PCAP --> Kitsune["Kitsune (Env Isolé Python 3.6/3.10)\nKitNET / Autoencodeurs par paquets"]
-        Kitsune --> PktScores["packet_scores.parquet\n(Score RMSE par paquet)"]
-        PktScores --> Alignment["Alignement Vectorisé (flow_alignment.py)\nJointure quintuplet + fenêtre temporelle"]
-        Flows -. Clés de flux .-> Alignment
-        Alignment --> FlowScores["Score d'Anomalie par Flux"]
-    end
-
-    subgraph Decision["4. Fusion Décisionnelle & Sortie"]
-        BenignDirect --> Fusion["Moteur de Fusion (fusion.py)\nArbitrage Étages 1+2 vs Kitsune (seuil t3)"]
-        S2_Out --> Fusion
-        FlowScores --> Fusion
-        Fusion --> Verdict["Décision Finale\n(BENIGN, 14 classes d'attaques, ANOMALY_UNKNOWN, UNKNOWN_ATTACK_LIKELY)"]
-    end
-```
+![Schéma de Traitement des Flux](docs/images/sentinel_architecture.png)
 
 ### Modèles référencés
 
@@ -73,7 +43,7 @@ nids-pipeline/
 │   ├── adapters/                   # Adaptateurs uniformes pour chaque modèle
 │   │   ├── base.py                 # Protocoles Stage1Model et Stage2Model
 │   │   ├── stage1.py               # Implémentations CatBoost & XGBoost
-│   │   └── stage2.py               # Implémentation CNN-1D PyTorch
+│   │   └── stage2.py               # Implémentation DNN-1D PyTorch
 │   ├── pipeline.py                 # Orchestrateur en cascade Étages 1 & 2
 │   ├── kitsune_runner.py           # Pilote d'inférence Kitsune (dans son sous-environnement)
 │   ├── flow_alignment.py           # Jointure vectorisée paquets ↔ flux
@@ -107,14 +77,7 @@ nids-pipeline/
 
 ## 3. Jalons d'Implémentation (Milestones)
 
-```mermaid
-flowchart LR
-    M1["Jalon 1\nSocle & Audit Modèles"] --> M2["Jalon 2\nData & Pipeline Supervisé"]
-    M1 --> M3["Jalon 3\nKitsune & Alignement"]
-    M2 --> M4["Jalon 4\nFusion & Calibration"]
-    M3 --> M4
-    M4 --> M5["Jalon 5\nÉvaluation & Généralisation"]
-```
+![Jalons d'Implémentation](docs/images/milestones_pipeline.png)
 
 ---
 
@@ -130,7 +93,7 @@ flowchart LR
    - Télécharger les poids dans `models/` (exclus de Git).
    - **Règle de sécurité :** Ne lancer aucun `pickle.load()` aveugle. Inspecter la structure via `pickletools.dis()`, `h5py`, ou `torch.load(..., weights_only=True)`.
    - Intégrer le XGBoost de `csperera/aegis-ai` (`xgb_model.json`, `feature_names.json`, `scaler.pkl`) comme second avis validé sur CICIDS2017.
-   - Analyser le CNN-1D de `saidimn` : vérifier la structure du réseau (reconstruire le `nn.Module` si seul le `state_dict` est présent) et documenter l'ordre exact des 14 classes.
+   - Analyser le DNN-1D de `saidimn` : vérifier la structure du réseau (reconstruire le `nn.Module` si seul le `state_dict` est présent) et documenter l'ordre exact des 14 classes.
 3. **Spécification formelle :**
    - Figer la configuration dans `configs/model_specs.yaml` (chemins, types, liste ordonnée des variables d'entrée par modèle).
 
@@ -262,13 +225,7 @@ flowchart LR
 
 Le projet applique une démarche **Test-Driven Development (TDD)** : chaque test unitaire est écrit avant la fonction associée.
 
-```mermaid
-flowchart LR
-    A["Test d'abord (Rouge)"] --> B["Implémentation minimale"]
-    B --> C["Test passe (Vert)"]
-    C --> D["Refactoring & Typage"]
-    D --> A
-```
+![Cycle TDD](docs/images/tdd_cycle.png)
 
 ### Pyramide de tests et marqueurs Pytest
 
@@ -288,7 +245,7 @@ flowchart LR
 | Risque identifié | Impact | Stratégie d'atténuation / Parade |
 |---|---|---|
 | **Exécution de code arbitraire (`pickle.load`)** | Critique (Sécurité) | Inspection statique obligatoire (`pickletools.dis()`, `weights_only=True`, `h5py`) au Jalon 1 avant tout chargement. |
-| **Inversion de classes dans le CNN-1D** | Critique (Décision) | Vérification de l'ordre exact du vecteur de sortie dès l'audit et test unitaire dédié liant le nom au bon indice. |
+| **Inversion de classes dans le DNN-1D** | Critique (Décision) | Vérification de l'ordre exact du vecteur de sortie dès l'audit et test unitaire dédié liant le nom au bon indice. |
 | **Absence d'IPs/Timestamps dans les CSV publics** | Élevé (Blocage fusion) | Utilisation obligatoire de l'archive `TrafficLabelling` (`GeneratedLabelledFlows.zip`) de CICIDS2017, jamais `MachineLearningCSV.zip`. |
 | **Lenteur de l'alignement paquets ↔ flux** | Élevé (Performance) | Conception 100 % vectorisée sous Pandas (`merge` sur quintuplet canonique bidirectionnel ordonné + filtre temporel). |
 | **Dépendances obsolètes de Kitsune** | Moyen (Compatibilité) | Isolement complet dans `envs/kitsune.txt`, exécution en sous-processus découplé via fichiers Parquet intermédiaires (Plan B : `KitNET-py`). |

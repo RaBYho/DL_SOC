@@ -1,0 +1,244 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="1200" height="900">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#09090b"/>
+      <stop offset="100%" stop-color="#121217"/>
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#18181b"/>
+      <stop offset="100%" stop-color="#111114"/>
+    </linearGradient>
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="redGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#be123c"/>
+      <stop offset="100%" stop-color="#f43f5e"/>
+    </linearGradient>
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#b45309"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#c2410c"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#047857"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <linearGradient id="purpleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#6d28d9"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+
+    <!-- Markers -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#71717a"/>
+    </marker>
+    <marker id="arrowCyan" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrowEmerald" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+    <marker id="arrowRed" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#f43f5e"/>
+    </marker>
+
+    <!-- Shadow -->
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <style>
+    .title { font-family: DejaVu Sans, Arial, sans-serif; font-weight: 700; fill: #f43f5e; font-size: 22px; letter-spacing: 0.5px; }
+    .subtitle { font-family: DejaVu Sans, Arial, sans-serif; font-size: 13px; fill: #a1a1aa; }
+    .node-title { font-family: DejaVu Sans, Arial, sans-serif; font-weight: 600; font-size: 13px; fill: #f4f4f5; }
+    .node-sub { font-family: monospace; font-size: 11px; fill: #a1a1aa; }
+    .badge { font-family: monospace; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+    .edge-label { font-family: monospace; font-size: 10px; fill: #71717a; }
+  </style>
+
+  <!-- Background -->
+  <rect width="1200" height="900" fill="url(#bgGrad)"/>
+  <rect x="15" y="15" width="1170" height="870" fill="none" stroke="#27272a" stroke-width="1.5" rx="12"/>
+
+  <!-- Header -->
+  <g transform="translate(40, 45)">
+    <circle cx="12" cy="12" r="6" fill="#f43f5e"/>
+    <text x="28" y="18" class="title">SENTINEL NIDS | Architecture Globale du Système</text>
+    <text x="28" y="38" class="subtitle">Pipeline de Détection d'Intrusions Multicouche &amp; Centre de Commandement SOC</text>
+  </g>
+
+  <!-- ==================== NIVEAU 1: CAPTURE & EXTRACTION ==================== -->
+  <!-- 1.1 Ingestion / Carte Réseau -->
+  <g transform="translate(60, 110)" filter="url(#shadow)">
+    <rect width="240" height="65" rx="8" fill="url(#cardGrad)" stroke="#38bdf8" stroke-width="1.5"/>
+    <rect x="0" y="0" width="6" height="65" rx="3" fill="url(#cyanGrad)"/>
+    <text x="18" y="28" class="node-title">Interface Réseau Physique</text>
+    <text x="18" y="48" class="node-sub">eth0 / enx3ecd36af7cdb / PCAP</text>
+  </g>
+
+  <!-- Arrow 1.1 -> 1.2 -->
+  <path d="M 300 142 L 360 142" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#arrowCyan)"/>
+
+  <!-- 1.2 Sniffer BPF -->
+  <g transform="translate(365, 110)" filter="url(#shadow)">
+    <rect width="230" height="65" rx="8" fill="url(#cardGrad)" stroke="#27272a" stroke-width="1.5"/>
+    <text x="18" y="28" class="node-title">Sniffer dumpcap / tcpdump</text>
+    <text x="18" y="48" class="node-sub">Filtre BPF Noyau (not SSDP/MDNS)</text>
+  </g>
+
+  <!-- Arrow 1.2 -> 1.3 -->
+  <path d="M 595 142 L 655 142" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- 1.3 Micro-batches PCAP -->
+  <g transform="translate(660, 110)" filter="url(#shadow)">
+    <rect width="210" height="65" rx="8" fill="url(#cardGrad)" stroke="#27272a" stroke-width="1.5"/>
+    <text x="18" y="28" class="node-title">Micro-batches PCAP</text>
+    <text x="18" y="48" class="node-sub">Tranches de 5s à 15s</text>
+  </g>
+
+  <!-- Arrow 1.3 -> 1.4 -->
+  <path d="M 870 142 L 925 142" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- 1.4 CICFlowMeter -->
+  <g transform="translate(930, 110)" filter="url(#shadow)">
+    <rect width="210" height="65" rx="8" fill="url(#cardGrad)" stroke="#0ea5e9" stroke-width="1.5"/>
+    <rect x="0" y="0" width="6" height="65" rx="3" fill="url(#cyanGrad)"/>
+    <text x="18" y="28" class="node-title">CICFlowMeter Engine</text>
+    <text x="18" y="48" class="node-sub">84 Métriques &amp; Normalisation</text>
+  </g>
+
+  <!-- Arrow 1.4 Down to Pre-Filter -->
+  <path d="M 1035 175 L 1035 220 L 735 220" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ==================== NIVEAU 2: PRÉ-FILTRAGE ==================== -->
+  <g transform="translate(440, 200)" filter="url(#shadow)">
+    <rect width="290" height="60" rx="8" fill="url(#cardGrad)" stroke="#10b981" stroke-width="1.5"/>
+    <text x="18" y="26" class="node-title">Pré-filtrage Déterministe</text>
+    <text x="18" y="46" class="node-sub">SessionTracker + Filtrage Bruit Réseau</text>
+  </g>
+
+  <!-- Branche Bénigne Vers Dashboard -->
+  <path d="M 440 230 L 180 230 L 180 300" stroke="#10b981" stroke-width="1.5" stroke-dasharray="4" marker-end="url(#arrowEmerald)"/>
+  <rect x="195" y="235" width="125" height="20" rx="4" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+  <text x="257" y="249" fill="#a7f3d0" class="badge" text-anchor="middle">Trafic Bénin Validé</text>
+
+  <!-- Branche Suspecte Vers Étage 1 -->
+  <path d="M 585 260 L 585 300" stroke="#f43f5e" stroke-width="1.5" marker-end="url(#arrowRed)"/>
+  <rect x="595" y="268" width="130" height="20" rx="4" fill="#881337" stroke="#f43f5e" stroke-width="1"/>
+  <text x="660" y="282" fill="#fecdd3" class="badge" text-anchor="middle">Trafic Suspect</text>
+
+  <!-- ==================== NIVEAU 3: FILTRAGE ÉTAGE 1 ==================== -->
+  <g transform="translate(410, 305)" filter="url(#shadow)">
+    <rect width="350" height="70" rx="8" fill="url(#cardGrad)" stroke="#f43f5e" stroke-width="1.8"/>
+    <rect x="0" y="0" width="6" height="70" rx="3" fill="url(#redGrad)"/>
+    <text x="20" y="28" class="node-title">ÉTAGE 1 : Filtrage Binaire Rapide</text>
+    <text x="20" y="46" class="node-sub">CatBoost (76 fts) + XGBoost (30 fts)</text>
+    <text x="20" y="62" class="badge" fill="#fb7185">SEUIL OPÉRATIONNEL : t₁ = 0.50</text>
+  </g>
+
+  <!-- Sortie Étage 1 Bénin -->
+  <path d="M 410 340 L 290 340 L 290 540" stroke="#10b981" stroke-width="1.5" stroke-dasharray="4" marker-end="url(#arrowEmerald)"/>
+  <text x="315" y="360" class="edge-label">Score &lt; t₁ (Bénin)</text>
+
+  <!-- Sortie Étage 1 Suspecte -> 3 Branches Parallèles -->
+  <path d="M 585 375 L 585 410" stroke="#f43f5e" stroke-width="1.5"/>
+  <path d="M 585 410 L 230 410 L 230 435" stroke="#f43f5e" stroke-width="1.5" marker-end="url(#arrowRed)"/>
+  <path d="M 585 410 L 585 435" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M 585 410 L 960 410 L 960 435" stroke="#f97316" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ==================== NIVEAU 4: ÉTAGE 2 / KITSUNE / DPI ==================== -->
+  <!-- 4.1 Étage 2 DNN-1D -->
+  <g transform="translate(70, 440)" filter="url(#shadow)">
+    <rect width="320" height="85" rx="8" fill="url(#cardGrad)" stroke="#ef4444" stroke-width="1.5"/>
+    <rect x="0" y="0" width="6" height="85" rx="3" fill="url(#redGrad)"/>
+    <text x="18" y="26" class="node-title">ÉTAGE 2 : DNN-1D PyTorch</text>
+    <text x="18" y="44" class="node-sub">14 Classes Multiclasses (DDoS, Bot, Scan)</text>
+    <text x="18" y="60" class="node-sub">BatchNorm1d, MaxPool, Dropout</text>
+    <text x="18" y="76" class="badge" fill="#f87171">SEUIL CONFIANCE : t₂ = 0.70</text>
+  </g>
+
+  <!-- 4.2 Kitsune Anomaly Detector -->
+  <g transform="translate(425, 440)" filter="url(#shadow)">
+    <rect width="320" height="85" rx="8" fill="url(#cardGrad)" stroke="#f59e0b" stroke-width="1.5"/>
+    <rect x="0" y="0" width="6" height="85" rx="3" fill="url(#amberGrad)"/>
+    <text x="18" y="26" class="node-title">BRANCHE 0-DAY : Kitsune (KitNET)</text>
+    <text x="18" y="44" class="node-sub">Ensemble d'Autoencodeurs L3</text>
+    <text x="18" y="60" class="node-sub">Calibration Dynamique Anti-Empoisonnement</text>
+    <text x="18" y="76" class="badge" fill="#fbbf24">SEUIL ANOMALIE : t₃ = 0.0100</text>
+  </g>
+
+  <!-- 4.3 DPI Inspector -->
+  <g transform="translate(780, 440)" filter="url(#shadow)">
+    <rect width="350" height="85" rx="8" fill="url(#cardGrad)" stroke="#f97316" stroke-width="1.5"/>
+    <rect x="0" y="0" width="6" height="85" rx="3" fill="url(#orangeGrad)"/>
+    <text x="18" y="26" class="node-title">INSPECTION L7 : DPI Inspector</text>
+    <text x="18" y="44" class="node-sub">Signatures Regex Charge Utile (Payload)</text>
+    <text x="18" y="60" class="node-sub">SQLi, XSS, RCE Log4j, Web Fuzzing</text>
+    <text x="18" y="76" class="badge" fill="#fb923c">FUSION IMMÉDIATE SUR MOTIF</text>
+  </g>
+
+  <!-- Descentes vers Moteur de Fusion -->
+  <path d="M 230 525 L 230 560 L 520 560" stroke="#ef4444" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M 585 525 L 585 580" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M 960 525 L 960 560 L 650 560" stroke="#f97316" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ==================== NIVEAU 5: MOTEUR DE FUSION ==================== -->
+  <g transform="translate(410, 585)" filter="url(#shadow)">
+    <rect width="350" height="65" rx="8" fill="url(#cardGrad)" stroke="#a855f7" stroke-width="1.8"/>
+    <rect x="0" y="0" width="6" height="65" rx="3" fill="url(#purpleGrad)"/>
+    <text x="20" y="26" class="node-title">MOTEUR DE FUSION DÉCISIONNELLE</text>
+    <text x="20" y="44" class="node-sub">Arbitrage Matrice à 6 Cas (Supervisé vs 0-Day)</text>
+    <text x="20" y="58" class="badge" fill="#c084fc">BENIGN · ATTAQUE · 0-DAY · INCERTAIN</text>
+  </g>
+
+  <!-- Arrow Fusion -> LiveAlertGuard -->
+  <path d="M 585 650 L 585 690" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ==================== NIVEAU 6: LIVE ALERT GUARD ==================== -->
+  <g transform="translate(360, 695)" filter="url(#shadow)">
+    <rect width="450" height="65" rx="8" fill="url(#cardGrad)" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="20" y="24" class="node-title">LiveAlertGuard : Consolidation &amp; Anti-Flood</text>
+    <text x="20" y="42" class="node-sub">• Quorum Volumétrique (anti-faux positifs)</text>
+    <text x="20" y="57" class="node-sub">• Score Cumulé Hôte (Leaky Bucket) &amp; Cooldown 30s</text>
+  </g>
+
+  <!-- Arrow LiveAlertGuard -> Backend / SOC -->
+  <path d="M 585 760 L 585 795" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ==================== NIVEAU 7: SOC DASHBOARD & PERSISTENCE ==================== -->
+  <!-- 7.1 SQLite WAL -->
+  <g transform="translate(70, 795)" filter="url(#shadow)">
+    <rect width="300" height="65" rx="8" fill="url(#cardGrad)" stroke="#0284c7" stroke-width="1.5"/>
+    <text x="18" y="26" class="node-title">Base SQLite WAL (nids.db)</text>
+    <text x="18" y="44" class="node-sub">Corrélation d'Incidents Automatique</text>
+    <text x="18" y="58" class="badge" fill="#38bdf8">HAUTE CONCURRENCE &amp; 84 FEATURES</text>
+  </g>
+
+  <!-- 7.2 FastAPI Backend -->
+  <g transform="translate(425, 795)" filter="url(#shadow)">
+    <rect width="320" height="65" rx="8" fill="url(#cardGrad)" stroke="#059669" stroke-width="1.5"/>
+    <text x="18" y="26" class="node-title">Serveur FastAPI Asynchrone</text>
+    <text x="18" y="44" class="node-sub">REST API (/api/dashboard) &amp; WebSocket (/ws)</text>
+    <text x="18" y="58" class="badge" fill="#34d399">DIFFUSION TÉLÉMÉTRIE 60 FPS</text>
+  </g>
+
+  <!-- 7.3 Frontend SOC Command Dashboard -->
+  <g transform="translate(795, 795)" filter="url(#shadow)">
+    <rect width="335" height="65" rx="8" fill="url(#cardGrad)" stroke="#f43f5e" stroke-width="1.8"/>
+    <rect x="0" y="0" width="6" height="65" rx="3" fill="url(#redGrad)"/>
+    <text x="18" y="26" class="node-title">SOC Command Center (Vue 3)</text>
+    <text x="18" y="44" class="node-sub">Timeline Chart.js, Donut, Triage Table</text>
+    <text x="18" y="58" class="badge" fill="#fb7185">TIROIR FORENSICS MATRICE 84 CARACT.</text>
+  </g>
+
+  <!-- Connexions Horizontales Niveau 7 -->
+  <path d="M 370 827 L 420 827" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M 745 827 L 790 827" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow)"/>
+</svg>

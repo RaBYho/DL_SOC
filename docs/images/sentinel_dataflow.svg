@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800">
+  <defs>
+    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#09090b"/>
+      <stop offset="100%" stop-color="#111116"/>
+    </linearGradient>
+    <linearGradient id="cardGrad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#18181b"/>
+      <stop offset="100%" stop-color="#111114"/>
+    </linearGradient>
+    <linearGradient id="roseGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#e11d48"/>
+      <stop offset="100%" stop-color="#fb7185"/>
+    </linearGradient>
+
+    <marker id="arrow2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#71717a"/>
+    </marker>
+    <marker id="arrowRed2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#fb7185"/>
+    </marker>
+    <marker id="arrowGreen2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#34d399"/>
+    </marker>
+  </defs>
+
+  <style>
+    .df-title { font-family: DejaVu Sans, Arial, sans-serif; font-weight: 700; fill: #38bdf8; font-size: 20px; }
+    .df-sub { font-family: DejaVu Sans, Arial, sans-serif; font-size: 13px; fill: #a1a1aa; }
+    .df-box-title { font-family: DejaVu Sans, Arial, sans-serif; font-weight: 600; font-size: 13px; fill: #f4f4f5; }
+    .df-box-sub { font-family: monospace; font-size: 11px; fill: #a1a1aa; }
+    .df-pill { font-family: monospace; font-size: 10px; font-weight: 600; }
+  </style>
+
+  <rect width="1200" height="800" fill="url(#bgGrad2)"/>
+  <rect x="15" y="15" width="1170" height="770" fill="none" stroke="#27272a" stroke-width="1.5" rx="12"/>
+
+  <!-- Header -->
+  <g transform="translate(40, 45)">
+    <circle cx="12" cy="12" r="6" fill="#38bdf8"/>
+    <text x="28" y="18" class="df-title">SENTINEL NIDS | Flux de Données &amp; Cycle de Décision</text>
+    <text x="28" y="38" class="df-sub">Parcours séquentiel d'un flux réseau à travers les moteurs de filtrage, inférence et corrélation</text>
+  </g>
+
+  <!-- Step 1: Capture -->
+  <g transform="translate(50, 100)">
+    <rect width="240" height="110" rx="8" fill="url(#cardGrad2)" stroke="#27272a" stroke-width="1.5"/>
+    <text x="18" y="28" class="df-box-title">1. Capture &amp; Ingestion</text>
+    <text x="18" y="50" class="df-box-sub">• dumpcap / tcpdump</text>
+    <text x="18" y="70" class="df-box-sub">• Filtre BPF noyau anti-broadcast</text>
+    <text x="18" y="90" class="df-box-sub">• Découpage micro-batchs (5-15s)</text>
+  </g>
+
+  <path d="M 290 155 L 340 155" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <!-- Step 2: Extraction CICFlowMeter -->
+  <g transform="translate(345, 100)">
+    <rect width="250" height="110" rx="8" fill="url(#cardGrad2)" stroke="#0284c7" stroke-width="1.5"/>
+    <text x="18" y="28" class="df-box-title">2. Extraction Vectorielle</text>
+    <text x="18" y="50" class="df-box-sub">• CICFlowMeter 84 caractéristiques</text>
+    <text x="18" y="70" class="df-box-sub">• Normalisation MTU 1514 (TSO/GSO)</text>
+    <text x="18" y="90" class="df-box-sub">• Clé quintuplet 5-tuple canonique</text>
+  </g>
+
+  <path d="M 595 155 L 645 155" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <!-- Step 3: Pré-filtrage Déterministe -->
+  <g transform="translate(650, 100)">
+    <rect width="250" height="110" rx="8" fill="url(#cardGrad2)" stroke="#10b981" stroke-width="1.5"/>
+    <text x="18" y="28" class="df-box-title">3. Pré-filtrage LiveFilter</text>
+    <text x="18" y="50" class="df-box-sub">• Whitelist IP &amp; DNS/DHCP bénin</text>
+    <text x="18" y="70" class="df-box-sub">• SessionTracker (suivi connexions)</text>
+    <text x="18" y="90" class="df-box-sub">• Isolation paquets orphelins</text>
+  </g>
+
+  <!-- Step 3 bifurcation -->
+  <path d="M 775 210 L 775 260 L 980 260 L 980 300" stroke="#10b981" stroke-width="1.5" stroke-dasharray="4" marker-end="url(#arrowGreen2)"/>
+  <path d="M 775 210 L 775 260 L 450 260 L 450 300" stroke="#fb7185" stroke-width="1.5" marker-end="url(#arrowRed2)"/>
+
+  <!-- Step 4A: Benign Fast Path -->
+  <g transform="translate(860, 305)">
+    <rect width="240" height="90" rx="8" fill="url(#cardGrad2)" stroke="#10b981" stroke-width="1.5"/>
+    <text x="18" y="26" class="df-box-title">4A. Fast Path Bénin</text>
+    <text x="18" y="46" class="df-box-sub">Trafic légitime validé</text>
+    <text x="18" y="64" class="df-box-sub">Évite surcharge CPU</text>
+    <text x="18" y="80" class="df-pill" fill="#34d399">VERDICT : BENIGN</text>
+  </g>
+
+  <!-- Step 4B: Étage 1 -->
+  <g transform="translate(320, 305)">
+    <rect width="260" height="90" rx="8" fill="url(#cardGrad2)" stroke="#f43f5e" stroke-width="1.5"/>
+    <text x="18" y="26" class="df-box-title">4B. Étage 1 : CatBoost / XGBoost</text>
+    <text x="18" y="46" class="df-box-sub">Calcul probabilité suspicion</text>
+    <text x="18" y="64" class="df-box-sub">Si score &lt; 0.50 ➔ Bénin</text>
+    <text x="18" y="80" class="df-pill" fill="#fb7185">SI SCORE &gt;= 0.50 ➔ ESCALADE</text>
+  </g>
+
+  <!-- Step 4B to Step 5 (3 Parallel Branches) -->
+  <path d="M 450 395 L 450 440" stroke="#f43f5e" stroke-width="1.5"/>
+  <path d="M 450 440 L 150 440 L 150 470" stroke="#f43f5e" stroke-width="1.5" marker-end="url(#arrowRed2)"/>
+  <path d="M 450 440 L 450 470" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow2)"/>
+  <path d="M 450 440 L 750 440 L 750 470" stroke="#f97316" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <!-- Step 5A: DNN-1D -->
+  <g transform="translate(50, 475)">
+    <rect width="240" height="90" rx="8" fill="url(#cardGrad2)" stroke="#ef4444" stroke-width="1.5"/>
+    <text x="16" y="26" class="df-box-title">5A. 1D-DNN Multiclasse</text>
+    <text x="16" y="46" class="df-box-sub">14 classes d'attaques</text>
+    <text x="16" y="64" class="df-box-sub">Vecteur confiance &gt;= 0.70</text>
+    <text x="16" y="80" class="df-pill" fill="#f87171">DDoS, PortScan, Bot, Patator...</text>
+  </g>
+
+  <!-- Step 5B: Kitsune 0-Day -->
+  <g transform="translate(340, 475)">
+    <rect width="240" height="90" rx="8" fill="url(#cardGrad2)" stroke="#f59e0b" stroke-width="1.5"/>
+    <text x="16" y="26" class="df-box-title">5B. Kitsune KitNET</text>
+    <text x="16" y="46" class="df-box-sub">Autoencodeurs paquets</text>
+    <text x="16" y="64" class="df-box-sub">RMSE reconstruction</text>
+    <text x="16" y="80" class="df-pill" fill="#fbbf24">DÉTECTION 0-DAY NON SUPERVISÉE</text>
+  </g>
+
+  <!-- Step 5C: DPI Inspector -->
+  <g transform="translate(630, 475)">
+    <rect width="240" height="90" rx="8" fill="url(#cardGrad2)" stroke="#f97316" stroke-width="1.5"/>
+    <text x="16" y="26" class="df-box-title">5C. DPI L7 Regex</text>
+    <text x="16" y="46" class="df-box-sub">Analyse charge utile</text>
+    <text x="16" y="64" class="df-box-sub">SQLi, XSS, Log4j, Fuzz</text>
+    <text x="16" y="80" class="df-pill" fill="#fb923c">CONFIRMATION APPLICATIVE</text>
+  </g>
+
+  <!-- Step 6: Fusion & LiveGuard -->
+  <path d="M 170 565 L 170 600 L 400 600" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow2)"/>
+  <path d="M 460 565 L 460 615" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow2)"/>
+  <path d="M 750 565 L 750 600 L 520 600" stroke="#71717a" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <g transform="translate(300, 620)">
+    <rect width="320" height="110" rx="8" fill="url(#cardGrad2)" stroke="#8b5cf6" stroke-width="1.8"/>
+    <text x="20" y="26" class="df-box-title">6. Moteur de Fusion &amp; LiveGuard</text>
+    <text x="20" y="48" class="df-box-sub">• Résolution selon matrice de fusion à 6 cas</text>
+    <text x="20" y="68" class="df-box-sub">• Quorum volumétrique &amp; Leaky bucket</text>
+    <text x="20" y="88" class="df-box-sub">• Cooldown anti-flood &amp; seuils adaptatifs</text>
+  </g>
+
+  <!-- Final Delivery: Dashboard & Alerting -->
+  <path d="M 620 675 L 720 675" stroke="#8b5cf6" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <g transform="translate(725, 620)">
+    <rect width="380" height="110" rx="8" fill="url(#cardGrad2)" stroke="#38bdf8" stroke-width="1.8"/>
+    <text x="20" y="26" class="df-box-title">7. Stockage &amp; Centre SOC</text>
+    <text x="20" y="48" class="df-box-sub">• Base SQLite WAL (flux &amp; incidents corrélés)</text>
+    <text x="20" y="68" class="df-box-sub">• Télémétrie WebSocket (/ws) en temps réel</text>
+    <text x="20" y="88" class="df-box-sub">• Console Vue 3 : Triage, Graphiques &amp; Forensics</text>
+  </g>
+</svg>

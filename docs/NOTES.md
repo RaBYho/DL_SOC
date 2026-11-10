@@ -35,7 +35,7 @@ Ce document consigne les informations techniques issues de l'audit statique et d
 
 ---
 
-## 3. Modèle Étage 2 : CNN-1D PyTorch (Classification fine - 14 classes)
+## 3. Modèle Étage 2 : DNN-1D PyTorch (Classification fine - 14 classes)
 - **Dépôt source** : `saidimn/ids-cnn-cicids2017` (Hugging Face)
 - **Fichiers locaux** :
   - `models/cnn1d_attacks_only.pth` (1.9 Mo, state_dict PyTorch)

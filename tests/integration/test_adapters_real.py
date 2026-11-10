@@ -54,7 +54,7 @@ def test_xgboost_stage1_real_inference(mini_df: pd.DataFrame):
 
 @pytest.mark.requires_models
 def test_cnn_stage2_real_inference(mini_df: pd.DataFrame):
-    """Vérifie le chargement et l'inférence du vrai modèle PyTorch CNN-1D sur mini.csv."""
+    """Vérifie le chargement et l'inférence du vrai modèle PyTorch DNN-1D sur mini.csv."""
     adapter = CnnStage2()
     probas = adapter.predict_proba(mini_df)
 

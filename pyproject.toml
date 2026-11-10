@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nids"
 version = "0.1.0"
-description = "Pipeline NIDS Hybride à Deux Étages (CatBoost, XGBoost, CNN-1D) + Kitsune"
+description = "Pipeline NIDS Hybride à Deux Étages (CatBoost, XGBoost, DNN-1D) + Kitsune"
 authors = [{ name = "Hoby" }]
 requires-python = ">=3.10"
 dependencies = [
@@ -24,6 +24,7 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+pythonpath = ["src", "."]
 filterwarnings = [
     "ignore::sklearn.exceptions.InconsistentVersionWarning",
 ]

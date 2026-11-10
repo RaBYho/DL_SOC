@@ -23,7 +23,7 @@ stage1_xgboost:
   target_auc: 0.9992
 
 stage2_cnn:
-  name: "CNN-1D (PyTorch)"
+  name: "DNN-1D (PyTorch)"
   source: "https://huggingface.co/saidimn/ids-cnn-cicids2017"
   local_path: "models/cnn1d_attacks_only.pth"
   scaler_path: "models/cnn_scaler.pkl"

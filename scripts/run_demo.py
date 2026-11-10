@@ -75,7 +75,7 @@ def main() -> None:
     catboost = CatBoostStage1()
     xgboost = XGBoostStage1()
     cnn = CnnStage2()
-    print("      -> CatBoost (Étage 1), XGBoost (Étage 1) et CNN-1D (Étage 2) prêts.")
+    print("      -> CatBoost (Étage 1), XGBoost (Étage 1) et DNN-1D (Étage 2) prêts.")
 
     # 3. Exécution de la cascade supervisée
     print(f"\n[3/4] Inférence supervisée (Cascade avec t1={args.t1}, t2={args.t2})...")

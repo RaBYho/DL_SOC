@@ -1,4 +1,4 @@
-"""Test End-to-End complet du pipeline hybride : Superviseur (CatBoost + XGBoost + CNN-1D) + Kitsune + Fusion."""
+"""Test End-to-End complet du pipeline hybride : Superviseur (CatBoost + XGBoost + DNN-1D) + Kitsune + Fusion."""
 
 import pandas as pd
 import pytest

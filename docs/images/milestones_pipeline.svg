@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 200" width="1000" height="200">
+  <defs>
+    <linearGradient id="mBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#09090b"/>
+      <stop offset="100%" stop-color="#18181b"/>
+    </linearGradient>
+    <linearGradient id="mCard" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#27272a"/>
+      <stop offset="100%" stop-color="#18181b"/>
+    </linearGradient>
+    <marker id="mArrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#38bdf8"/>
+    </marker>
+  </defs>
+  <style>
+    .m-title { font-family: DejaVu Sans, Arial, sans-serif; font-weight: 700; font-size: 13px; fill: #f4f4f5; }
+    .m-sub { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; fill: #a1a1aa; }
+    .m-badge { font-family: monospace; font-size: 10px; font-weight: 600; fill: #38bdf8; }
+  </style>
+  <rect width="1000" height="200" fill="url(#mBg)" rx="8" stroke="#27272a"/>
+  
+  <!-- M1 -->
+  <g transform="translate(30, 45)">
+    <rect width="160" height="110" rx="8" fill="url(#mCard)" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="15" y="30" class="m-badge">JALON 1</text>
+    <text x="15" y="55" class="m-title">Socle &amp; Audit</text>
+    <text x="15" y="75" class="m-sub">Models Inspection</text>
+    <text x="15" y="92" class="m-sub">CI/CD &amp; TDD Setup</text>
+  </g>
+
+  <!-- M1 -> M2 -->
+  <path d="M 190 80 L 235 60" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#mArrow)"/>
+  <!-- M1 -> M3 -->
+  <path d="M 190 120 L 235 140" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#mArrow)"/>
+
+  <!-- M2 -->
+  <g transform="translate(240, 15)">
+    <rect width="170" height="80" rx="8" fill="url(#mCard)" stroke="#27272a" stroke-width="1.5"/>
+    <text x="15" y="25" class="m-badge">JALON 2</text>
+    <text x="15" y="46" class="m-title">Pipeline Supervisé</text>
+    <text x="15" y="66" class="m-sub">CatBoost + DNN-1D</text>
+  </g>
+
+  <!-- M3 -->
+  <g transform="translate(240, 105)">
+    <rect width="170" height="80" rx="8" fill="url(#mCard)" stroke="#27272a" stroke-width="1.5"/>
+    <text x="15" y="25" class="m-badge" fill="#f59e0b">JALON 3</text>
+    <text x="15" y="46" class="m-title">Kitsune &amp; Alignement</text>
+    <text x="15" y="66" class="m-sub">KitNET + Paquets</text>
+  </g>
+
+  <!-- M2 -> M4 -->
+  <path d="M 410 55 L 475 80" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#mArrow)"/>
+  <!-- M3 -> M4 -->
+  <path d="M 410 145 L 475 120" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#mArrow)"/>
+
+  <!-- M4 -->
+  <g transform="translate(480, 45)">
+    <rect width="180" height="110" rx="8" fill="url(#mCard)" stroke="#a855f7" stroke-width="1.5"/>
+    <text x="15" y="30" class="m-badge" fill="#c084fc">JALON 4</text>
+    <text x="15" y="55" class="m-title">Fusion &amp; Calibration</text>
+    <text x="15" y="75" class="m-sub">Matrice à 6 Cas</text>
+    <text x="15" y="92" class="m-sub">Seuils t1, t2, t3</text>
+  </g>
+
+  <!-- M4 -> M5 -->
+  <path d="M 660 100 L 725 100" stroke="#38bdf8" stroke-width="1.5" marker-end="url(#mArrow)"/>
+
+  <!-- M5 -->
+  <g transform="translate(730, 45)">
+    <rect width="230" height="110" rx="8" fill="url(#mCard)" stroke="#10b981" stroke-width="1.5"/>
+    <text x="15" y="30" class="m-badge" fill="#34d399">JALON 5</text>
+    <text x="15" y="55" class="m-title">SOC &amp; Généralisation</text>
+    <text x="15" y="75" class="m-sub">FastAPI + Vue 3 Dashboard</text>
+    <text x="15" y="92" class="m-sub">Évaluation CSE-CIC-IDS2018</text>
+  </g>
+</svg>

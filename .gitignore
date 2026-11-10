@@ -53,3 +53,9 @@ data/processed/
 .coverage
 htmlcov/
 alerts.json
+
+# SQLite & Node
+*.db
+*.sqlite3
+dashboard/frontend/node_modules/
+

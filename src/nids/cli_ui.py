@@ -76,7 +76,7 @@ def _build_banner_table(
     table.add_row("Seuils de décision", f"t1={t1:.2f} (S1 Suspicion) │ t2={t2:.2f} (S2 Confiance) │ t3={t3:.4f} (Kitsune)")
     table.add_row(
         "Moteurs actifs",
-        "[green]✔ Supervisé (CatBoost+XGB+CNN)[/green] │ [green]✔ Kitsune (Autoencodeur)[/green] │ [green]✔ DPI (Suricata)[/green]",
+        "[green]✔ Supervisé (CatBoost+XGB+DNN)[/green] │ [green]✔ Kitsune (Autoencodeur)[/green] │ [green]✔ DPI (Suricata)[/green]",
     )
     return table
 

@@ -10,7 +10,7 @@ from nids.flow_extractor import convert_pcap_to_flows, get_default_interface, no
 
 @pytest.fixture(scope="module")
 def expected_features() -> list[str]:
-    """Charge les 78 variables attendues par le modèle CNN-1D."""
+    """Charge les 78 variables attendues par le modèle DNN-1D."""
     with open("models/cnn_feature_names.json") as f:
         return json.load(f)
 

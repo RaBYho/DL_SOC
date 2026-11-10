@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 180" width="900" height="180">
+  <defs>
+    <linearGradient id="tBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#09090b"/>
+      <stop offset="100%" stop-color="#18181b"/>
+    </linearGradient>
+    <linearGradient id="tCard" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#27272a"/>
+      <stop offset="100%" stop-color="#18181b"/>
+    </linearGradient>
+    <marker id="tArrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#a1a1aa"/>
+    </marker>
+  </defs>
+  <style>
+    .t-title { font-family: DejaVu Sans, Arial, sans-serif; font-weight: 700; font-size: 13px; fill: #f4f4f5; }
+    .t-sub { font-family: DejaVu Sans, Arial, sans-serif; font-size: 11px; fill: #a1a1aa; }
+    .t-step { font-family: monospace; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+  </style>
+  <rect width="900" height="180" fill="url(#tBg)" rx="8" stroke="#27272a"/>
+
+  <!-- Step 1 (Rouge) -->
+  <g transform="translate(30, 45)">
+    <rect width="180" height="90" rx="8" fill="url(#tCard)" stroke="#f43f5e" stroke-width="1.8"/>
+    <text x="15" y="26" class="t-step" fill="#fb7185">ÉTAPE 1 · ROUGE</text>
+    <text x="15" y="50" class="t-title">Écrire le Test d'Abord</text>
+    <text x="15" y="70" class="t-sub">Échec attendu (pytest)</text>
+  </g>
+
+  <path d="M 210 90 L 255 90" stroke="#a1a1aa" stroke-width="1.5" marker-end="url(#tArrow)"/>
+
+  <!-- Step 2 (Minimal) -->
+  <g transform="translate(260, 45)">
+    <rect width="180" height="90" rx="8" fill="url(#tCard)" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="15" y="26" class="t-step" fill="#38bdf8">ÉTAPE 2 · CODE</text>
+    <text x="15" y="50" class="t-title">Implémentation</text>
+    <text x="15" y="70" class="t-sub">Code minimal nécessaire</text>
+  </g>
+
+  <path d="M 440 90 L 485 90" stroke="#a1a1aa" stroke-width="1.5" marker-end="url(#tArrow)"/>
+
+  <!-- Step 3 (Vert) -->
+  <g transform="translate(490, 45)">
+    <rect width="180" height="90" rx="8" fill="url(#tCard)" stroke="#10b981" stroke-width="1.8"/>
+    <text x="15" y="26" class="t-step" fill="#34d399">ÉTAPE 3 · VERT</text>
+    <text x="15" y="50" class="t-title">Le Test Passe</text>
+    <text x="15" y="70" class="t-sub">100% Succès (Vert)</text>
+  </g>
+
+  <path d="M 670 90 L 715 90" stroke="#a1a1aa" stroke-width="1.5" marker-end="url(#tArrow)"/>
+
+  <!-- Step 4 (Refactor) -->
+  <g transform="translate(720, 45)">
+    <rect width="150" height="90" rx="8" fill="url(#tCard)" stroke="#a855f7" stroke-width="1.5"/>
+    <text x="15" y="26" class="t-step" fill="#c084fc">ÉTAPE 4 · REFACTOR</text>
+    <text x="15" y="50" class="t-title">Refactorisation</text>
+    <text x="15" y="70" class="t-sub">Typage &amp; Performance</text>
+  </g>
+
+  <!-- Boucle vers l'Étape 1 -->
+  <path d="M 795 135 L 795 160 L 120 160 L 120 135" stroke="#71717a" stroke-width="1.5" stroke-dasharray="4" marker-end="url(#tArrow)"/>
+</svg>
