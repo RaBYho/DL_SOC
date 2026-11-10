@@ -25,7 +25,7 @@ class SessionTracker:
                 return float(ts.max())
             dt = pd.to_datetime(ts, errors="coerce").dropna()
             if len(dt) > 0:
-                return float(dt.astype(np.int64).max() / 1e9)
+                return float(dt.astype("datetime64[ns]").astype(np.int64).max() / 1e9)
         return time.time()
 
     def update(self, df: pd.DataFrame, current_time: float | None = None) -> None:

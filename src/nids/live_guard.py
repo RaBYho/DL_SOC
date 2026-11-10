@@ -111,7 +111,7 @@ class LiveAlertGuard:
         ts_col = flows_df.get("Timestamp", pd.Series(0.0, index=flows_df.index))
         if pd.api.types.is_numeric_dtype(ts_col):
             return ts_col.astype(float).to_numpy()
-        return (pd.to_datetime(ts_col).astype(np.int64) / 1e9).to_numpy()
+        return (pd.to_datetime(ts_col).astype("datetime64[ns]").astype(np.int64) / 1e9).to_numpy()
 
     def _check_portscan_heuristic(
         self, src: str, dst_p: int, syn_f: int, t: float

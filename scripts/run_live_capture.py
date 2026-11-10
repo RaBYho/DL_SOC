@@ -62,36 +62,44 @@ def _check_tool_exists(tool: str) -> str:
     raise FileNotFoundError(f"L'outil de capture '{tool}' n'est pas installé sur le système.")
 
 
+def _build_capture_cmd(
+    tool_bin: str, tool: str, iface: str, duration: int, pcap_pattern: Path, bpf_filter: str | None
+) -> list[str]:
+    """Construit la ligne de commande dumpcap ou tcpdump."""
+    if tool == "dumpcap":
+        cmd = [tool_bin, "-P", "-i", iface, "-b", f"duration:{duration}"]
+        if bpf_filter:
+            cmd.extend(["-f", bpf_filter])
+        return cmd + ["-w", str(pcap_pattern), "-q"]
+    cmd = [tool_bin, "-i", iface, "-G", str(duration), "-w", str(pcap_pattern), "-q"]
+    return cmd + ([bpf_filter] if bpf_filter else [])
+
+
 def _start_capture_process(
     tool: str, iface: str, duration: int, pcap_pattern: Path, bpf_filter: str | None = None
 ) -> subprocess.Popen:
     """Démarre le processus de capture réseau avec filtrage BPF noyau."""
     tool_bin = _check_tool_exists(tool)
-    if tool == "dumpcap":
-        cmd = [tool_bin, "-P", "-i", iface, "-b", f"duration:{duration}"]
-        if bpf_filter:
-            cmd.extend(["-f", bpf_filter])
-        cmd.extend(["-w", str(pcap_pattern), "-q"])
-    else:
-        cmd = [tool_bin, "-i", iface, "-G", str(duration), "-w", str(pcap_pattern), "-q"]
-        if bpf_filter:
-            cmd.extend([bpf_filter])
-
+    pcap_pattern.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        pcap_pattern.parent.chmod(0o777)
+    except OSError:
+        pass
+    cmd = _build_capture_cmd(tool_bin, tool, iface, duration, pcap_pattern, bpf_filter)
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     except PermissionError as exc:
         raise PermissionError(
             f"Droit insuffisant pour exécuter {tool}.\n"
-            "-> Exécutez : sudo usermod -aG wireshark $USER\n"
+            "-> Exécutez : sudo usermod -aG wireshark $USER (puis relancez avec newgrp wireshark)\n"
             f"-> Ou lancez avec sudo : sudo {sys.executable} scripts/run_live_capture.py -i {iface}"
         ) from exc
-
     time.sleep(0.1)
     if proc.poll() is not None:
         err = proc.stderr.read().decode().strip() if proc.stderr else ""
         raise PermissionError(
             f"Échec de capture sur [{iface}] via {tool} (code {proc.returncode}) : {err}\n"
-            "-> Exécutez : sudo usermod -aG wireshark $USER (puis reconnectez-vous)\n"
+            "-> Exécutez : sudo usermod -aG wireshark $USER (puis relancez avec newgrp wireshark)\n"
             f"-> Ou lancez avec sudo : sudo {sys.executable} scripts/run_live_capture.py -i {iface}"
         )
     return proc
