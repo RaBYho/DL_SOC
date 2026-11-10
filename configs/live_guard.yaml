@@ -44,6 +44,11 @@ quorum_rules:
 cooldown:
   ttl_sec: 15.0  # Durée en secondes pendant laquelle les alertes pour un même hôte sont dédupliquées (15s par défaut pour tests réactifs)
 
+mtu_normalization:
+  enabled: true
+  ethernet_mtu: 1514.0
+  tcp_mss: 1460.0
+
 kitsune_live:
   dynamic_threshold_percentile: 99.9
   dynamic_threshold_multiplier: 1.5
