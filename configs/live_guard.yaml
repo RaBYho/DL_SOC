@@ -44,6 +44,8 @@ quorum_rules:
   portscan_window_sec: 120.0
   ddos_min_flows: 30
   ddos_window_sec: 5.0
+  ddos_ignored_ports:
+    - 443  # Trafic HTTPS Web normal vers CDNs (chargement d'assets web multiples)
 
 cooldown:
   ttl_sec: 15.0  # Durée en secondes pendant laquelle les alertes pour un même hôte sont dédupliquées (15s par défaut pour tests réactifs)

@@ -290,3 +290,28 @@ def test_ddos_flow_rate_spike_detection(guard_config: dict):
     assert alerts[0].attack_class == "DDoS"
     assert alerts[0].host_score >= 100.0
     assert alerts[0].flow_count >= 30
+
+
+def test_ddos_ignores_port_443_https_assets(guard_config: dict):
+    """Vérifie que des flux HTTPS bénins (port 443) ne déclenchent pas de faux DDoS."""
+    guard = LiveAlertGuard(guard_config)
+    src = "172.20.10.5"
+
+    t_40 = np.linspace(0.0, 3.0, 40)
+    df_40 = pd.DataFrame({
+        "Source IP": [src] * 40,
+        "Destination IP": ["102.132.104.53"] * 40,
+        "Destination Port": [443] * 40,
+        "SYN Flag Count": [0] * 40,
+        "Timestamp": t_40,
+    })
+    verdicts = pd.Series(["BENIGN"] * 40)
+
+    alerts = guard.process_batch(
+        flows_df=df_40,
+        verdicts=verdicts,
+        s1_scores=np.zeros(40),
+        s2_confs=np.zeros(40),
+        timestamps=t_40,
+    )
+    assert len(alerts) == 0

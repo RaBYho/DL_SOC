@@ -38,6 +38,7 @@ class LiveAlertGuard:
         self.portscan_window = float(quorum_cfg.get("portscan_window_sec", 120.0))
         self.ddos_min_flows = int(quorum_cfg.get("ddos_min_flows", 30))
         self.ddos_window = float(quorum_cfg.get("ddos_window_sec", 5.0))
+        self.ddos_ignored_ports = set(quorum_cfg.get("ddos_ignored_ports", [443]))
 
         cooldown_cfg = config.get("cooldown", {})
         self.ttl_sec = float(cooldown_cfg.get("ttl_sec", 300.0))
@@ -134,8 +135,10 @@ class LiveAlertGuard:
         distinct_ports = len(set(p for (_, p) in valid))
         return distinct_ports >= self.portscan_min_ports, distinct_ports
 
-    def _check_ddos_heuristic(self, src: str, t: float) -> tuple[bool, int]:
+    def _check_ddos_heuristic(self, src: str, dst_p: int, t: float) -> tuple[bool, int]:
         """Détecte les inondations volumétriques (DDoS) par pic de fréquence de flux par hôte."""
+        if dst_p in self.ddos_ignored_ports:
+            return False, 0
         history = self.host_flow_history.setdefault(src, [])
         history.append(t)
         cutoff = t - self.ddos_window
@@ -148,7 +151,7 @@ class LiveAlertGuard:
         self, src: str, dst_p: int, syn_f: int, t: float, verdict: str, conf: float
     ) -> tuple[str, float, int, int]:
         """Applique les heuristiques comportementales (DDoS et scan multi-ports)."""
-        is_ddos, ddos_cnt = self._check_ddos_heuristic(src, t)
+        is_ddos, ddos_cnt = self._check_ddos_heuristic(src, dst_p, t)
         is_pscan, distinct_p = self._check_portscan_heuristic(src, dst_p, syn_f, t)
         upgrade_ok = verdict in (BENIGN, ANOMALY_UNKNOWN) or verdict in self.volumetric_classes
         if is_ddos and upgrade_ok:
