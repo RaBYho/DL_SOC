@@ -1,0 +1,19 @@
+{
+  "version": "v3",
+  "seuil_sain_q90": 0.07769345492124557,
+  "seuil_q99": 0.5644044280052185,
+  "seuil_q995": 0.8303425908088684,
+  "seuil_q999": 1.5346485376358032,
+  "ratio_separation": 78.09,
+  "archi": [
+    58,
+    32,
+    16,
+    8,
+    16,
+    32,
+    58
+  ],
+  "features_count": 58,
+  "entraine_sur": "BENIGN train + Active Learning (50000 flux)"
+}

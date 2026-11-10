@@ -38,7 +38,6 @@ env/
 *.swo
 
 # Project specific heavy files (CRITICAL for mobile data & Git size)
-models/
 data/raw/
 data/processed/
 *.pcap
