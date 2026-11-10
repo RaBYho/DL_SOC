@@ -20,6 +20,7 @@ from nids.pipeline import CascadedNIDSPipeline
 from nids.flow_extractor import convert_pcap_to_flows, get_default_interface
 from nids.live_filter import pre_filter_flows, SessionTracker
 from nids.live_guard import LiveAlertGuard, ConsolidatedAlert
+from nids.dpi_inspector import DPIInspector, fuse_predictions_with_dpi
 
 DEFAULT_BPF_FILTER = (
     "not (udp port 5353 or udp port 1900 or udp port 5355 or udp port 137 or udp port 138 "
@@ -46,6 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--t2", type=float, default=0.10, help="Seuil Étage 2 (défaut: 0.10).")
     parser.add_argument("--t3", type=float, default=0.15, help="Seuil Kitsune RMSE (défaut: 0.15).")
     parser.add_argument("--no-kitsune", action="store_true", help="Désactive la branche Kitsune.")
+    parser.add_argument("--no-dpi", action="store_true", help="Désactive l'inspection de contenu (DPI).")
     parser.add_argument("--bpf-filter", type=str, default=DEFAULT_BPF_FILTER, help="Filtre BPF noyau pour capture.")
     parser.add_argument("--cooldown", type=float, default=None, help="Durée de cooldown anti-flood en secondes (écrase la config).")
     return parser.parse_args()
@@ -112,6 +114,7 @@ def _process_pcap_chunk(
     cfg: dict[str, Any],
     allow_loopback: bool = False,
     session_tracker: SessionTracker | None = None,
+    dpi_inspector: DPIInspector | None = None,
 ) -> list[ConsolidatedAlert]:
     """Convertit un PCAP en flux CICFlowMeter et l'analyse via le pipeline live."""
     flows_df = convert_pcap_to_flows(pcap_path)
@@ -125,6 +128,10 @@ def _process_pcap_chunk(
         return []
 
     sup_df = pipe.predict(to_score)
+    if dpi_inspector is not None:
+        hits = dpi_inspector.inspect_pcap(pcap_path)
+        sup_df = fuse_predictions_with_dpi(sup_df, to_score, hits)
+
     return guard.process_batch(
         flows_df=to_score,
         verdicts=sup_df["verdict"],
@@ -158,10 +165,11 @@ def _run_offline_pcap(
     cfg: dict[str, Any],
     allow_loopback: bool = False,
     session_tracker: SessionTracker | None = None,
+    dpi: DPIInspector | None = None,
 ) -> list[ConsolidatedAlert]:
     """Traite un fichier PCAP unique hors-ligne sans capture active."""
     print(f"📦 [Offline PCAP] Extraction des flux depuis : {args.pcap}")
-    alerts = _process_pcap_chunk(args.pcap, pipe, guard, cfg, allow_loopback, session_tracker)
+    alerts = _process_pcap_chunk(args.pcap, pipe, guard, cfg, allow_loopback, session_tracker, dpi)
     for a in alerts:
         _display_alert(a)
     return alerts
@@ -176,6 +184,7 @@ def _drain_remaining_pcaps(
     allow_loopback: bool,
     keep: bool,
     session_tracker: SessionTracker | None = None,
+    dpi: DPIInspector | None = None,
 ) -> list[ConsolidatedAlert]:
     """Traite et purge tous les fichiers PCAP restants après l'arrêt de la capture."""
     remaining = sorted(work_dir.glob("capture*.pcap"))
@@ -184,12 +193,51 @@ def _drain_remaining_pcaps(
         if pf.name not in processed and pf.exists() and pf.stat().st_size > 24:
             processed.add(pf.name)
             print(f"⚡ [Batch Final #{len(processed)}] Traitement de {pf.name}...")
-            chunk_alerts = _process_pcap_chunk(pf, pipe, guard, cfg, allow_loopback, session_tracker)
+            chunk_alerts = _process_pcap_chunk(pf, pipe, guard, cfg, allow_loopback, session_tracker, dpi)
             for a in chunk_alerts:
                 _display_alert(a)
             drain_alerts.extend(chunk_alerts)
         _cleanup_pcap(pf, keep)
     return drain_alerts
+
+
+def _process_ready_files(
+    ready_files: list[Path],
+    processed: set[str],
+    pipe: CascadedNIDSPipeline,
+    guard: LiveAlertGuard,
+    cfg: dict[str, Any],
+    allow_loopback: bool,
+    keep_pcaps: bool,
+    session_tracker: SessionTracker | None,
+    dpi: DPIInspector | None,
+) -> list[ConsolidatedAlert]:
+    """Traite les fichiers PCAP prêts et retourne les alertes émises."""
+    batch_alerts: list[ConsolidatedAlert] = []
+    for pf in ready_files:
+        if pf.name not in processed:
+            processed.add(pf.name)
+            if not pf.exists() or pf.stat().st_size <= 24:
+                _cleanup_pcap(pf, keep_pcaps)
+                continue
+            print(f"⚡ [Batch #{len(processed)}] Traitement de {pf.name}...")
+            chunk_alerts = _process_pcap_chunk(
+                pf, pipe, guard, cfg, allow_loopback, session_tracker, dpi
+            )
+            for a in chunk_alerts:
+                _display_alert(a)
+            batch_alerts.extend(chunk_alerts)
+            _cleanup_pcap(pf, keep_pcaps)
+    return batch_alerts
+
+
+def _stop_capture_proc(proc: subprocess.Popen) -> None:
+    """Arrête proprement le sous-processus de capture avec timeout de secours."""
+    proc.terminate()
+    try:
+        proc.wait(timeout=2.0)
+    except subprocess.TimeoutExpired:
+        proc.kill()
 
 
 def _run_live_loop(
@@ -200,6 +248,7 @@ def _run_live_loop(
     cfg: dict[str, Any],
     allow_loopback: bool = False,
     session_tracker: SessionTracker | None = None,
+    dpi: DPIInspector | None = None,
 ) -> list[ConsolidatedAlert]:
     """Boucle de surveillance et d'analyse des chunks PCAP générés en temps réel."""
     args.work_dir.mkdir(parents=True, exist_ok=True)
@@ -212,32 +261,20 @@ def _run_live_loop(
     try:
         while proc.poll() is None:
             files = sorted(args.work_dir.glob("capture*.pcap"))
-            ready_files = files[:-1] if len(files) > 1 else []
-            for pf in ready_files:
-                if pf.name not in processed:
-                    processed.add(pf.name)
-                    if not pf.exists() or pf.stat().st_size <= 24:
-                        _cleanup_pcap(pf, args.keep_pcaps)
-                        continue
-                    print(f"⚡ [Batch #{len(processed)}] Traitement de {pf.name}...")
-                    chunk_alerts = _process_pcap_chunk(pf, pipe, guard, cfg, allow_loopback, session_tracker)
-                    for a in chunk_alerts:
-                        _display_alert(a)
-                    alerts.extend(chunk_alerts)
-                    _cleanup_pcap(pf, args.keep_pcaps)
-                    if args.max_chunks and len(processed) >= args.max_chunks:
-                        return alerts
+            ready = files[:-1] if len(files) > 1 else []
+            new_alerts = _process_ready_files(
+                ready, processed, pipe, guard, cfg, allow_loopback, args.keep_pcaps, session_tracker, dpi
+            )
+            alerts.extend(new_alerts)
+            if args.max_chunks and len(processed) >= args.max_chunks:
+                return alerts
             time.sleep(1.0)
     finally:
-        proc.terminate()
-        try:
-            proc.wait(timeout=2.0)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-        drain_alerts = _drain_remaining_pcaps(
-            args.work_dir, processed, pipe, guard, cfg, allow_loopback, args.keep_pcaps, session_tracker
+        _stop_capture_proc(proc)
+        drained = _drain_remaining_pcaps(
+            args.work_dir, processed, pipe, guard, cfg, allow_loopback, args.keep_pcaps, session_tracker, dpi
         )
-        alerts.extend(drain_alerts)
+        alerts.extend(drained)
     return alerts
 
 
@@ -266,6 +303,7 @@ def main() -> None:
 
     pipe = _build_pipeline(args)
     guard = LiveAlertGuard(config)
+    dpi = None if args.no_dpi else DPIInspector()
     session_ttl = float(config.get("pre_filter", {}).get("session_ttl_sec", 120.0))
     session_tracker = SessionTracker(ttl_sec=session_ttl)
     iface = args.interface or get_default_interface()
@@ -273,9 +311,9 @@ def main() -> None:
 
     try:
         if args.pcap:
-            alerts = _run_offline_pcap(args, pipe, guard, config, allow_loopback, session_tracker)
+            alerts = _run_offline_pcap(args, pipe, guard, config, allow_loopback, session_tracker, dpi)
         else:
-            alerts = _run_live_loop(args, iface, pipe, guard, config, allow_loopback, session_tracker)
+            alerts = _run_live_loop(args, iface, pipe, guard, config, allow_loopback, session_tracker, dpi)
     except (PermissionError, FileNotFoundError) as err:
         print(f"\n❌ ERREUR DE CAPTURE RÉSEAU :\n{err}\n")
         sys.exit(1)

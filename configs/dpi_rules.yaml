@@ -1,0 +1,49 @@
+# Règles d'inspection approfondie des paquets (DPI) pour le NIDS hybride
+enabled: true
+
+rules:
+  - id: "DPI-WEB-FUZZING"
+    attack_class: "Web Attack – Brute Force"
+    confidence: 1.0
+    patterns:
+      - "/\\.env"
+      - "/\\.git"
+      - "/etc/passwd"
+      - "/etc/shadow"
+      - "/wp-admin"
+      - "/phpmyadmin"
+      - "/shell\\.php"
+      - "/backup\\.(sql|tar|gz|zip)"
+      - "/actuator/(health|env)"
+
+  - id: "DPI-ATTACK-TOOLS"
+    attack_class: "Web Attack – Brute Force"
+    confidence: 1.0
+    patterns:
+      - "(?i)user-agent:\\s*.*(gobuster|dirb|sqlmap|nikto|masscan|wfuzz|ffuf)"
+
+  - id: "DPI-SQLI"
+    attack_class: "Web Attack – Sql Injection"
+    confidence: 1.0
+    patterns:
+      - "(?i)union\\s+select"
+      - "(?i)or\\s+1\\s*=\\s*1"
+      - "(?i)information_schema"
+      - "(?i)waitfor\\s+delay"
+
+  - id: "DPI-XSS"
+    attack_class: "Web Attack – XSS"
+    confidence: 1.0
+    patterns:
+      - "(?i)<script[\\s>]"
+      - "(?i)javascript:"
+      - "(?i)onerror\\s*="
+      - "(?i)alert\\s*\\("
+
+  - id: "DPI-RCE-LOG4J"
+    attack_class: "Infiltration"
+    confidence: 1.0
+    patterns:
+      - "\\$\\{jndi:(ldap|rmi|dns):"
+      - "\\$\\{\\$\\{lower:j\\}ndi:"
+      - ";\\s*(cat|id|uname|whoami|curl|wget)\\b"
