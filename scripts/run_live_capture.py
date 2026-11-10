@@ -44,8 +44,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-chunks", type=int, default=None, help="Arrêter après N chunks traités.")
     parser.add_argument("--output", type=Path, default=None, help="Fichier JSON de sortie des alertes.")
     parser.add_argument("--config", type=Path, default=Path("configs/live_guard.yaml"), help="Config live_guard.")
-    parser.add_argument("--t1", type=float, default=0.01, help="Seuil Étage 1 (défaut: 0.01).")
-    parser.add_argument("--t2", type=float, default=0.10, help="Seuil Étage 2 (défaut: 0.10).")
+    parser.add_argument("--t1", type=float, default=None, help="Seuil Étage 1 (défaut: config ou 0.50).")
+    parser.add_argument("--t2", type=float, default=None, help="Seuil Étage 2 (défaut: config ou 0.70).")
     parser.add_argument("--t3", type=float, default=None, help="Seuil Kitsune RMSE (défaut: auto-calibré ou config).")
     parser.add_argument("--no-kitsune", action="store_true", help="Désactive la branche Kitsune.")
     parser.add_argument("--no-dpi", action="store_true", help="Désactive l'inspection de contenu (DPI).")
@@ -316,15 +316,19 @@ def _run_live_loop(
 
 def _build_pipeline(args: argparse.Namespace, cfg: dict[str, Any] | None = None) -> CascadedNIDSPipeline:
     """Instancie le pipeline hybride avec modèles supervisés et Kitsune."""
+    th_cfg = (cfg or {}).get("thresholds", {})
+    t1 = args.t1 if args.t1 is not None else float(th_cfg.get("t1", 0.50))
+    t2 = args.t2 if args.t2 is not None else float(th_cfg.get("t2", 0.70))
     k_cfg = (cfg or {}).get("kitsune_live", {})
-    default_t3 = float(k_cfg.get("default_t3", 0.0035))
+    default_t3 = float(k_cfg.get("default_t3", 0.0100))
     t3 = args.t3 if args.t3 is not None else default_t3
     kitsune = None if args.no_kitsune else KitNETAnomalyDetector(n_features=78, fm_grace=0, ad_grace=0)
+    print(f"⚙️  Seuils actifs : t1={t1:.2f} (Suspicion S1), t2={t2:.2f} (Confiance S2), t3={t3:.4f} (Kitsune)")
     return CascadedNIDSPipeline(
         [CatBoostStage1(), XGBoostStage1()],
         CnnStage2(),
-        t1=args.t1,
-        t2=args.t2,
+        t1=t1,
+        t2=t2,
         kitsune_detector=kitsune,
         t3=t3,
     )
@@ -339,15 +343,17 @@ def _build_kitsune_calibrator(
     k_cfg = cfg.get("kitsune_live", {})
     if not k_cfg.get("dynamic_calibration", True):
         return None
+    th_cfg = cfg.get("thresholds", {})
+    t1 = args.t1 if args.t1 is not None else float(th_cfg.get("t1", 0.50))
     return LiveKitsuneCalibrator(
-        default_t3=float(k_cfg.get("default_t3", 0.0035)),
+        default_t3=float(k_cfg.get("default_t3", 0.0100)),
         method=str(k_cfg.get("calibration_method", "mu_plus_3sigma")),
         percentile=float(k_cfg.get("dynamic_threshold_percentile", 99.9)),
         multiplier=float(k_cfg.get("dynamic_threshold_multiplier", 1.5)),
         filter_poisoning=bool(k_cfg.get("filter_poisoning_with_stage1", True)),
         min_clean_flows=int(k_cfg.get("min_clean_flows", 10)),
         max_history_flows=int(k_cfg.get("max_history_flows", 2000)),
-        t1=args.t1,
+        t1=t1,
     )
 
 

@@ -1,5 +1,9 @@
 # Configuration du moteur Live et de réduction des fausses alertes (Phase 12)
 
+thresholds:
+  t1: 0.50  # Seuil de suspicion Étage 1 (nominal production)
+  t2: 0.70  # Seuil de confiance Étage 2 (nominal production)
+
 pre_filter:
   ignore_multicast_broadcast: true
   ignored_ports:
@@ -51,7 +55,7 @@ mtu_normalization:
 
 kitsune_live:
   enabled: true
-  default_t3: 0.0035  # Échelle réelle KitNET normalisé (moyenne bénigne ~0.0019, mu+3sigma ~0.00345)
+  default_t3: 0.0100  # Échelle adaptée au trafic réel sur carte physique (Web TLS ~0.0058)
   dynamic_calibration: true
   calibration_method: "mu_plus_3sigma"  # "mu_plus_3sigma" ou "percentile"
   dynamic_threshold_percentile: 99.9
