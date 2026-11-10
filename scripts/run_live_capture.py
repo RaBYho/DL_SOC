@@ -6,16 +6,23 @@ from dataclasses import asdict
 import json
 from pathlib import Path
 import shutil
-import signal
 import subprocess
 import sys
 import time
 from typing import Any
 import pandas as pd
+from rich.console import Console
 import yaml
 
 from nids.adapters.stage1 import CatBoostStage1, XGBoostStage1
 from nids.adapters.stage2 import CnnStage2
+from nids.cli_ui import (
+    print_alert_card,
+    print_banner,
+    print_batch_status,
+    print_session_summary,
+    suppress_c_stderr,
+)
 from nids.kitsune_runner import KitNETAnomalyDetector, LiveKitsuneCalibrator
 from nids.pipeline import CascadedNIDSPipeline
 from nids.flow_extractor import convert_pcap_to_flows, get_default_interface
@@ -133,32 +140,31 @@ def _process_pcap_chunk(
     session_tracker: SessionTracker | None = None,
     dpi_inspector: DPIInspector | None = None,
     calibrator: LiveKitsuneCalibrator | None = None,
-) -> list[ConsolidatedAlert]:
+) -> tuple[list[ConsolidatedAlert], int]:
     """Convertit un PCAP en flux CICFlowMeter et l'analyse via le pipeline live."""
-    flows_df = convert_pcap_to_flows(pcap_path)
+    with suppress_c_stderr():
+        flows_df = convert_pcap_to_flows(pcap_path)
     if len(flows_df) == 0:
-        return []
+        return [], 0
     to_score, _ = pre_filter_flows(
         flows_df, cfg, allow_loopback=allow_loopback, session_tracker=session_tracker
     )
     if len(to_score) == 0:
-        return []
+        return [], len(flows_df)
     sup_df = _predict_and_fuse(pipe, to_score, pcap_path, dpi_inspector, calibrator)
-    return guard.process_batch(
+    alerts = guard.process_batch(
         flows_df=to_score,
         verdicts=sup_df["verdict"],
         s1_scores=sup_df["stage1_score"].values,
         s2_confs=sup_df["confidence"].values,
     )
+    return alerts, len(flows_df)
 
 
-def _display_alert(a: ConsolidatedAlert) -> None:
-    """Affiche une alerte consolidée sur la sortie standard."""
-    print(
-        f"🚨 [ALERTE CONSOLIDÉE] {a.src_ip} -> {a.dst_ip} | "
-        f"Classe: {a.attack_class} | Score hôte: {a.host_score:.1f} | "
-        f"Flux: {a.flow_count} | Supprimés: {a.suppressed_count}"
-    )
+def _display_alert(a: ConsolidatedAlert, console: Console | None = None) -> None:
+    """Affiche une alerte consolidée via la console Rich."""
+    c = console or Console()
+    print_alert_card(c, a)
 
 
 def _cleanup_pcap(path: Path, keep: bool) -> None:
@@ -179,13 +185,18 @@ def _run_offline_pcap(
     session_tracker: SessionTracker | None = None,
     dpi: DPIInspector | None = None,
     calibrator: LiveKitsuneCalibrator | None = None,
-) -> list[ConsolidatedAlert]:
+    console: Console | None = None,
+) -> tuple[list[ConsolidatedAlert], int]:
     """Traite un fichier PCAP unique hors-ligne sans capture active."""
-    print(f"📦 [Offline PCAP] Extraction des flux depuis : {args.pcap}")
-    alerts = _process_pcap_chunk(args.pcap, pipe, guard, cfg, allow_loopback, session_tracker, dpi, calibrator)
+    c = console or Console()
+    c.print(f"[bold cyan]📦 [Offline PCAP][/bold cyan] Extraction des flux depuis : [bold]{args.pcap}[/bold]")
+    alerts, n_flows = _process_pcap_chunk(
+        args.pcap, pipe, guard, cfg, allow_loopback, session_tracker, dpi, calibrator
+    )
+    print_batch_status(c, 1, args.pcap.name, n_flows, len(alerts))
     for a in alerts:
-        _display_alert(a)
-    return alerts
+        _display_alert(a, c)
+    return alerts, 1
 
 
 def _drain_remaining_pcaps(
@@ -199,19 +210,21 @@ def _drain_remaining_pcaps(
     session_tracker: SessionTracker | None = None,
     dpi: DPIInspector | None = None,
     calibrator: LiveKitsuneCalibrator | None = None,
+    console: Console | None = None,
 ) -> list[ConsolidatedAlert]:
     """Traite et purge tous les fichiers PCAP restants après l'arrêt de la capture."""
+    c = console or Console()
     remaining = sorted(work_dir.glob("capture*.pcap"))
     drain_alerts: list[ConsolidatedAlert] = []
     for pf in remaining:
         if pf.name not in processed and pf.exists() and pf.stat().st_size > 24:
             processed.add(pf.name)
-            print(f"⚡ [Batch Final #{len(processed)}] Traitement de {pf.name}...")
-            chunk_alerts = _process_pcap_chunk(
+            chunk_alerts, n_flows = _process_pcap_chunk(
                 pf, pipe, guard, cfg, allow_loopback, session_tracker, dpi, calibrator
             )
+            print_batch_status(c, len(processed), pf.name, n_flows, len(chunk_alerts), is_final=True)
             for a in chunk_alerts:
-                _display_alert(a)
+                _display_alert(a, c)
             drain_alerts.extend(chunk_alerts)
         _cleanup_pcap(pf, keep)
     return drain_alerts
@@ -228,8 +241,10 @@ def _process_ready_files(
     session_tracker: SessionTracker | None = None,
     dpi: DPIInspector | None = None,
     calibrator: LiveKitsuneCalibrator | None = None,
+    console: Console | None = None,
 ) -> list[ConsolidatedAlert]:
     """Traite les fichiers PCAP prêts et retourne les alertes émises."""
+    c = console or Console()
     batch_alerts: list[ConsolidatedAlert] = []
     for pf in ready_files:
         if pf.name not in processed:
@@ -237,12 +252,12 @@ def _process_ready_files(
             if not pf.exists() or pf.stat().st_size <= 24:
                 _cleanup_pcap(pf, keep_pcaps)
                 continue
-            print(f"⚡ [Batch #{len(processed)}] Traitement de {pf.name}...")
-            chunk_alerts = _process_pcap_chunk(
+            chunk_alerts, n_flows = _process_pcap_chunk(
                 pf, pipe, guard, cfg, allow_loopback, session_tracker, dpi, calibrator
             )
+            print_batch_status(c, len(processed), pf.name, n_flows, len(chunk_alerts))
             for a in chunk_alerts:
-                _display_alert(a)
+                _display_alert(a, c)
             batch_alerts.extend(chunk_alerts)
             _cleanup_pcap(pf, keep_pcaps)
     return batch_alerts
@@ -267,6 +282,7 @@ def _poll_and_process_chunks(
     tracker: SessionTracker | None,
     dpi: DPIInspector | None,
     calibrator: LiveKitsuneCalibrator | None,
+    console: Console | None = None,
 ) -> tuple[list[ConsolidatedAlert], set[str]]:
     """Scrute périodiquement les chunks PCAP et traite ceux qui sont prêts."""
     processed, alerts = set(), []
@@ -275,7 +291,7 @@ def _poll_and_process_chunks(
         ready = files[:-1] if len(files) > 1 else []
         alerts.extend(
             _process_ready_files(
-                ready, processed, pipe, guard, cfg, allow_loopback, args.keep_pcaps, tracker, dpi, calibrator
+                ready, processed, pipe, guard, cfg, allow_loopback, args.keep_pcaps, tracker, dpi, calibrator, console
             )
         )
         if args.max_chunks and len(processed) >= args.max_chunks:
@@ -294,36 +310,42 @@ def _run_live_loop(
     session_tracker: SessionTracker | None = None,
     dpi: DPIInspector | None = None,
     calibrator: LiveKitsuneCalibrator | None = None,
-) -> list[ConsolidatedAlert]:
+    console: Console | None = None,
+) -> tuple[list[ConsolidatedAlert], int]:
     """Boucle de surveillance et d'analyse des chunks PCAP générés en temps réel."""
+    c = console or Console()
     args.work_dir.mkdir(parents=True, exist_ok=True)
     pcap_pattern = args.work_dir / "capture.pcap"
     proc = _start_capture_process(args.tool, iface, args.duration, pcap_pattern, args.bpf_filter)
-    print(f"📡 Capture active sur [{iface}] via {args.tool} (Ctrl+C pour arrêter)...")
+    c.print(f"[bold cyan]📡 Capture active sur [{iface}] via {args.tool}[/bold cyan] [dim](Ctrl+C pour arrêter)...[/dim]\n")
     try:
         alerts, processed = _poll_and_process_chunks(
-            args, proc, pipe, guard, cfg, allow_loopback, session_tracker, dpi, calibrator
+            args, proc, pipe, guard, cfg, allow_loopback, session_tracker, dpi, calibrator, c
         )
     finally:
         _stop_capture_proc(proc)
         alerts.extend(
             _drain_remaining_pcaps(
-                args.work_dir, processed, pipe, guard, cfg, allow_loopback, args.keep_pcaps, session_tracker, dpi, calibrator
+                args.work_dir, processed, pipe, guard, cfg, allow_loopback, args.keep_pcaps, session_tracker, dpi, calibrator, c
             )
         )
-    return alerts
+    return alerts, len(processed)
 
 
-def _build_pipeline(args: argparse.Namespace, cfg: dict[str, Any] | None = None) -> CascadedNIDSPipeline:
-    """Instancie le pipeline hybride avec modèles supervisés et Kitsune."""
+def _resolve_thresholds(args: argparse.Namespace, cfg: dict[str, Any] | None) -> tuple[float, float, float]:
+    """Résout les seuils de décision t1, t2 et t3 depuis les arguments ou la configuration."""
     th_cfg = (cfg or {}).get("thresholds", {})
     t1 = args.t1 if args.t1 is not None else float(th_cfg.get("t1", 0.50))
     t2 = args.t2 if args.t2 is not None else float(th_cfg.get("t2", 0.70))
     k_cfg = (cfg or {}).get("kitsune_live", {})
-    default_t3 = float(k_cfg.get("default_t3", 0.0100))
-    t3 = args.t3 if args.t3 is not None else default_t3
+    t3 = args.t3 if args.t3 is not None else float(k_cfg.get("default_t3", 0.0100))
+    return t1, t2, t3
+
+
+def _build_pipeline(args: argparse.Namespace, cfg: dict[str, Any] | None = None) -> CascadedNIDSPipeline:
+    """Instancie le pipeline hybride avec modèles supervisés et Kitsune."""
+    t1, t2, t3 = _resolve_thresholds(args, cfg)
     kitsune = None if args.no_kitsune else KitNETAnomalyDetector(n_features=78, fm_grace=0, ad_grace=0)
-    print(f"⚙️  Seuils actifs : t1={t1:.2f} (Suspicion S1), t2={t2:.2f} (Confiance S2), t3={t3:.4f} (Kitsune)")
     return CascadedNIDSPipeline(
         [CatBoostStage1(), XGBoostStage1()],
         CnnStage2(),
@@ -343,8 +365,7 @@ def _build_kitsune_calibrator(
     k_cfg = cfg.get("kitsune_live", {})
     if not k_cfg.get("dynamic_calibration", True):
         return None
-    th_cfg = cfg.get("thresholds", {})
-    t1 = args.t1 if args.t1 is not None else float(th_cfg.get("t1", 0.50))
+    t1, _, _ = _resolve_thresholds(args, cfg)
     return LiveKitsuneCalibrator(
         default_t3=float(k_cfg.get("default_t3", 0.0100)),
         method=str(k_cfg.get("calibration_method", "mu_plus_3sigma")),
@@ -357,41 +378,48 @@ def _build_kitsune_calibrator(
     )
 
 
-def _save_and_report_alerts(alerts: list[ConsolidatedAlert], output: Path | None) -> None:
-    """Sauvegarde les alertes au format JSON et affiche la synthèse finale."""
+def _save_and_report_alerts(
+    alerts: list[ConsolidatedAlert], output: Path | None, total_batches: int = 1, console: Console | None = None
+) -> None:
+    """Sauvegarde les alertes au format JSON et affiche la synthèse finale SOC."""
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
         with open(output, "w") as f:
             json.dump([asdict(a) for a in alerts], f, indent=2)
-    print(f"\n✅ Exécution terminée : {len(alerts)} alerte(s) consolidée(s).\n" + "=" * 78)
+    c = console or Console()
+    print_session_summary(c, alerts, total_batches, output)
 
 
 def main() -> None:
+    """Point d'entrée principal pour la capture et analyse NIDS temps réel."""
     args = parse_args()
-    print("=" * 78 + "\n   🛡️  CAPTURE & ANALYSE RÉSEAU TEMPS RÉEL (CICFlowMeter + NIDS)\n" + "=" * 78)
-
+    console = Console()
     with open(args.config) as f:
         config = yaml.safe_load(f)
     if args.cooldown is not None:
         config.setdefault("cooldown", {})["ttl_sec"] = args.cooldown
 
+    t1, t2, t3 = _resolve_thresholds(args, config)
+    iface = args.interface or get_default_interface()
+    pcap_name = args.pcap.name if args.pcap else None
+    print_banner(console, iface, args.duration, t1, t2, t3, args.tool, bool(args.pcap), pcap_name)
+
     pipe = _build_pipeline(args, config)
     guard, dpi = LiveAlertGuard(config), None if args.no_dpi else DPIInspector()
     calibrator = _build_kitsune_calibrator(args, config)
     tracker = SessionTracker(ttl_sec=float(config.get("pre_filter", {}).get("session_ttl_sec", 120.0)))
-    iface = args.interface or get_default_interface()
     allow_loop = args.allow_loopback or (iface == "lo")
 
     try:
         if args.pcap:
-            alerts = _run_offline_pcap(args, pipe, guard, config, allow_loop, tracker, dpi, calibrator)
+            alerts, batches = _run_offline_pcap(args, pipe, guard, config, allow_loop, tracker, dpi, calibrator, console)
         else:
-            alerts = _run_live_loop(args, iface, pipe, guard, config, allow_loop, tracker, dpi, calibrator)
+            alerts, batches = _run_live_loop(args, iface, pipe, guard, config, allow_loop, tracker, dpi, calibrator, console)
     except (PermissionError, FileNotFoundError) as err:
-        print(f"\n❌ ERREUR DE CAPTURE RÉSEAU :\n{err}\n")
+        console.print(f"\n[bold red]❌ ERREUR DE CAPTURE RÉSEAU :[/bold red]\n{err}\n")
         sys.exit(1)
 
-    _save_and_report_alerts(alerts, args.output)
+    _save_and_report_alerts(alerts, args.output, total_batches=batches, console=console)
 
 
 if __name__ == "__main__":
