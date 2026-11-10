@@ -36,6 +36,8 @@ class LiveAlertGuard:
         self.volumetric_window = float(quorum_cfg.get("volumetric_window_sec", 10.0))
         self.portscan_min_ports = int(quorum_cfg.get("portscan_min_distinct_ports", 10))
         self.portscan_window = float(quorum_cfg.get("portscan_window_sec", 120.0))
+        self.ddos_min_flows = int(quorum_cfg.get("ddos_min_flows", 30))
+        self.ddos_window = float(quorum_cfg.get("ddos_window_sec", 5.0))
 
         cooldown_cfg = config.get("cooldown", {})
         self.ttl_sec = float(cooldown_cfg.get("ttl_sec", 300.0))
@@ -44,6 +46,7 @@ class LiveAlertGuard:
         self.host_scores: dict[str, float] = {}
         self.host_last_time: dict[str, float] = {}
         self.host_ports: dict[str, list[tuple[float, int]]] = {}
+        self.host_flow_history: dict[str, list[float]] = {}
         self.volumetric_history: dict[tuple[str, str], list[float]] = {}
         self.last_alert_time: dict[tuple[str, str], float] = {}
         self.last_host_alert_time: dict[str, float] = {}
@@ -127,13 +130,39 @@ class LiveAlertGuard:
         distinct_ports = len(set(p for (_, p) in valid))
         return distinct_ports >= self.portscan_min_ports, distinct_ports
 
+    def _check_ddos_heuristic(self, src: str, t: float) -> tuple[bool, int]:
+        """Détecte les inondations volumétriques (DDoS) par pic de fréquence de flux par hôte."""
+        history = self.host_flow_history.setdefault(src, [])
+        history.append(t)
+        cutoff = t - self.ddos_window
+        valid = [pt for pt in history if pt >= cutoff]
+        self.host_flow_history[src] = valid
+        flow_count = len(valid)
+        return flow_count >= self.ddos_min_flows, flow_count
+
+    def _apply_behavioral_heuristics(
+        self, src: str, dst_p: int, syn_f: int, t: float, verdict: str, conf: float
+    ) -> tuple[str, float, int, int]:
+        """Applique les heuristiques comportementales (DDoS et scan multi-ports)."""
+        is_ddos, ddos_cnt = self._check_ddos_heuristic(src, t)
+        is_pscan, distinct_p = self._check_portscan_heuristic(src, dst_p, syn_f, t)
+        if is_ddos and (verdict == BENIGN or verdict in self.volumetric_classes):
+            return "DDoS", 1.0, distinct_p, ddos_cnt
+        if is_pscan and (verdict == BENIGN or verdict in self.volumetric_classes):
+            return "PortScan", 1.0, distinct_p, ddos_cnt
+        return verdict, conf, distinct_p, ddos_cnt
+
     def _evaluate_volumetric_quorum(
-        self, key: tuple[str, str], t: float, distinct_p: int
+        self, key: tuple[str, str], t: float, distinct_p: int, ddos_cnt: int = 0
     ) -> tuple[bool, int]:
-        """Vérifie si le quorum volumétrique classique ou multi-ports est atteint."""
+        """Vérifie si le quorum volumétrique classique, multi-ports ou DDoS est atteint."""
         cnt = self._check_quorum(key, t)
-        is_ok = (cnt >= self.volumetric_min) or (distinct_p >= self.portscan_min_ports)
-        return is_ok, max(cnt, distinct_p)
+        is_ok = (
+            (cnt >= self.volumetric_min)
+            or (distinct_p >= self.portscan_min_ports)
+            or (ddos_cnt >= self.ddos_min_flows)
+        )
+        return is_ok, max(cnt, distinct_p, ddos_cnt)
 
     def _process_single_flow(
         self,
@@ -146,10 +175,9 @@ class LiveAlertGuard:
         syn_f: int = 0,
     ) -> ConsolidatedAlert | None:
         """Traite un flux unique et retourne une alerte si le seuil et le quorum sont atteints."""
-        is_pscan, distinct_p = self._check_portscan_heuristic(src, dst_p, syn_f, t)
-        if is_pscan and (verdict == BENIGN or verdict in self.volumetric_classes):
-            verdict, conf = "PortScan", 1.0
-
+        verdict, conf, dist_p, ddos_cnt = self._apply_behavioral_heuristics(
+            src, dst_p, syn_f, t, verdict, conf
+        )
         new_score = self.get_host_score(src, t) + self._determine_weight(verdict, conf)
         self.host_scores[src] = new_score
         self.host_last_time[src] = t
@@ -158,7 +186,7 @@ class LiveAlertGuard:
 
         key, flow_count = (src, verdict), 1
         if verdict in self.volumetric_classes:
-            is_ok, flow_count = self._evaluate_volumetric_quorum(key, t, distinct_p)
+            is_ok, flow_count = self._evaluate_volumetric_quorum(key, t, dist_p, ddos_cnt)
             if not is_ok:
                 return None
 

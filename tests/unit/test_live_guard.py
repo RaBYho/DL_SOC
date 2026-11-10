@@ -261,3 +261,32 @@ def test_slow_portscan_detection_via_distinct_ports(guard_config: dict):
     assert len(alerts) == 1
     assert alerts[0].attack_class == "PortScan"
     assert alerts[0].flow_count >= 10
+
+
+def test_ddos_flow_rate_spike_detection(guard_config: dict):
+    """Vérifie qu'un pic de flux rapide (>=30 flux en <=5s) déclenche une alerte DDoS même si les flux sont BENIGN."""
+    guard = LiveAlertGuard(guard_config)
+    src = "192.168.1.50"
+
+    t_35 = np.linspace(0.0, 3.0, 35)
+    df_35 = pd.DataFrame({
+        "Source IP": [src] * 35,
+        "Destination IP": ["172.16.0.1"] * 35,
+        "Destination Port": [80] * 35,
+        "SYN Flag Count": [0] * 35,
+        "Timestamp": t_35,
+    })
+    verdicts = pd.Series(["BENIGN"] * 35)
+
+    alerts = guard.process_batch(
+        flows_df=df_35,
+        verdicts=verdicts,
+        s1_scores=np.zeros(35),
+        s2_confs=np.zeros(35),
+        timestamps=t_35,
+    )
+
+    assert len(alerts) == 1
+    assert alerts[0].attack_class == "DDoS"
+    assert alerts[0].host_score >= 100.0
+    assert alerts[0].flow_count >= 30
